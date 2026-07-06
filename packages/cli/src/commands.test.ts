@@ -8,6 +8,36 @@ import { runCli, runCliAsync, type CliIo, type CliRunIo } from "./commands.js";
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
 describe("dry-run CLI commands", () => {
+  it("prints top-level help for global help requests", () => {
+    const output = invoke(["--help"]);
+
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy <command> [options]");
+    expect(output.stdout.join("\n")).toContain("check-policy");
+    expect(output.stdout.join("\n")).toContain("eval-call");
+    expect(output.stderr).toEqual([]);
+  });
+
+  it("prints command-specific help without running the command", () => {
+    const output = invoke(["run", "--help"]);
+
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy run");
+    expect(output.stdout.join("\n")).toContain("--audit-log <path>");
+    expect(output.stdout.join("\n")).toContain("--shutdown-grace-ms <0..2147483647>");
+    expect(output.stdout.join("\n")).not.toContain("not implemented");
+    expect(output.stderr).toEqual([]);
+  });
+
+  it("prints command-specific help through the help command alias", () => {
+    const output = invoke(["help", "eval-call"]);
+
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy eval-call");
+    expect(output.stdout.join("\n")).toContain("--approval-hook");
+    expect(output.stderr).toEqual([]);
+  });
+
   it("validates policy files", () => {
     const output = invoke(["check-policy", "--policy", "fixtures/policies/local-dev.json", "--json"]);
 
@@ -107,6 +137,7 @@ describe("dry-run CLI commands", () => {
 
     const result = await output.result;
     expect(result.exitCode).toBe(0);
+    expect(output.stdout).toEqual([]);
     expect(output.upstreamInputLines()).toEqual([]);
     expect(output.mcpOutputJson()).toMatchObject({
       jsonrpc: "2.0",
@@ -144,6 +175,7 @@ describe("dry-run CLI commands", () => {
 
     const result = await output.result;
     expect(result.exitCode).toBe(4);
+    expect(output.stdout).toEqual([]);
     expect(output.upstream.killed).toBe(true);
     expect(output.mcpOutputLines()).toEqual([]);
     expect(output.auditLines().join("\n")).toContain("upstream process did not exit after client input closed");
@@ -154,8 +186,20 @@ describe("dry-run CLI commands", () => {
 
     const result = await output.result;
     expect(result.exitCode).toBe(2);
+    expect(output.stdout).toEqual([]);
     expect(output.mcpOutputLines()).toEqual([]);
     expect(output.stderr).toEqual(["run does not support --json because stdout is reserved for MCP messages"]);
+  });
+
+  it("prints async run help before the live proxy owns MCP stdout", async () => {
+    const output = await invokeAsync(["run", "--help"]);
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(0);
+    expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy run");
+    expect(output.stdout.join("\n")).toContain("Stdout is reserved for MCP protocol messages after the live proxy starts.");
+    expect(output.mcpOutputLines()).toEqual([]);
+    expect(output.stderr).toEqual([]);
   });
 
   it.each([
@@ -265,6 +309,7 @@ async function invokeAsync(
   readonly upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly killed: boolean };
   readonly upstreamInputLines: () => readonly string[];
   readonly auditLines: () => readonly string[];
+  readonly stdout: readonly string[];
   readonly stderr: readonly string[];
 }> {
   const clientInput = new PassThrough();
@@ -274,6 +319,7 @@ async function invokeAsync(
   const mcpChunks: Buffer[] = [];
   const upstreamInputChunks: Buffer[] = [];
   const auditWrites: string[] = [];
+  const stdout: string[] = [];
   const stderr: string[] = [];
   let killed = false;
 
@@ -297,9 +343,7 @@ async function invokeAsync(
 
   const io: CliRunIo = {
     readTextFile: (path) => readFileSync(resolve(repoRoot, path), "utf8"),
-    stdout: () => {
-      throw new Error("stdout helper must not be used while run owns MCP stdout");
-    },
+    stdout: (line) => stdout.push(line),
     stderr: (line) => stderr.push(line),
     clientInput,
     mcpOutput,
@@ -317,6 +361,7 @@ async function invokeAsync(
     upstream,
     upstreamInputLines: () => readLines(upstreamInputChunks),
     auditLines: () => auditWrites.flatMap((write) => write.split("\n").filter((line) => line.length > 0)),
+    stdout,
     stderr
   };
 }

@@ -62,6 +62,8 @@ prints the decision without forwarding it.
 
 ## Flag Principles
 
+- `--help`, `<command> --help`, and `help <command>` print CLI usage without loading policy files,
+  starting upstream processes, or writing audit events.
 - `--json` returns machine-readable summaries only.
 - `--policy` points to the local policy file.
 - `--profile` selects the server policy profile.
@@ -71,7 +73,8 @@ prints the decision without forwarding it.
 - `--shutdown-grace-ms` selects the live proxy shutdown grace window in milliseconds.
 - `--dry-run` never forwards a tool call.
 
-`run` does not support `--json` because stdout is reserved for MCP protocol messages.
+`run` does not support `--json` because stdout is reserved for MCP protocol messages after the live
+proxy starts. `run --help` exits before startup and may print usage text to stdout.
 
 ## Review Blockers
 

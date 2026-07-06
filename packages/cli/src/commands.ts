@@ -74,25 +74,26 @@ export function createCommandRegistry(): readonly CommandContract[] {
 
 export function runCli(argv: readonly string[], io: CliIo): CliResult {
   const parsed = parseArgs(argv);
-  if (parsed.flags["help"] === true || !parsed.command) {
-    writeHelp(io);
+  if (isHelpRequest(parsed)) {
+    writeHelp(io, helpTopic(parsed));
     return { exitCode: 0 };
   }
 
-  if (!isCommandName(parsed.command)) {
+  const command = parsed.command;
+  if (!command || !isCommandName(command)) {
     writeError(io, 2, `unknown command: ${parsed.command}`, parsed.flags["json"] === true);
     return { exitCode: 2 };
   }
 
   try {
-    if (parsed.command === "run") {
+    if (command === "run") {
       writeError(io, 6, "live proxy run is not implemented in the dry-run CLI milestone", parsed.flags["json"] === true);
       return { exitCode: 6 };
     }
-    if (parsed.command === "check-policy") {
+    if (command === "check-policy") {
       return checkPolicy(parsed.flags, io);
     }
-    if (parsed.command === "inspect-tools") {
+    if (command === "inspect-tools") {
       return inspectTools(parsed.flags, io);
     }
     return evalCall(parsed.flags, io);
@@ -108,6 +109,10 @@ export function runCli(argv: readonly string[], io: CliIo): CliResult {
 
 export async function runCliAsync(argv: readonly string[], io: CliRunIo): Promise<CliResult> {
   const parsed = parseArgs(argv);
+  if (isHelpRequest(parsed)) {
+    writeHelp(io, helpTopic(parsed));
+    return { exitCode: 0 };
+  }
   if (parsed.command !== "run") {
     return runCli(argv, io);
   }
@@ -274,14 +279,30 @@ function evalCall(flags: Readonly<Record<string, string | true>>, io: CliIo): Cl
 }
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
-  const [command, ...rest] = argv;
+  let command: string | undefined;
   const flags: Record<string, string | true> = {};
   const positionals: string[] = [];
+  let index = 0;
 
-  for (let index = 0; index < rest.length; index += 1) {
-    const arg = rest[index];
+  while (index < argv.length) {
+    const arg = argv[index];
+    if (!arg) {
+      index += 1;
+      continue;
+    }
+    if (!arg.startsWith("--")) {
+      command = arg;
+      index += 1;
+      break;
+    }
+    const nextIndex = readFlag(argv, index, flags);
+    index = nextIndex;
+  }
+
+  for (; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg === "--") {
-      positionals.push(...rest.slice(index + 1));
+      positionals.push(...argv.slice(index + 1));
       break;
     }
     if (!arg?.startsWith("--")) {
@@ -290,22 +311,103 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       }
       continue;
     }
-    const name = arg.slice(2);
-    const next = rest[index + 1];
-    if (!next || next.startsWith("--")) {
-      flags[name] = true;
-      continue;
-    }
-    flags[name] = next;
-    index += 1;
+    index = readFlag(argv, index, flags) - 1;
   }
 
   return command ? { command, flags, positionals } : { flags, positionals };
 }
 
-function writeHelp(io: CliIo): void {
-  const commandNames = createCommandRegistry().map((command) => command.name).join(", ");
-  io.stdout(`mcp-security-proxy commands: ${commandNames}`);
+function readFlag(argv: readonly string[], index: number, flags: Record<string, string | true>): number {
+  const arg = argv[index];
+  const name = arg?.slice(2);
+  if (!name) {
+    return index + 1;
+  }
+  const next = argv[index + 1];
+  if (!next || next.startsWith("--")) {
+    flags[name] = true;
+    return index + 1;
+  }
+  flags[name] = next;
+  return index + 2;
+}
+
+function isHelpRequest(parsed: ParsedArgs): boolean {
+  return parsed.flags["help"] === true || parsed.command === undefined || parsed.command === "help";
+}
+
+function helpTopic(parsed: ParsedArgs): CommandName | undefined {
+  const topic = parsed.command === "help" ? parsed.positionals[0] : parsed.command;
+  return topic && isCommandName(topic) ? topic : undefined;
+}
+
+function writeHelp(io: CliIo, command?: CommandName): void {
+  if (command) {
+    io.stdout(commandHelp(command));
+    return;
+  }
+  io.stdout(
+    [
+      "Usage: mcp-security-proxy <command> [options]",
+      "",
+      "Commands:",
+      ...createCommandRegistry().map((item) => `  ${item.name.padEnd(13)} ${item.description}`),
+      "",
+      "Use `mcp-security-proxy <command> --help` for command-specific options."
+    ].join("\n")
+  );
+}
+
+function commandHelp(command: CommandName): string {
+  if (command === "run") {
+    return [
+      "Usage: mcp-security-proxy run --policy <path> --profile <name> --audit-log <path> [options] -- <upstream> [args...]",
+      "",
+      "Options:",
+      "  --policy <path>                local policy file",
+      "  --profile <name>               policy profile to apply",
+      "  --audit-log <path>             JSON Lines audit output file",
+      "  --approval-hook                mark approval hook availability",
+      "  --shutdown-grace-ms <0..2147483647>",
+      "                                 milliseconds to wait before killing upstream after client input closes",
+      "  --help                         show this help",
+      "",
+      "Stdout is reserved for MCP protocol messages after the live proxy starts."
+    ].join("\n");
+  }
+  if (command === "check-policy") {
+    return [
+      "Usage: mcp-security-proxy check-policy --policy <path> [--json]",
+      "",
+      "Options:",
+      "  --policy <path>                local policy file",
+      "  --json                         write a redacted machine-readable result",
+      "  --help                         show this help"
+    ].join("\n");
+  }
+  if (command === "inspect-tools") {
+    return [
+      "Usage: mcp-security-proxy inspect-tools --input <path> [--policy <path>] [--profile <name>] [--json]",
+      "",
+      "Options:",
+      "  --input <path>                 captured tool-list JSON file",
+      "  --policy <path>                optional local policy file for coverage checks",
+      "  --profile <name>               policy profile to compare, default: default",
+      "  --json                         write a redacted machine-readable result",
+      "  --help                         show this help"
+    ].join("\n");
+  }
+  return [
+    "Usage: mcp-security-proxy eval-call --policy <path> --input <path> [--profile <name>] [--approval-hook] [--json]",
+    "",
+    "Options:",
+    "  --policy <path>                local policy file",
+    "  --input <path>                 captured normalized tool-call JSON file",
+    "  --profile <name>               policy profile to apply, default: default",
+    "  --approval-hook                mark approval hook availability",
+    "  --json                         write a redacted machine-readable result",
+    "  --help                         show this help"
+  ].join("\n");
 }
 
 function writeError(io: CliIo, code: number, message: string, asJson: boolean): void {
