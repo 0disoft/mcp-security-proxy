@@ -37,8 +37,10 @@ Current implemented responsibilities:
 - append audit events to the file selected by `--audit-log`
 - summarize upstream stderr as redacted audit metadata without storing raw stderr lines
 - map non-zero upstream exits to the CLI upstream-failure exit code and record a redacted audit event
+- after client input closes, end upstream stdin and kill the upstream process if it does not exit
+  within a bounded grace window
 
-Retry policy, richer upstream stderr policy controls, process lifecycle cleanup, and non-stdio
+Retry policy, richer upstream stderr policy controls, configurable lifecycle policy, and non-stdio
 transports remain future runtime responsibilities.
 
 ## Tool Discovery Flow
@@ -67,3 +69,5 @@ transports remain future runtime responsibilities.
 - Audit write failure: fail closed by default; policy may explicitly choose warn-and-continue.
 - Upstream server crash: proxy exits with the upstream-failure CLI code and records a redacted error
   audit event without converting the crash into policy success.
+- Upstream shutdown hang: proxy kills the process after the shutdown grace window and records a
+  redacted upstream-failure audit event.

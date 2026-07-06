@@ -26,6 +26,7 @@ export interface StdioProxyOptions {
   readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
   readonly writeAuditEvent: (event: AuditEvent) => void | Promise<void>;
   readonly approvalHookAvailable?: boolean;
+  readonly shutdownGraceMs?: number;
 }
 
 export interface StdioProxyResult {
@@ -33,6 +34,8 @@ export interface StdioProxyResult {
 }
 
 class AuditFailure extends Error {}
+
+const defaultShutdownGraceMs = 1_000;
 
 export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioProxyResult> {
   const profile = options.policy.profiles.find((item) => item.id === options.profileId);
@@ -99,7 +102,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
 
     if (first === "client") {
       upstream.stdin.end();
-      const exitCode = await upstreamExit;
+      const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs);
       await upstreamDone;
       await stderrDone;
       return { exitCode: await normalizeUpstreamExit(exitCode, options.profileId, recordAudit) };
@@ -138,6 +141,21 @@ function writeLine(stream: Writable, line: string): void {
   stream.write(`${line}\n`);
 }
 
+async function waitForUpstreamExitOrKill(
+  upstream: UpstreamProcess,
+  upstreamExit: Promise<number>,
+  shutdownGraceMs: number
+): Promise<number> {
+  const timeoutExit = new Promise<number>((resolve) => {
+    const timer = setTimeout(() => {
+      upstream.kill();
+      resolve(-2);
+    }, Math.max(0, shutdownGraceMs));
+    upstreamExit.finally(() => clearTimeout(timer));
+  });
+  return Promise.race([upstreamExit, timeoutExit]);
+}
+
 async function normalizeUpstreamExit(
   exitCode: number,
   profileId: string,
@@ -156,7 +174,12 @@ async function normalizeUpstreamExit(
         action: "deny",
         evidence: [
           {
-            reason: exitCode === -1 ? "upstream process failed before reporting an exit code" : `upstream process exited with code ${exitCode}`
+            reason:
+              exitCode === -2
+                ? "upstream process did not exit after client input closed"
+                : exitCode === -1
+                  ? "upstream process failed before reporting an exit code"
+                  : `upstream process exited with code ${exitCode}`
           }
         ]
       },

@@ -149,9 +149,37 @@ describe("stdio proxy bridge", () => {
       })
     );
   });
+
+  it("kills upstream when client input closes and upstream does not exit within the grace window", async () => {
+    const harness = createHarness({ upstreamNeverExits: true });
+    const resultPromise = runHarness(harness, { shutdownGraceMs: 1 });
+
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(4);
+    expect(harness.upstream.killed).toBe(true);
+    expect(harness.auditEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "error",
+        decision: expect.objectContaining({
+          evidence: [
+            {
+              reason: "upstream process did not exit after client input closed"
+            }
+          ]
+        })
+      })
+    );
+  });
 });
 
-function runHarness(harness: ReturnType<typeof createHarness>): Promise<{ readonly exitCode: number }> {
+function runHarness(
+  harness: ReturnType<typeof createHarness>,
+  options: { readonly shutdownGraceMs?: number } = {}
+): Promise<{ readonly exitCode: number }> {
   return runStdioProxy({
     policy: readPolicy(),
     profileId: "local",
@@ -162,6 +190,7 @@ function runHarness(harness: ReturnType<typeof createHarness>): Promise<{ readon
     clientInput: harness.clientInput,
     clientOutput: harness.clientOutput,
     spawnUpstream: () => harness.upstream,
+    ...(options.shutdownGraceMs !== undefined ? { shutdownGraceMs: options.shutdownGraceMs } : {}),
     writeAuditEvent: (event) => {
       if (harness.failAuditWrites) {
         throw new Error("audit sink failed");
@@ -171,7 +200,9 @@ function runHarness(harness: ReturnType<typeof createHarness>): Promise<{ readon
   });
 }
 
-function createHarness(options: { readonly failAuditWrites?: boolean; readonly upstreamExitCode?: number } = {}): {
+function createHarness(
+  options: { readonly failAuditWrites?: boolean; readonly upstreamExitCode?: number; readonly upstreamNeverExits?: boolean } = {}
+): {
   readonly clientInput: PassThrough;
   readonly clientOutput: PassThrough;
   readonly clientOutputCapture: Buffer[];
@@ -200,7 +231,9 @@ function createHarness(options: { readonly failAuditWrites?: boolean; readonly u
       stdin: upstreamInput,
       stdout: upstreamOutput,
       stderr: upstreamError,
-      exit: new Promise((resolve) => upstreamOutput.once("end", () => resolve(options.upstreamExitCode ?? 0))),
+      exit: options.upstreamNeverExits
+        ? new Promise(() => undefined)
+        : new Promise((resolve) => upstreamOutput.once("end", () => resolve(options.upstreamExitCode ?? 0))),
       kill: () => {
         killed = true;
       },
