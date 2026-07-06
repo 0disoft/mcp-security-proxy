@@ -16,12 +16,13 @@
   "types": "./src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run",
+    "test": "pnpm --filter @0disoft/mcp-security-proxy-runtime build && vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@0disoft/mcp-security-proxy-contracts": "workspace:*",
-    "@0disoft/mcp-security-proxy-core": "workspace:*"
+    "@0disoft/mcp-security-proxy-core": "workspace:*",
+    "@0disoft/mcp-security-proxy-runtime": "workspace:*"
   },
   "engines": {
     "node": ">=24.0.0"

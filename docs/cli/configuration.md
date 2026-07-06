@@ -17,10 +17,10 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 
 - Policy file path
 - Server profile name
-- Upstream server command or endpoint
-- Audit output destination
+- Upstream stdio server command after `--`
+- Audit output file path
 - Optional dry-run input file
-- Optional JSON output flag
+- Optional JSON output flag for non-`run` commands
 
 ## Precedence
 
@@ -41,6 +41,8 @@ Proposed precedence:
 - Redaction: enabled
 - Unknown capability: deny
 - Shell command matching: exact or narrow argv pattern only
+- CLI `run` stdout: MCP protocol messages only
+- CLI `run` audit output: JSON Lines file selected by `--audit-log`
 
 ## Review Blockers
 

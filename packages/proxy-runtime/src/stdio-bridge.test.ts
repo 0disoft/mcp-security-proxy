@@ -1,0 +1,168 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { PassThrough } from "node:stream";
+import { describe, expect, it } from "vitest";
+import type { AuditEvent, PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
+import { runStdioProxy, type UpstreamProcess } from "./stdio-bridge.js";
+
+const repoRoot = resolve(import.meta.dirname, "../../..");
+
+describe("stdio proxy bridge", () => {
+  it("keeps denied client calls off upstream stdin and writes an MCP error to client stdout", async () => {
+    const harness = createHarness();
+    const run = runHarness(harness);
+
+    harness.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/private/secret.txt"
+          }
+        }
+      })}\n`
+    );
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+
+    const result = await run;
+    expect(result.exitCode).toBe(0);
+    expect(readLines(harness.upstreamInputCapture)).toEqual([]);
+
+    const output = readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any);
+    expect(output[0]).toMatchObject({
+      jsonrpc: "2.0",
+      id: 1,
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny"
+          }
+        }
+      }
+    });
+    expect(harness.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      decision: { action: "deny" }
+    });
+  });
+
+  it("forwards allowed client calls and upstream responses line by line", async () => {
+    const harness = createHarness();
+    const run = runHarness(harness);
+    const request = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: {
+        name: "read_file",
+        arguments: {
+          path: "workspace/public/readme.md"
+        }
+      }
+    });
+
+    harness.clientInput.write(`${request}\n`);
+    harness.upstream.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: 2, result: { content: [] } })}\n`);
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+
+    const result = await run;
+    expect(result.exitCode).toBe(0);
+    expect(readLines(harness.upstreamInputCapture)).toEqual([request]);
+    expect(readLines(harness.clientOutputCapture)).toEqual([JSON.stringify({ jsonrpc: "2.0", id: 2, result: { content: [] } })]);
+    expect(harness.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      decision: { action: "allow" }
+    });
+  });
+
+  it("fails closed when audit writing fails under fail_closed policy", async () => {
+    const harness = createHarness({ failAuditWrites: true });
+    const resultPromise = runHarness(harness);
+
+    harness.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: 3, method: "resources/list" })}\n`);
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(5);
+    expect(harness.upstream.killed).toBe(true);
+  });
+});
+
+function runHarness(harness: ReturnType<typeof createHarness>): Promise<{ readonly exitCode: number }> {
+  return runStdioProxy({
+    policy: readPolicy(),
+    profileId: "local",
+    upstreamCommand: {
+      executable: "fixture",
+      argv: []
+    },
+    clientInput: harness.clientInput,
+    clientOutput: harness.clientOutput,
+    spawnUpstream: () => harness.upstream,
+    writeAuditEvent: (event) => {
+      if (harness.failAuditWrites) {
+        throw new Error("audit sink failed");
+      }
+      harness.auditEvents.push(event);
+    }
+  });
+}
+
+function createHarness(options: { readonly failAuditWrites?: boolean } = {}): {
+  readonly clientInput: PassThrough;
+  readonly clientOutput: PassThrough;
+  readonly clientOutputCapture: Buffer[];
+  readonly upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly killed: boolean };
+  readonly upstreamInputCapture: Buffer[];
+  readonly auditEvents: AuditEvent[];
+  readonly failAuditWrites: boolean;
+} {
+  const clientInput = new PassThrough();
+  const clientOutput = new PassThrough();
+  const upstreamInput = new PassThrough();
+  const upstreamOutput = new PassThrough();
+  const clientOutputCapture: Buffer[] = [];
+  const upstreamInputCapture: Buffer[] = [];
+  let killed = false;
+
+  clientOutput.on("data", (chunk: Buffer) => clientOutputCapture.push(chunk));
+  upstreamInput.on("data", (chunk: Buffer) => upstreamInputCapture.push(chunk));
+
+  return {
+    clientInput,
+    clientOutput,
+    clientOutputCapture,
+    upstream: {
+      stdin: upstreamInput,
+      stdout: upstreamOutput,
+      exit: new Promise((resolve) => upstreamOutput.once("end", () => resolve(0))),
+      kill: () => {
+        killed = true;
+      },
+      get killed() {
+        return killed;
+      }
+    },
+    upstreamInputCapture,
+    auditEvents: [],
+    failAuditWrites: options.failAuditWrites ?? false
+  };
+}
+
+function readPolicy(): PolicyDocument {
+  return JSON.parse(readFileSync(resolve(repoRoot, "fixtures/policies/local-dev.json"), "utf8")) as PolicyDocument;
+}
+
+function readLines(chunks: readonly Buffer[]): readonly string[] {
+  return Buffer.concat(chunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0);
+}

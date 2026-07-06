@@ -21,10 +21,9 @@ Status: Draft
 
 ## Runtime Message Gate
 
-The implemented runtime gate is a pure message boundary, not a full process runner. It accepts one
-client or upstream server JSON-RPC line, then returns the line to forward, a denial response line, and
-redacted audit events. It does not start subprocesses, manage OS pipes, retry upstream servers, or
-persist audit output by itself.
+The implemented runtime gate accepts one client or upstream server JSON-RPC line, then returns the
+line to forward, a denial response line, and redacted audit events. The CLI `run` command now wraps
+this gate with a stdio subprocess bridge.
 
 Current implemented responsibilities:
 
@@ -33,9 +32,12 @@ Current implemented responsibilities:
 - classify discovered tools and hide tools without allow or approval coverage
 - evaluate `tools/call` requests using remembered tool capabilities and extracted argument facts
 - avoid raw tool arguments in audit events
+- start one upstream stdio process from the CLI command after `--`
+- keep stdout reserved for MCP protocol messages
+- append audit events to the file selected by `--audit-log`
 
-Process spawning, stdio pipe management, audit sink persistence, and lifecycle cleanup remain future
-runtime responsibilities.
+Retry policy, upstream stderr handling, richer process lifecycle cleanup, and non-stdio transports
+remain future runtime responsibilities.
 
 ## Tool Discovery Flow
 

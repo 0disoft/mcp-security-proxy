@@ -19,12 +19,15 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 - Exit-code taxonomy: docs/cli/output-and-exit-codes.md
 - Machine-readable output contract: JSON output must be redacted and fixture-tested.
 - Config precedence and default behavior: docs/cli/configuration.md
-- Runtime compatibility floor: UNDECIDED.
+- Runtime compatibility floor: Node.js `>=24.0.0`.
 
 ## CLI Purpose
 
 The CLI should make MCP policy review usable without writing host integration code first. It should
 run a local stdio proxy, validate policies, inspect discovered tools, and dry-run tool calls.
+
+The live `run` command keeps stdout reserved for newline-delimited MCP JSON-RPC messages. Startup
+errors and usage errors go to stderr, and audit events go to the file selected by `--audit-log`.
 
 ## CLI Non-Goals
 

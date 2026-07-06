@@ -27,9 +27,9 @@ This repository type owns public API surface, package compatibility, semantic ve
 - `packages/contracts`: policy, decision, audit event types, and JSON schema files.
 - `packages/core`: method policy, classifier, evaluator, redactor, and audit formatter.
 - `packages/mcp-adapter`: JSON-RPC envelope and method-policy adapter helpers.
-- `packages/proxy-runtime`: runtime startup planning, pure JSON-RPC message gating, discovery
-  filtering, and future stdio process ownership.
-- `packages/cli`: command registry and future CLI entrypoint.
+- `packages/proxy-runtime`: runtime startup planning, JSON-RPC message gating, discovery
+  filtering, and stdio subprocess bridge ownership.
+- `packages/cli`: command registry, dry-run commands, and live stdio `run` entrypoint.
 - `packages/testkit`: synthetic fixtures for future integration tests.
 
 ## Package Surface Rules

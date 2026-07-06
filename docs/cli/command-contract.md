@@ -15,7 +15,8 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 
 ## Required Decisions
 
-- Command list and flag ownership: dry-run commands are implemented; live `run` remains deferred.
+- Command list and flag ownership: dry-run commands are implemented; live `run` starts an upstream
+  stdio MCP process behind the runtime message gate.
 - Exit-code taxonomy: docs/cli/output-and-exit-codes.md
 - Machine-readable output contract: JSON output must never include raw secret-bearing payloads.
 - Config precedence and default behavior: explicit CLI flags override policy file paths and profile
@@ -26,15 +27,16 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 
 ### `mcp-security-proxy run`
 
-Reserved for running an MCP server behind the proxy. The pure runtime message gate now exists, but
-the CLI command still does not spawn or pipe an upstream MCP process and exits with code 6.
+Implemented for newline-delimited stdio MCP servers. The command starts the upstream process named
+after `--`, gates client and upstream JSON-RPC lines through policy, writes only MCP messages to
+stdout, and writes JSON Lines audit events to the file named by `--audit-log`.
 
 Required inputs:
 
 - policy path
 - profile name
-- upstream server command or endpoint
-- audit output destination
+- upstream server command after `--`
+- audit output file path
 
 ### `mcp-security-proxy check-policy`
 
@@ -58,8 +60,10 @@ prints the decision without forwarding it.
 - `--profile` selects the server policy profile.
 - `--input` points to captured tool-list or tool-call JSON for dry-run commands.
 - `--approval-hook` marks approval hook availability for dry-run call evaluation.
-- `--audit-log` selects JSON Lines audit output for future live proxy behavior.
+- `--audit-log` selects JSON Lines audit output for live proxy behavior.
 - `--dry-run` never forwards a tool call.
+
+`run` does not support `--json` because stdout is reserved for MCP protocol messages.
 
 ## Review Blockers
 

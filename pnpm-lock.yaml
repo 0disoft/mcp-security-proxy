@@ -26,6 +26,9 @@ importers:
       '@0disoft/mcp-security-proxy-core':
         specifier: workspace:*
         version: link:../core
+      '@0disoft/mcp-security-proxy-runtime':
+        specifier: workspace:*
+        version: link:../proxy-runtime
 
   packages/contracts: {}
 

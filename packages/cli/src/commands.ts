@@ -7,6 +7,12 @@ import {
   type PolicyDocument
 } from "@0disoft/mcp-security-proxy-contracts";
 import { classifyToolDescriptor, evaluateToolCall } from "@0disoft/mcp-security-proxy-core";
+import {
+  runStdioProxy,
+  type UpstreamCommand,
+  type UpstreamProcess
+} from "@0disoft/mcp-security-proxy-runtime";
+import type { Readable, Writable } from "node:stream";
 
 export type CommandName = "run" | "check-policy" | "inspect-tools" | "eval-call";
 
@@ -22,6 +28,13 @@ export interface CliIo {
   readonly stderr: (line: string) => void;
 }
 
+export interface CliRunIo extends CliIo {
+  readonly clientInput: Readable;
+  readonly mcpOutput: Writable;
+  readonly appendTextFile: (path: string, text: string) => void | Promise<void>;
+  readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
+}
+
 export interface CliResult {
   readonly exitCode: number;
 }
@@ -29,6 +42,7 @@ export interface CliResult {
 interface ParsedArgs {
   readonly command?: string;
   readonly flags: Readonly<Record<string, string | true>>;
+  readonly positionals: readonly string[];
 }
 
 export function createCommandRegistry(): readonly CommandContract[] {
@@ -86,6 +100,24 @@ export function runCli(argv: readonly string[], io: CliIo): CliResult {
       return { exitCode: error.exitCode };
     }
     writeError(io, 1, error instanceof Error ? error.message : "handled runtime failure", parsed.flags["json"] === true);
+    return { exitCode: 1 };
+  }
+}
+
+export async function runCliAsync(argv: readonly string[], io: CliRunIo): Promise<CliResult> {
+  const parsed = parseArgs(argv);
+  if (parsed.command !== "run") {
+    return runCli(argv, io);
+  }
+
+  try {
+    return await runProxy(parsed.flags, parsed.positionals, io);
+  } catch (error) {
+    if (error instanceof CliError) {
+      writeError(io, error.exitCode, error.message, false);
+      return { exitCode: error.exitCode };
+    }
+    writeError(io, 1, error instanceof Error ? error.message : "handled runtime failure", false);
     return { exitCode: 1 };
   }
 }
@@ -242,10 +274,18 @@ function evalCall(flags: Readonly<Record<string, string | true>>, io: CliIo): Cl
 function parseArgs(argv: readonly string[]): ParsedArgs {
   const [command, ...rest] = argv;
   const flags: Record<string, string | true> = {};
+  const positionals: string[] = [];
 
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index];
+    if (arg === "--") {
+      positionals.push(...rest.slice(index + 1));
+      break;
+    }
     if (!arg?.startsWith("--")) {
+      if (arg) {
+        positionals.push(arg);
+      }
       continue;
     }
     const name = arg.slice(2);
@@ -258,7 +298,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
     index += 1;
   }
 
-  return command ? { command, flags } : { flags };
+  return command ? { command, flags, positionals } : { flags, positionals };
 }
 
 function writeHelp(io: CliIo): void {
@@ -314,6 +354,44 @@ function readRequiredStringFlag(flags: Readonly<Record<string, string | true>>, 
 function readOptionalStringFlag(flags: Readonly<Record<string, string | true>>, name: string): string | undefined {
   const value = flags[name];
   return typeof value === "string" ? value : undefined;
+}
+
+async function runProxy(flags: Readonly<Record<string, string | true>>, upstreamArgv: readonly string[], io: CliRunIo): Promise<CliResult> {
+  if (flags["json"] === true) {
+    throw new CliError(2, "run does not support --json because stdout is reserved for MCP messages");
+  }
+  const policyPath = readRequiredStringFlag(flags, "policy");
+  const profileId = readRequiredStringFlag(flags, "profile");
+  const auditLogPath = readRequiredStringFlag(flags, "audit-log");
+  if (auditLogPath === "-") {
+    throw new CliError(2, "run requires --audit-log to be a file path; stdout is reserved for MCP messages");
+  }
+  const [executable, ...argv] = upstreamArgv;
+  if (!executable) {
+    throw new CliError(2, "missing upstream command after --");
+  }
+
+  const policyValidation = validatePolicyDocument(readJson(io, policyPath, 3));
+  if (!policyValidation.ok) {
+    throw new CliError(3, `policy invalid: ${policyValidation.errors.join("; ")}`);
+  }
+  if (!policyValidation.value.profiles.some((profile) => profile.id === profileId)) {
+    throw new CliError(3, `profile not found: ${profileId}`);
+  }
+
+  return runStdioProxy({
+    policy: policyValidation.value,
+    profileId,
+    upstreamCommand: {
+      executable,
+      argv
+    },
+    clientInput: io.clientInput,
+    clientOutput: io.mcpOutput,
+    spawnUpstream: io.spawnUpstream,
+    writeAuditEvent: (event) => io.appendTextFile(auditLogPath, `${JSON.stringify(event)}\n`),
+    approvalHookAvailable: flags["approval-hook"] === true
+  });
 }
 
 function isCommandName(value: string): value is CommandName {
