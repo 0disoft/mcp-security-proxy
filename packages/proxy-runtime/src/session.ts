@@ -72,7 +72,19 @@ export class ProxySession {
       };
     }
 
-    const normalized = normalizeToolCall(envelope, this.visibleTools);
+    const toolName = readToolCallName(envelope);
+    const visibleTool = this.visibleTools.get(toolName);
+    if (!visibleTool) {
+      return this.denyEnvelope(
+        envelope,
+        denyDecision("tool was not visible in filtered discovery"),
+        "MCP tool call denied by policy",
+        "call-decision",
+        toolName || undefined
+      );
+    }
+
+    const normalized = normalizeToolCall(envelope, visibleTool);
     const decision = evaluateToolCall({
       policy: this.options.policy,
       profileId: this.options.profileId,
@@ -184,16 +196,17 @@ function parseJsonLine(line: string): { readonly ok: true; readonly value: JsonR
   }
 }
 
-function normalizeToolCall(envelope: JsonRpcEnvelope, visibleTools: ReadonlyMap<string, ToolMetadata>): NormalizedToolCall {
+function readToolCallName(envelope: JsonRpcEnvelope): string {
   const params = isRecord(envelope.params) ? envelope.params : {};
-  const toolName = typeof params["name"] === "string" ? params["name"] : "";
-  const knownTool = visibleTools.get(toolName);
-  const capabilities = knownTool?.capabilities ?? classifyToolDescriptor({ name: toolName }).descriptor.capabilities;
+  return typeof params["name"] === "string" ? params["name"] : "";
+}
 
+function normalizeToolCall(envelope: JsonRpcEnvelope, visibleTool: ToolMetadata): NormalizedToolCall {
+  const params = isRecord(envelope.params) ? envelope.params : {};
   return {
     method: "tools/call",
-    toolName,
-    capabilities,
+    toolName: visibleTool.name,
+    capabilities: visibleTool.capabilities,
     argumentFacts: extractArgumentFacts(params["arguments"])
   };
 }

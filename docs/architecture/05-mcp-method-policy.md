@@ -52,10 +52,12 @@ still required because the upstream server and tool arguments remain untrusted.
 `tools/call` requests must be normalized into policy facts before evaluation. Denied calls must not
 be forwarded upstream. Approval-required calls must be denied when no host approval hook is
 configured.
+Call-time evaluation only applies to tools that were visible in filtered discovery for the current
+session. A direct call to a tool that was never discovered, or was hidden by discovery filtering,
+must be denied instead of being allowed by name-based classifier heuristics.
 
 ## Audit Events
 
 Every denied unsupported method, filtered discovery result, approval-required decision, and denied
 call should create a redacted audit event. Audit events must not contain raw tool arguments or raw
 MCP payloads.
-

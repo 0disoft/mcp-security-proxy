@@ -117,6 +117,83 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("denies tool calls before the tool is visible in filtered discovery", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      id: 3,
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "tool was not visible in filtered discovery" }]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "read_file",
+      decision: { action: "deny" }
+    });
+  });
+
+  it("denies calls to tools hidden by discovery filtering", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "unknown_tool",
+          arguments: {}
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      id: 4,
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "tool was not visible in filtered discovery" }]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "unknown_tool",
+      decision: { action: "deny" }
+    });
+  });
+
   it("forwards allowed tool calls after policy evaluation", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -126,7 +203,7 @@ describe("proxy runtime session", () => {
 
     const line = JSON.stringify({
       jsonrpc: "2.0",
-      id: 3,
+      id: 5,
       method: "tools/call",
       params: {
         name: "read_file",

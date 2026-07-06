@@ -55,6 +55,11 @@ describe("stdio proxy bridge", () => {
   it("forwards allowed client calls and upstream responses line by line", async () => {
     const harness = createHarness();
     const run = runHarness(harness);
+    const toolsListRequest = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "tools",
+      method: "tools/list"
+    });
     const request = JSON.stringify({
       jsonrpc: "2.0",
       id: 2,
@@ -67,6 +72,16 @@ describe("stdio proxy bridge", () => {
       }
     });
 
+    harness.clientInput.write(`${toolsListRequest}\n`);
+    await nextTick();
+    harness.upstream.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools",
+        result: JSON.parse(readFileSync(resolve(repoRoot, "fixtures/mcp/tools-list-basic.json"), "utf8")) as unknown
+      })}\n`
+    );
+    await nextTick();
     harness.clientInput.write(`${request}\n`);
     harness.upstream.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: 2, result: { content: [] } })}\n`);
     harness.clientInput.end();
@@ -75,12 +90,17 @@ describe("stdio proxy bridge", () => {
 
     const result = await run;
     expect(result.exitCode).toBe(0);
-    expect(readLines(harness.upstreamInputCapture)).toEqual([request]);
-    expect(readLines(harness.clientOutputCapture)).toEqual([JSON.stringify({ jsonrpc: "2.0", id: 2, result: { content: [] } })]);
-    expect(harness.auditEvents[0]).toMatchObject({
-      kind: "call-decision",
-      decision: { action: "allow" }
-    });
+    expect(readLines(harness.upstreamInputCapture)).toEqual([toolsListRequest, request]);
+    expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({ id: 2, result: { content: [] } })
+    );
+    expect(harness.auditEvents).toContainEqual(expect.objectContaining({ kind: "discovery-filtered" }));
+    expect(harness.auditEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "call-decision",
+        decision: expect.objectContaining({ action: "allow" })
+      })
+    );
   });
 
   it("fails closed when audit writing fails under fail_closed policy", async () => {
@@ -317,6 +337,10 @@ function readPolicy(auditOnFailure?: PolicyDocument["profiles"][number]["audit"]
         : profile
     )
   };
+}
+
+function nextTick(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
 }
 
 function readLines(chunks: readonly Buffer[]): readonly string[] {
