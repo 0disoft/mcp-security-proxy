@@ -13,11 +13,13 @@
   "types": "./src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm typecheck",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@0disoft/mcp-security-proxy-contracts": "workspace:*"
+    "@0disoft/mcp-security-proxy-contracts": "workspace:*",
+    "@0disoft/mcp-security-proxy-core": "workspace:*",
+    "@0disoft/mcp-security-proxy-mcp-adapter": "workspace:*"
   },
   "engines": {
     "node": ">=24.0.0"

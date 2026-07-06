@@ -13,10 +13,29 @@ Status: Draft
 ## Method Policy Flow
 
 1. Proxy receives an MCP message.
-2. Proxy checks the method against the supported MVP method set.
-3. Supported methods continue to method-specific handling.
-4. Unsupported methods return an MCP-compatible denial and are not forwarded upstream.
-5. Proxy records a redacted method-denial audit event.
+2. The runtime parses one newline-delimited JSON-RPC message at a time.
+3. Proxy checks the method against the supported MVP method set.
+4. Supported methods continue to method-specific handling.
+5. Unsupported methods return an MCP-compatible denial and are not forwarded upstream.
+6. Proxy records a redacted method-denial audit event.
+
+## Runtime Message Gate
+
+The implemented runtime gate is a pure message boundary, not a full process runner. It accepts one
+client or upstream server JSON-RPC line, then returns the line to forward, a denial response line, and
+redacted audit events. It does not start subprocesses, manage OS pipes, retry upstream servers, or
+persist audit output by itself.
+
+Current implemented responsibilities:
+
+- deny unsupported client methods before upstream forwarding
+- track `tools/list` request IDs so discovery responses can be filtered
+- classify discovered tools and hide tools without allow or approval coverage
+- evaluate `tools/call` requests using remembered tool capabilities and extracted argument facts
+- avoid raw tool arguments in audit events
+
+Process spawning, stdio pipe management, audit sink persistence, and lifecycle cleanup remain future
+runtime responsibilities.
 
 ## Tool Discovery Flow
 

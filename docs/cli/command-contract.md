@@ -26,8 +26,8 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 
 ### `mcp-security-proxy run`
 
-Reserved for running an MCP server behind the proxy. This live proxy command is not implemented in
-the dry-run CLI milestone and exits with code 6.
+Reserved for running an MCP server behind the proxy. The pure runtime message gate now exists, but
+the CLI command still does not spawn or pipe an upstream MCP process and exits with code 6.
 
 Required inputs:
 

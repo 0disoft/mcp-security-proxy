@@ -33,6 +33,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - `redactor`: redact secret-like values before output.
 - `audit`: format JSON Lines audit events.
 - `mcp`: protocol adapter types for MCP messages without binding the whole package to one host.
+- `proxy-runtime`: evaluate newline-delimited JSON-RPC messages at the proxy boundary and return
+  forward, denial, and audit actions without owning subprocess IO.
 
 ## Public Type Principles
 
