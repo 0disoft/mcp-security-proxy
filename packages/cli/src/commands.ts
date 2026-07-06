@@ -43,6 +43,7 @@ interface ParsedArgs {
   readonly command?: string;
   readonly flags: Readonly<Record<string, string | true>>;
   readonly positionals: readonly string[];
+  readonly separatorSeen: boolean;
 }
 
 const maximumShutdownGraceMs = 2_147_483_647;
@@ -118,7 +119,7 @@ export async function runCliAsync(argv: readonly string[], io: CliRunIo): Promis
   }
 
   try {
-    return await runProxy(parsed.flags, parsed.positionals, io);
+    return await runProxy(parsed.flags, parsed.positionals, parsed.separatorSeen, io);
   } catch (error) {
     if (error instanceof CliError) {
       writeError(io, error.exitCode, error.message, false);
@@ -282,6 +283,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
   let command: string | undefined;
   const flags: Record<string, string | true> = {};
   const positionals: string[] = [];
+  let separatorSeen = false;
   let index = 0;
 
   while (index < argv.length) {
@@ -302,6 +304,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
   for (; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--") {
+      separatorSeen = true;
       positionals.push(...argv.slice(index + 1));
       break;
     }
@@ -314,7 +317,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
     index = readFlag(argv, index, flags) - 1;
   }
 
-  return command ? { command, flags, positionals } : { flags, positionals };
+  return command ? { command, flags, positionals, separatorSeen } : { flags, positionals, separatorSeen };
 }
 
 function readFlag(argv: readonly string[], index: number, flags: Record<string, string | true>): number {
@@ -479,7 +482,12 @@ function readOptionalShutdownGraceMsFlag(flags: Readonly<Record<string, string |
   return parsed;
 }
 
-async function runProxy(flags: Readonly<Record<string, string | true>>, upstreamArgv: readonly string[], io: CliRunIo): Promise<CliResult> {
+async function runProxy(
+  flags: Readonly<Record<string, string | true>>,
+  upstreamArgv: readonly string[],
+  separatorSeen: boolean,
+  io: CliRunIo
+): Promise<CliResult> {
   if (flags["json"] === true) {
     throw new CliError(2, "run does not support --json because stdout is reserved for MCP messages");
   }
@@ -489,6 +497,9 @@ async function runProxy(flags: Readonly<Record<string, string | true>>, upstream
   const shutdownGraceMs = readOptionalShutdownGraceMsFlag(flags);
   if (auditLogPath === "-") {
     throw new CliError(2, "run requires --audit-log to be a file path; stdout is reserved for MCP messages");
+  }
+  if (!separatorSeen) {
+    throw new CliError(2, "run requires -- before the upstream command");
   }
   const [executable, ...argv] = upstreamArgv;
   if (!executable) {

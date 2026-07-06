@@ -191,6 +191,46 @@ describe("dry-run CLI commands", () => {
     expect(output.stderr).toEqual(["run does not support --json because stdout is reserved for MCP messages"]);
   });
 
+  it("requires an explicit separator before the upstream command", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "audit.jsonl",
+      "fixture-server"
+    ]);
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(2);
+    expect(output.stdout).toEqual([]);
+    expect(output.mcpOutputLines()).toEqual([]);
+    expect(output.stderr).toEqual(["run requires -- before the upstream command"]);
+    expect(output.spawned).toBe(false);
+  });
+
+  it("reports an empty upstream command after the separator as a usage error", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "audit.jsonl",
+      "--"
+    ]);
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(2);
+    expect(output.stdout).toEqual([]);
+    expect(output.mcpOutputLines()).toEqual([]);
+    expect(output.stderr).toEqual(["missing upstream command after --"]);
+    expect(output.spawned).toBe(false);
+  });
+
   it("prints async run help before the live proxy owns MCP stdout", async () => {
     const output = await invokeAsync(["run", "--help"]);
 
@@ -309,6 +349,7 @@ async function invokeAsync(
   readonly upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly killed: boolean };
   readonly upstreamInputLines: () => readonly string[];
   readonly auditLines: () => readonly string[];
+  readonly spawned: boolean;
   readonly stdout: readonly string[];
   readonly stderr: readonly string[];
 }> {
@@ -322,6 +363,7 @@ async function invokeAsync(
   const stdout: string[] = [];
   const stderr: string[] = [];
   let killed = false;
+  let spawned = false;
 
   mcpOutput.on("data", (chunk: Buffer) => mcpChunks.push(chunk));
   upstreamInput.on("data", (chunk: Buffer) => upstreamInputChunks.push(chunk));
@@ -350,7 +392,10 @@ async function invokeAsync(
     appendTextFile: (_path, text) => {
       auditWrites.push(text);
     },
-    spawnUpstream: () => upstream
+    spawnUpstream: () => {
+      spawned = true;
+      return upstream;
+    }
   };
 
   return {
@@ -361,6 +406,9 @@ async function invokeAsync(
     upstream,
     upstreamInputLines: () => readLines(upstreamInputChunks),
     auditLines: () => auditWrites.flatMap((write) => write.split("\n").filter((line) => line.length > 0)),
+    get spawned() {
+      return spawned;
+    },
     stdout,
     stderr
   };

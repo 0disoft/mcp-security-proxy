@@ -37,7 +37,7 @@ Required inputs:
 
 - policy path
 - profile name
-- upstream server command after `--`
+- `--` separator followed by the upstream server command
 - audit output file path
 
 Optional inputs:
@@ -75,6 +75,8 @@ prints the decision without forwarding it.
 
 `run` does not support `--json` because stdout is reserved for MCP protocol messages after the live
 proxy starts. `run --help` exits before startup and may print usage text to stdout.
+The upstream command must appear after an explicit `--` separator so CLI flags and upstream argv
+cannot be confused.
 
 ## Review Blockers
 
