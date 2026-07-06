@@ -35,9 +35,10 @@ Current implemented responsibilities:
 - start one upstream stdio process from the CLI command after `--`
 - keep stdout reserved for MCP protocol messages
 - append audit events to the file selected by `--audit-log`
+- summarize upstream stderr as redacted audit metadata without storing raw stderr lines
 
-Retry policy, upstream stderr handling, richer process lifecycle cleanup, and non-stdio transports
-remain future runtime responsibilities.
+Retry policy, richer upstream stderr policy controls, process lifecycle cleanup, and non-stdio
+transports remain future runtime responsibilities.
 
 ## Tool Discovery Flow
 

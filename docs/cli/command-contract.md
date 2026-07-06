@@ -30,6 +30,8 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 Implemented for newline-delimited stdio MCP servers. The command starts the upstream process named
 after `--`, gates client and upstream JSON-RPC lines through policy, writes only MCP messages to
 stdout, and writes JSON Lines audit events to the file named by `--audit-log`.
+Upstream stderr is not relayed to stdout or copied into audit logs; the runtime records only a
+redacted stderr line-count summary.
 
 Required inputs:
 

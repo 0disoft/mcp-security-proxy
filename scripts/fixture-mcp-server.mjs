@@ -23,6 +23,7 @@ const lines = createInterface({
 for await (const line of lines) {
   const message = JSON.parse(line);
   if (message.method === "tools/list") {
+    process.stderr.write("RAW_STDERR_MARKER diagnostic line\n");
     process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools } })}\n`);
     continue;
   }

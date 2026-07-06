@@ -27,6 +27,7 @@ describe("stdio proxy bridge", () => {
     );
     harness.clientInput.end();
     harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
 
     const result = await run;
     expect(result.exitCode).toBe(0);
@@ -70,6 +71,7 @@ describe("stdio proxy bridge", () => {
     harness.upstream.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: 2, result: { content: [] } })}\n`);
     harness.clientInput.end();
     harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
 
     const result = await run;
     expect(result.exitCode).toBe(0);
@@ -88,10 +90,38 @@ describe("stdio proxy bridge", () => {
     harness.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: 3, method: "resources/list" })}\n`);
     harness.clientInput.end();
     harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
 
     const result = await resultPromise;
     expect(result.exitCode).toBe(5);
     expect(harness.upstream.killed).toBe(true);
+  });
+
+  it("records upstream stderr as a redacted summary without raw stderr content", async () => {
+    const harness = createHarness();
+    const resultPromise = runHarness(harness);
+
+    harness.upstream.stderr.write("RAW_STDERR_MARKER first line\n");
+    harness.upstream.stderr.write("RAW_STDERR_MARKER second line\n");
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(0);
+    const auditText = JSON.stringify(harness.auditEvents);
+    expect(auditText).not.toContain("RAW_STDERR_MARKER");
+    expect(harness.auditEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "error",
+        redaction: {
+          applied: true,
+          counts: {
+            stderr_line: 2
+          }
+        }
+      })
+    );
   });
 });
 
@@ -119,7 +149,7 @@ function createHarness(options: { readonly failAuditWrites?: boolean } = {}): {
   readonly clientInput: PassThrough;
   readonly clientOutput: PassThrough;
   readonly clientOutputCapture: Buffer[];
-  readonly upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly killed: boolean };
+  readonly upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly stderr: PassThrough; readonly killed: boolean };
   readonly upstreamInputCapture: Buffer[];
   readonly auditEvents: AuditEvent[];
   readonly failAuditWrites: boolean;
@@ -128,6 +158,7 @@ function createHarness(options: { readonly failAuditWrites?: boolean } = {}): {
   const clientOutput = new PassThrough();
   const upstreamInput = new PassThrough();
   const upstreamOutput = new PassThrough();
+  const upstreamError = new PassThrough();
   const clientOutputCapture: Buffer[] = [];
   const upstreamInputCapture: Buffer[] = [];
   let killed = false;
@@ -142,6 +173,7 @@ function createHarness(options: { readonly failAuditWrites?: boolean } = {}): {
     upstream: {
       stdin: upstreamInput,
       stdout: upstreamOutput,
+      stderr: upstreamError,
       exit: new Promise((resolve) => upstreamOutput.once("end", () => resolve(0))),
       kill: () => {
         killed = true;

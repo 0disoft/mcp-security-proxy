@@ -29,11 +29,11 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
 
 function spawnUpstream(command: UpstreamCommand): UpstreamProcess {
   const child = spawn(command.executable, command.argv, {
-    stdio: ["pipe", "pipe", "ignore"],
+    stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true
   });
 
-  if (!child.stdin || !child.stdout) {
+  if (!child.stdin || !child.stdout || !child.stderr) {
     child.kill();
     throw new Error("failed to create upstream stdio pipes");
   }
@@ -41,6 +41,7 @@ function spawnUpstream(command: UpstreamCommand): UpstreamProcess {
   return {
     stdin: child.stdin,
     stdout: child.stdout,
+    stderr: child.stderr,
     exit: new Promise((resolve, reject) => {
       child.once("error", reject);
       child.once("exit", (code) => resolve(code ?? 1));

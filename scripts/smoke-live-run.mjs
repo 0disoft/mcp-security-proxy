@@ -81,6 +81,13 @@ try {
   if (auditLines.length < 2) {
     throw new Error(`expected audit events, got ${auditLines.length}`);
   }
+  const auditText = auditLines.join("\n");
+  if (auditText.includes("RAW_STDERR_MARKER")) {
+    throw new Error("raw upstream stderr leaked into audit log");
+  }
+  if (!auditText.includes('"stderr_line":1')) {
+    throw new Error(`expected redacted stderr summary audit event, got ${auditText}`);
+  }
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }

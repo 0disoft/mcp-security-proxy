@@ -1,6 +1,7 @@
 import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
 import type { AuditEvent, PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
+import { createAuditEvent } from "@0disoft/mcp-security-proxy-core";
 import { createProxySession } from "./session.js";
 
 export interface UpstreamCommand {
@@ -11,6 +12,7 @@ export interface UpstreamCommand {
 export interface UpstreamProcess {
   readonly stdin: Writable;
   readonly stdout: Readable;
+  readonly stderr?: Readable;
   readonly exit: Promise<number>;
   readonly kill: () => void;
 }
@@ -66,6 +68,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       }
     }
   };
+  const stderrDone = observeUpstreamStderr(upstream.stderr, options.profileId, recordAudit);
 
   const clientDone = consumeLines(clientLines, async (line) => {
     const result = session.handleClientLine(line);
@@ -98,15 +101,18 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       upstream.stdin.end();
       const exitCode = await upstreamExit;
       await upstreamDone;
+      await stderrDone;
       return { exitCode };
     }
 
     if (first === "upstream-output") {
       const exitCode = await upstreamExit;
+      await stderrDone;
       return { exitCode };
     }
 
     upstream.kill();
+    await stderrDone;
     return { exitCode: first };
   } catch (error) {
     if (error instanceof AuditFailure) {
@@ -130,4 +136,46 @@ async function consumeLines(lines: ReturnType<typeof createInterface>, onLine: (
 
 function writeLine(stream: Writable, line: string): void {
   stream.write(`${line}\n`);
+}
+
+async function observeUpstreamStderr(
+  stderr: Readable | undefined,
+  profileId: string,
+  recordAudit: (events: readonly AuditEvent[]) => Promise<void>
+): Promise<void> {
+  if (!stderr) {
+    return;
+  }
+
+  const stderrLines = createInterface({ input: stderr, crlfDelay: Number.POSITIVE_INFINITY });
+  let lineCount = 0;
+  for await (const _line of stderrLines) {
+    lineCount += 1;
+  }
+
+  if (lineCount === 0) {
+    return;
+  }
+
+  await recordAudit([
+    createAuditEvent({
+      kind: "error",
+      profileId,
+      decision: {
+        schemaVersion: "msp.decision.v1",
+        action: "deny",
+        evidence: [
+          {
+            reason: `upstream stderr produced ${lineCount} line(s); content redacted`
+          }
+        ]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          stderr_line: lineCount
+        }
+      }
+    })
+  ]);
 }
