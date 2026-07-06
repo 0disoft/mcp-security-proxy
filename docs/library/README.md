@@ -9,17 +9,31 @@ This repository type owns public API surface, package compatibility, semantic ve
 
 ## Source of Truth
 
-- Product decision: UNDECIDED
-- Technical owner: UNASSIGNED
-- Related ADR: UNDECIDED
+- Product decision: docs/product/02-spec.md
+- Technical owner: 0disoft
+- Related ADR: docs/adr/0001-initial-architecture-boundaries.md
 
 ## Required Decisions
 
-- Public API ownership: UNDECIDED
-- Semantic versioning policy: UNDECIDED
-- Runtime and platform compatibility: UNDECIDED
-- Package artifact and export surface: UNDECIDED
-- Deprecation and migration policy: UNDECIDED
+- Public API ownership: docs/library/public-api.md
+- Semantic versioning policy: docs/library/semver.md
+- Runtime and platform compatibility: docs/library/compatibility.md
+- Package artifact and export surface: docs/library/package-surface.md
+- Deprecation and migration policy: docs/library/migration-guide.md
+
+## Library Purpose
+
+The library should let MCP hosts and local agent runners embed the same policy evaluation and audit
+logic used by the CLI. It should keep protocol inspection, policy decisions, redaction, and audit
+formatting separable so adopters can use only the pieces they need.
+
+## Library Non-Goals
+
+- Owning host process lifecycle
+- Rendering approval UI
+- Storing secrets
+- Performing OS-level sandboxing
+- Providing a full MCP server framework
 
 ## Review Blockers
 

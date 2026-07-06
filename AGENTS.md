@@ -4,17 +4,25 @@
 
 Scope: general
 
-This repository owns product, architecture, ADR, engineering, and operational design scaffolds.
+This repository owns the MCP Security Proxy project: a local proxy that sits in front of MCP
+servers and applies policy to tool discovery and tool calls before an AI agent can use them.
 
-It does not own implementation source code.
+It owns product requirements, architecture decisions, CLI contracts, library API contracts,
+policy and audit-log semantics, compatibility notes, and future implementation source for this
+tool when implementation work is explicitly requested.
+
+It does not own a general OS sandbox, malware scanner, enterprise SIEM, secret manager, MCP server
+marketplace, or full agent runtime.
 
 ## Repository Shape
 
 Primary repository type: cli-tool
 Addons: library
 
-- cli-tool: This repository type owns command behavior, arguments, flags, config loading, exit codes, terminal output, JSON output, runtime compatibility, and shell integration contracts.
-- library: This repository type owns public API surface, package compatibility, semantic versioning, migration guidance, distribution artifacts, and consumer-facing deprecation policy.
+- cli-tool: owns proxy commands, policy dry-run commands, config loading, exit codes, terminal
+  output, JSON output, and runtime compatibility.
+- library: owns the reusable policy engine, MCP message inspection contracts, audit event types,
+  package compatibility, semantic versioning, migration guidance, and public API surface.
 
 
 ## Source of Truth
@@ -27,7 +35,12 @@ Addons: library
 
 ## Hard Rules
 
-- Do not generate or infer application source code from this scaffold.
+- Do not claim this proxy is a complete OS sandbox. It controls the MCP protocol boundary only.
+- Do not claim that tool schemas prove safety. Tool classification must be treated as a heuristic
+  unless backed by explicit policy.
+- Do not store raw secrets, environment values, prompt contents, or tool arguments in audit logs.
+- Default examples must be deny-by-default and must require explicit allow rules for file, shell,
+  network, and secret-sensitive capabilities.
 - Do not invent technology choices. Use UNDECIDED when a decision is not known.
 - Do not create fake credentials, tokens, secrets, or private values.
 - Do not rely on generated, cache, or build output as source truth.
@@ -48,8 +61,11 @@ Addons: library
 
 ## Out of Scope
 
-- Application source scaffolding.
-- Runtime infrastructure such as Docker, Kubernetes, Terraform, or framework apps.
+- Full OS sandboxing, container isolation, kernel enforcement, or process-level containment.
+- Malware scanning and package reputation scoring.
+- Secret storage, rotation, or key-management backends.
+- MCP server marketplace, discovery catalog, or hosted control plane.
+- Enterprise SIEM integrations beyond exportable JSON audit events.
 - Project-specific credentials or deployment secrets.
 
 ## Final Response Requirements

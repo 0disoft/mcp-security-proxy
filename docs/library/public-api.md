@@ -9,17 +9,36 @@ This repository type owns public API surface, package compatibility, semantic ve
 
 ## Source of Truth
 
-- Product decision: UNDECIDED
-- Technical owner: UNASSIGNED
-- Related ADR: UNDECIDED
+- Product decision: docs/product/02-spec.md
+- Technical owner: 0disoft
+- Related ADR: docs/adr/0001-initial-architecture-boundaries.md
 
 ## Required Decisions
 
-- Public API ownership: UNDECIDED
-- Semantic versioning policy: UNDECIDED
-- Runtime and platform compatibility: UNDECIDED
-- Package artifact and export surface: UNDECIDED
-- Deprecation and migration policy: UNDECIDED
+- Public API ownership: policy parsing, tool classification, call evaluation, redaction, and audit
+  event formatting.
+- Semantic versioning policy: public types and decision semantics are semver-covered once the first
+  package release is cut.
+- Runtime and platform compatibility: UNDECIDED.
+- Package artifact and export surface: must be documented before implementation release.
+- Deprecation and migration policy: breaking policy schema or audit schema changes require migration
+  notes.
+
+## Provisional Modules
+
+- `policy`: parse, validate, and normalize policy files.
+- `classifier`: map MCP tool descriptors to capability labels.
+- `evaluator`: evaluate tool calls against policy and return allow, deny, or approval-required.
+- `redactor`: redact secret-like values before output.
+- `audit`: format JSON Lines audit events.
+- `mcp`: protocol adapter types for MCP messages without binding the whole package to one host.
+
+## Public Type Principles
+
+- Decision results must include rule evidence.
+- Redaction summaries must count replacements without exposing original values.
+- Policy errors must be value-based and testable.
+- Tool descriptors must preserve upstream identity without inventing tools.
 
 ## Review Blockers
 

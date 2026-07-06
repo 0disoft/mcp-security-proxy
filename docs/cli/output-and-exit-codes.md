@@ -9,17 +9,52 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 
 ## Source of Truth
 
-- Product decision: UNDECIDED
-- Technical owner: UNASSIGNED
-- Related ADR: UNDECIDED
+- Product decision: docs/product/02-spec.md
+- Technical owner: 0disoft
+- Related ADR: docs/adr/0001-initial-architecture-boundaries.md
 
-## Required Decisions
+## Output Principles
 
-- Command list and flag ownership: UNDECIDED
-- Exit-code taxonomy: UNDECIDED
-- Machine-readable output contract: UNDECIDED
-- Config precedence and default behavior: UNDECIDED
-- Runtime compatibility floor: UNDECIDED
+- Human output should explain what policy did and what the user can change.
+- JSON output should be stable, redacted, and safe to pipe into tests or host integrations.
+- Audit output should be JSON Lines and should not duplicate full raw tool arguments.
+- Denial messages should name the rule, capability, and high-level reason without exposing secrets.
+
+## Provisional Exit Codes
+
+| Code | Meaning |
+| ---: | --- |
+| 0 | Command completed successfully |
+| 1 | Policy denied a tool call or command failed with a handled runtime error |
+| 2 | CLI usage error |
+| 3 | Policy file parse or validation error |
+| 4 | Upstream MCP server startup or protocol error |
+| 5 | Audit output failure |
+| 6 | Internal proxy error |
+
+## JSON Result Shape
+
+The exact schema is not final, but JSON command output should follow this shape:
+
+```json
+{
+  "ok": true,
+  "command": "eval-call",
+  "profile": "local-files",
+  "decision": {
+    "action": "deny",
+    "reason": "path denied by policy",
+    "ruleId": "deny-home-secrets",
+    "capabilities": ["file-read"]
+  },
+  "redaction": {
+    "applied": true,
+    "counts": {
+      "secret": 1
+    }
+  }
+}
+```
 
 ## Review Blockers
 

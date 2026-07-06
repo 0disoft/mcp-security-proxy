@@ -1,28 +1,54 @@
 # Roadmap
 
 Status: Draft
-Owner: UNASSIGNED
+Owner: 0disoft
 
 ## Purpose
 
-This document captures the durable design contract for Roadmap.
-It is intentionally a scaffold and should be filled with project-specific decisions as they become known.
+Sequence MCP Security Proxy from a policy-first prototype into a small embeddable security boundary
+for local MCP hosts.
 
 ## Source of Truth
 
-- Product decision: UNDECIDED
-- Technical owner: UNASSIGNED
-- Related ADR: UNDECIDED
+- Product decision: docs/product/02-spec.md
+- Technical owner: 0disoft
+- Related ADR: docs/adr/0001-initial-architecture-boundaries.md
 
-## Required Decisions
+## Milestone 0: Contract Freeze
 
-- Boundary: UNDECIDED
-- Data ownership: UNDECIDED
-- Failure and recovery behavior: UNDECIDED
-- Validation needed before merge: VALIDATION.md
+- Lock the policy model vocabulary.
+- Define JSON audit event schema.
+- Define denial error shape.
+- Choose implementation language and runtime floor.
+- Decide package name and CLI binary name.
 
-## Review Blockers
+## Milestone 1: Local stdio Proxy MVP
 
-- The change invents a product domain without a source.
-- The change weakens validation or skips required evidence.
-- The change relies on generated, cache, or build output as source truth.
+- Launch one MCP server behind stdio proxy.
+- Filter tool list.
+- Evaluate tool calls.
+- Support path, command, network, and redaction rules.
+- Emit JSON Lines audit log.
+- Provide deny-by-default sample policy.
+
+## Milestone 2: Embeddable Library
+
+- Expose policy parser.
+- Expose tool classifier.
+- Expose call evaluator.
+- Expose redactor and audit formatter.
+- Add compatibility fixtures for representative MCP clients.
+
+## Milestone 3: Host Integration Hardening
+
+- Add policy dry-run workflows.
+- Add approval hook interface.
+- Add transport compatibility plan for HTTP.
+- Add audit export guidance.
+
+## Deferred
+
+- Hosted policy management
+- MCP server marketplace
+- Enterprise SIEM adapters
+- Full OS sandboxing

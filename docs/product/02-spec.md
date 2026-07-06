@@ -1,28 +1,81 @@
 # Product Specification
 
 Status: Draft
-Owner: UNASSIGNED
+Owner: 0disoft
 
 ## Purpose
 
-This document captures the durable design contract for Product Specification.
-It is intentionally a scaffold and should be filled with project-specific decisions as they become known.
+Define the first product contract for MCP Security Proxy: a local proxy that mediates MCP tool
+discovery and tool calls through explicit policy, redaction, and audit events.
 
 ## Source of Truth
 
-- Product decision: UNDECIDED
-- Technical owner: UNASSIGNED
-- Related ADR: UNDECIDED
+- Product decision: this specification
+- Technical owner: 0disoft
+- Related ADR: docs/adr/0001-initial-architecture-boundaries.md
 
 ## Required Decisions
 
-- Boundary: UNDECIDED
-- Data ownership: UNDECIDED
-- Failure and recovery behavior: UNDECIDED
+- Boundary: stdio MCP proxy first; HTTP transport is a later compatibility target.
+- Data ownership: all policy and audit files are local to the user or embedding host.
+- Failure and recovery behavior: deny-by-default for unknown high-risk capability, explain denial,
+  and keep policy evaluation deterministic.
 - Validation needed before merge: VALIDATION.md
+
+## MVP Scope
+
+- Start an MCP server behind a stdio proxy.
+- Read a local policy file.
+- Filter tool discovery output before the client sees it.
+- Evaluate tool calls before forwarding them.
+- Match file paths against allow and deny scopes.
+- Match shell commands against explicit allowlists.
+- Express network domain allow and deny rules.
+- Redact environment values, secret-like strings, and sensitive audit fields.
+- Emit JSON Lines audit events.
+- Support dry-run policy evaluation for a captured tool list or tool call envelope.
+
+## Policy Model
+
+The policy model should be explicit and boring:
+
+- default action: deny
+- server profile: named policy section for one MCP server
+- tool rule: allow, deny, or require approval by tool name and capability
+- path rule: allowed roots and denied roots after normalized path resolution
+- command rule: exact command or narrow command prefix, not free-form shell acceptance
+- network rule: domain allowlist and denylist
+- redaction rule: named detector with replacement token
+- audit rule: event destination and content-capture limits
+
+## CLI Surface
+
+Initial command names are provisional until implementation ADRs lock them:
+
+- `mcp-security-proxy run`: run a server behind the proxy.
+- `mcp-security-proxy check-policy`: validate a policy file.
+- `mcp-security-proxy inspect-tools`: classify a server tool list.
+- `mcp-security-proxy eval-call`: dry-run one tool call against policy.
+
+## Library Surface
+
+The first library should expose policy parsing, tool classification, call evaluation, redaction, and
+audit event formatting as separate units so hosts can embed them without using the CLI process.
+
+## Exclusions
+
+- Complete OS sandboxing
+- Process isolation
+- Malware detection
+- Secret vault behavior
+- Hosted policy management
+- MCP marketplace or registry
 
 ## Review Blockers
 
-- The change invents a product domain without a source.
+- The change weakens deny-by-default behavior.
+- The change stores raw secret-bearing values in audit logs.
+- The change treats tool schemas as sufficient proof of safety.
+- The change adds broad shell or path allowances without testable matching semantics.
 - The change weakens validation or skips required evidence.
 - The change relies on generated, cache, or build output as source truth.

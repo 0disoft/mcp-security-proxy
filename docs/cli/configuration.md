@@ -9,17 +9,38 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 
 ## Source of Truth
 
-- Product decision: UNDECIDED
-- Technical owner: UNASSIGNED
-- Related ADR: UNDECIDED
+- Product decision: docs/product/02-spec.md
+- Technical owner: 0disoft
+- Related ADR: docs/adr/0001-initial-architecture-boundaries.md
 
-## Required Decisions
+## Configuration Inputs
 
-- Command list and flag ownership: UNDECIDED
-- Exit-code taxonomy: UNDECIDED
-- Machine-readable output contract: UNDECIDED
-- Config precedence and default behavior: UNDECIDED
-- Runtime compatibility floor: UNDECIDED
+- Policy file path
+- Server profile name
+- Upstream server command or endpoint
+- Audit output destination
+- Optional dry-run input file
+- Optional JSON output flag
+
+## Precedence
+
+CLI flags select runtime paths and profile names. Policy files own security decisions. Environment
+variables may provide convenience defaults only when they do not contain secrets and are documented.
+
+Proposed precedence:
+
+1. Explicit CLI flags
+2. Profile values inside the policy file
+3. Documented environment defaults
+4. Built-in safe defaults
+
+## Safe Defaults
+
+- Default action: deny
+- Audit content capture: summary only
+- Redaction: enabled
+- Unknown capability: deny
+- Shell command matching: exact or narrow argv pattern only
 
 ## Review Blockers
 
