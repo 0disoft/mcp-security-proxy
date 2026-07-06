@@ -1,20 +1,17 @@
 #!/usr/bin/env node
-import { createCommandRegistry } from "./commands.js";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { runCli } from "./commands.js";
 
-const registry = createCommandRegistry();
-const commandNames = registry.map((command) => command.name).join(", ");
-
-if (process.argv.includes("--help") || process.argv.length <= 2) {
-  console.log(`mcp-security-proxy commands: ${commandNames}`);
-  process.exit(0);
+export function main(argv = process.argv.slice(2)): number {
+  const result = runCli(argv, {
+    readTextFile: (path) => readFileSync(path, "utf8"),
+    stdout: (line) => console.log(line),
+    stderr: (line) => console.error(line)
+  });
+  return result.exitCode;
 }
 
-const commandName = process.argv[2];
-const command = registry.find((item) => item.name === commandName);
-
-if (!command) {
-  console.error(`unknown command: ${commandName}`);
-  process.exit(2);
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  process.exit(main());
 }
-
-console.log(`${command.name}: ${command.description}`);

@@ -31,7 +31,7 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 | 3 | Policy file parse or validation error |
 | 4 | Upstream MCP server startup or protocol error |
 | 5 | Audit output failure |
-| 6 | Unsupported method or protocol feature when invoked as a standalone CLI evaluation |
+| 6 | Unsupported method, protocol feature, or deferred live proxy command |
 | 7 | Internal proxy error |
 
 ## JSON Result Shape
@@ -45,9 +45,13 @@ The exact schema is not final, but JSON command output should follow this shape:
   "profile": "local-files",
   "decision": {
     "action": "deny",
-    "reason": "path denied by policy",
-    "ruleId": "deny-home-secrets",
-    "capabilities": ["file-read"]
+    "evidence": [
+      {
+        "reason": "matched deny rule",
+        "ruleId": "deny-private-files",
+        "capability": "file-read"
+      }
+    ]
   },
   "redaction": {
     "applied": true,

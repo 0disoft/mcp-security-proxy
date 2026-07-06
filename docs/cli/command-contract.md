@@ -15,18 +15,19 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 
 ## Required Decisions
 
-- Command list and flag ownership: provisional until implementation ADR, listed below.
+- Command list and flag ownership: dry-run commands are implemented; live `run` remains deferred.
 - Exit-code taxonomy: docs/cli/output-and-exit-codes.md
 - Machine-readable output contract: JSON output must never include raw secret-bearing payloads.
 - Config precedence and default behavior: explicit CLI flags override policy file paths and profile
   selection; policy decisions remain file-owned.
-- Runtime compatibility floor: UNDECIDED.
+- Runtime compatibility floor: Node.js `>=24.0.0`.
 
 ## Provisional Commands
 
 ### `mcp-security-proxy run`
 
-Runs an MCP server behind the proxy.
+Reserved for running an MCP server behind the proxy. This live proxy command is not implemented in
+the dry-run CLI milestone and exits with code 6.
 
 Required inputs:
 
@@ -37,23 +38,27 @@ Required inputs:
 
 ### `mcp-security-proxy check-policy`
 
-Validates policy syntax, schema, rule ordering, and redaction settings without starting a server.
+Implemented. Validates policy syntax, schema version, method policy, profiles, rules, audit
+settings, and redaction settings without starting a server.
 
 ### `mcp-security-proxy inspect-tools`
 
-Reads a captured tool list or live server discovery response and reports inferred capabilities and
-missing policy decisions.
+Implemented for captured tool-list JSON files. Reports inferred capabilities, classifier evidence,
+and whether the selected profile has covering policy rules.
 
 ### `mcp-security-proxy eval-call`
 
-Evaluates one captured tool call against policy and prints the decision without forwarding it.
+Implemented for captured normalized tool-call JSON files. Evaluates one call against policy and
+prints the decision without forwarding it.
 
 ## Flag Principles
 
 - `--json` returns machine-readable summaries only.
 - `--policy` points to the local policy file.
 - `--profile` selects the server policy profile.
-- `--audit-log` selects JSON Lines audit output.
+- `--input` points to captured tool-list or tool-call JSON for dry-run commands.
+- `--approval-hook` marks approval hook availability for dry-run call evaluation.
+- `--audit-log` selects JSON Lines audit output for future live proxy behavior.
 - `--dry-run` never forwards a tool call.
 
 ## Review Blockers

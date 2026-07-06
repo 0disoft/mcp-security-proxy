@@ -9,10 +9,12 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs",
-    "contract": "pnpm --filter @0disoft/mcp-security-proxy-contracts typecheck && pnpm --filter @0disoft/mcp-security-proxy-core test",
+    "build": "pnpm -r build",
+    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs && pnpm run smoke",
+    "contract": "pnpm build && pnpm --filter @0disoft/mcp-security-proxy-contracts typecheck && pnpm --filter @0disoft/mcp-security-proxy-core test",
     "docs": "node scripts/check-docs.mjs",
-    "test": "pnpm -r test",
+    "smoke": "pnpm build && node packages/cli/dist/main.js check-policy --policy fixtures/policies/local-dev.json --json && node packages/cli/dist/main.js eval-call --policy fixtures/policies/local-dev.json --profile local --input fixtures/mcp/call-file-read-denied.json --json",
+    "test": "pnpm build && pnpm -r test",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
