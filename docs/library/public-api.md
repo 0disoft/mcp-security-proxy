@@ -15,8 +15,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 
 ## Required Decisions
 
-- Public API ownership: policy parsing, tool classification, call evaluation, redaction, and audit
-  event formatting.
+- Public API ownership: policy parsing, MCP method policy, tool classification, normalized call
+  evaluation, redaction, and audit event formatting.
 - Semantic versioning policy: public types and decision semantics are semver-covered once the first
   package release is cut.
 - Runtime and platform compatibility: UNDECIDED.
@@ -27,6 +27,7 @@ This repository type owns public API surface, package compatibility, semantic ve
 ## Provisional Modules
 
 - `policy`: parse, validate, and normalize policy files.
+- `method-policy`: classify supported, unsupported, and denied MCP methods.
 - `classifier`: map MCP tool descriptors to capability labels.
 - `evaluator`: evaluate tool calls against policy and return allow, deny, or approval-required.
 - `redactor`: redact secret-like values before output.
@@ -36,9 +37,11 @@ This repository type owns public API surface, package compatibility, semantic ve
 ## Public Type Principles
 
 - Decision results must include rule evidence.
+- Unsupported-method decisions must use the same evidence model as tool-call decisions.
 - Redaction summaries must count replacements without exposing original values.
 - Policy errors must be value-based and testable.
 - Tool descriptors must preserve upstream identity without inventing tools.
+- Core policy exports should remain independent from filesystem, subprocess, network, and SDK IO.
 
 ## Review Blockers
 

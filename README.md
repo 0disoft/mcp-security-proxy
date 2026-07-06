@@ -29,11 +29,12 @@ before a tool call leaves the host.
 
 - stdio MCP proxy first
 - deny-by-default sample policy
+- explicit MCP method allowlist
 - tool list filtering
 - tool call allow/deny decisions
 - path scope matching
 - command allowlist matching
-- network policy expression
+- argument-level network policy expression
 - environment and secret redaction
 - JSON Lines audit events
 - dry-run policy evaluation
@@ -45,13 +46,21 @@ before a tool call leaves the host.
 - Building an agent runtime
 - Storing secrets or raw tool arguments in audit logs
 - Supporting every MCP transport in the first version
+- Claiming to block network sockets or file access that bypasses MCP messages
 
 ## Repository Hygiene
 
 .editorconfig, .gitattributes, and .gitignore are generated to keep line endings,
 binary diffs, local files, build outputs, caches, and secret files under control.
 
+## License and Security
+
+This repository is licensed under Apache-2.0. Security reporting and public/private data boundaries
+are documented in SECURITY.md.
+
 ## Scope Notes
 
-Implementation language, package manager, distribution target, and MCP SDK choices remain UNDECIDED
-until recorded in ADRs and synchronized with the CLI and library contracts.
+Implementation direction is TypeScript with pnpm, recorded in
+docs/adr/0004-implementation-stack-direction.md. The current scaffold targets Node.js `>=24.0.0`
+and uses private workspace package names. Distribution targets, public registry package names, and
+MCP SDK choices remain UNDECIDED until later ADRs.

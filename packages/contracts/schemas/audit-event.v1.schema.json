@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://0disoft.github.io/mcp-security-proxy/schemas/audit-event.v1.schema.json",
+  "title": "MCP Security Proxy Audit Event v1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "profileId", "decision", "redaction"],
+  "properties": {
+    "schemaVersion": { "const": "msp.audit-event.v1" },
+    "kind": {
+      "enum": ["method-denied", "discovery-filtered", "call-decision", "error"]
+    },
+    "profileId": { "type": "string" },
+    "toolName": { "type": "string" },
+    "method": { "type": "string" },
+    "decision": { "$ref": "decision.v1.schema.json" },
+    "redaction": {
+      "type": "object",
+      "required": ["applied", "counts"],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "counts": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://0disoft.github.io/mcp-security-proxy/schemas/decision.v1.schema.json",
+  "title": "MCP Security Proxy Decision v1",
+  "type": "object",
+  "required": ["schemaVersion", "action", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": "msp.decision.v1" },
+    "action": {
+      "enum": ["allow", "deny", "approval_required"]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["reason"],
+        "properties": {
+          "ruleId": { "type": "string" },
+          "capability": { "type": "string" },
+          "method": { "type": "string" },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

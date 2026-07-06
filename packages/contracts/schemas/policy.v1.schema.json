@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://0disoft.github.io/mcp-security-proxy/schemas/policy.v1.schema.json",
+  "title": "MCP Security Proxy Policy v1",
+  "type": "object",
+  "required": ["schemaVersion", "defaultAction", "methodPolicy", "profiles"],
+  "properties": {
+    "schemaVersion": { "const": "msp.policy.v1" },
+    "defaultAction": { "const": "deny" },
+    "methodPolicy": {
+      "type": "object",
+      "required": ["allowedMethods", "denyUnsupported"],
+      "properties": {
+        "allowedMethods": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "denyUnsupported": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "profiles": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  },
+  "additionalProperties": true
+}

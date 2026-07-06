@@ -6,8 +6,10 @@ Status: Draft
 
 - Default policy posture is deny unless an explicit rule allows the capability.
 - Unknown or ambiguous tool capability is not considered safe.
+- Unsupported MCP methods are denied unless explicitly supported by a documented policy.
 - File, shell, network, and secret-sensitive behavior require dedicated policy paths.
 - The proxy must not describe itself as a complete OS sandbox.
+- Network policy is argument-level intent policy, not OS socket enforcement.
 
 ## Privacy
 
@@ -19,8 +21,16 @@ Status: Draft
 
 - Denials should be explainable from policy and capability evidence.
 - Policy parse errors should fail before proxy startup.
-- Audit write failures must have a documented fail-closed or warn-and-continue policy.
+- Audit write failures must fail closed by default unless policy explicitly chooses
+  warn-and-continue.
 - Dry-run evaluation should support policy review without executing tools.
+
+## Performance
+
+- Policy evaluation sits on the tool-call hot path and must avoid repeated IO.
+- Latency budgets are draft until implementation, but per-call evaluation should be measured with
+  representative tool descriptors and captured calls before compatibility claims.
+- Redaction should operate on bounded summaries for audit output, not unbounded raw payload storage.
 
 ## Compatibility
 

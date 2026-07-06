@@ -1,28 +1,28 @@
 # Architecture Decisions
 
 Status: Draft
-Owner: UNASSIGNED
+Owner: 0disoft
 
 ## Purpose
 
-This document captures the durable design contract for Architecture Decisions.
-It is intentionally a scaffold and should be filled with project-specific decisions as they become known.
+Track durable architecture decisions for MCP Security Proxy.
 
 ## Source of Truth
 
-- Product decision: UNDECIDED
-- Technical owner: UNASSIGNED
-- Related ADR: UNDECIDED
+- Product decision: docs/product/02-spec.md
+- Technical owner: 0disoft
+- Related ADR: this directory
 
-## Required Decisions
+## Current ADRs
 
-- Boundary: UNDECIDED
-- Data ownership: UNDECIDED
-- Failure and recovery behavior: UNDECIDED
-- Validation needed before merge: VALIDATION.md
+- 0001: initial protocol-boundary architecture
+- 0002: contract source of truth
+- 0003: open source license and private data boundary
+- 0004: implementation stack direction
 
 ## Review Blockers
 
-- The change invents a product domain without a source.
+- The change adds durable behavior without an ADR when it affects policy, audit, CLI, library,
+  release, security, or compatibility boundaries.
 - The change weakens validation or skips required evidence.
 - The change relies on generated, cache, or build output as source truth.

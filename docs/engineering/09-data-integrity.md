@@ -4,17 +4,31 @@ Status: Draft
 
 ## Contract
 
-Operability standard connects code changes to logs, metrics, traces, rollback, runbooks, health checks, incident response, and failure evidence.
+Data integrity covers policy normalization, decision evidence, audit event structure, schema
+versioning, and contract drift.
 
-## Required Evidence
+## Source of Truth
 
-- Source of truth: UNDECIDED
-- Owner: UNASSIGNED
+- Product decision: docs/product/02-spec.md
+- Technical owner: 0disoft
 - Merge-blocking validation: VALIDATION.md
 - Related checklist: CHECKLIST.md
 
+## Integrity Rules
+
+- Policy schema, decision schema, and audit schema must be versioned before public release.
+- Evaluator decisions must include rule evidence.
+- Discovery filtering must preserve upstream tool identity for visible tools and must not invent
+  tools.
+- Audit events must be written from redacted summaries.
+- Migration notes are required when schema fields, defaults, matcher semantics, exit codes, or
+  public types change.
+- Generated schemas must be reproducible from source once generation exists.
+
 ## Review Blockers
 
-- A change bypasses the source of truth.
+- A decision lacks rule evidence.
+- A schema changes without migration notes.
+- A redacted audit event cannot be traced to a policy decision.
 - A change weakens validation or hides skipped checks.
 - A change lacks failure, recovery, security, performance, or test evidence where relevant.

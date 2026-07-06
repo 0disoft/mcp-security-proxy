@@ -6,15 +6,27 @@ Status: Draft
 
 Design review questions must cover problem boundary, ownership, data/state, failure and recovery, future cost, and source-of-truth drift.
 
-## Required Evidence
+## Source of Truth
 
-- Source of truth: UNDECIDED
-- Owner: UNASSIGNED
+- Product decision: docs/product/02-spec.md
+- Technical owner: 0disoft
 - Merge-blocking validation: VALIDATION.md
 - Related checklist: CHECKLIST.md
 
+## Questions
+
+- Does this stay inside the MCP protocol boundary?
+- Does it accidentally claim OS sandbox, socket enforcement, malware scanning, or secret-vault
+  behavior?
+- Which MCP methods does it allow, deny, or defer?
+- Which policy facts are normalized before the evaluator sees them?
+- Could the upstream server do the same side effect outside MCP messages?
+- What raw data is inspected, and what redacted summary is retained?
+- What happens when audit write, approval hook, upstream startup, or protocol parsing fails?
+- Which contract document, fixture, or migration note changes with this design?
+
 ## Review Blockers
 
-- A change bypasses the source of truth.
+- A design cannot answer its boundary, data, and failure questions.
 - A change weakens validation or hides skipped checks.
 - A change lacks failure, recovery, security, performance, or test evidence where relevant.

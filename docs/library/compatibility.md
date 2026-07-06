@@ -17,13 +17,17 @@ This repository type owns public API surface, package compatibility, semantic ve
 
 - Public API ownership: docs/library/public-api.md
 - Semantic versioning policy: docs/library/semver.md
-- Runtime and platform compatibility: UNDECIDED.
-- Package artifact and export surface: UNDECIDED.
+- Runtime and platform compatibility: TypeScript, pnpm, and Node.js `>=24.0.0` for the current
+  scaffold.
+- Package artifact and export surface: private workspace packages only; public registry artifacts
+  remain UNDECIDED.
 - Deprecation and migration policy: docs/library/migration-guide.md
 
 ## Compatibility Targets
 
 - MCP stdio transport first.
+- TypeScript project references and pnpm workspace checks are the current local compatibility
+  baseline.
 - HTTP transport support is deferred until stdio behavior is proven.
 - Client compatibility must be fixture-backed, not claimed from schema reading alone.
 - Policy and audit schemas must remain deterministic across supported runtimes.

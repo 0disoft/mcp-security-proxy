@@ -2,19 +2,38 @@
 
 Status: Draft
 
-## Contract
+## Source of Truth
 
-Security baseline covers authentication, authorization, tenant boundaries, input validation, output validation, secrets, external integrations, logs, and security blockers.
+- Product decision: docs/product/02-spec.md
+- Technical owner: 0disoft
+- Related checklist: .agents/checklists/security.md
 
-## Required Evidence
+## Baseline Rules
 
-- Source of truth: UNDECIDED
-- Owner: UNASSIGNED
-- Merge-blocking validation: VALIDATION.md
-- Related checklist: CHECKLIST.md
+- Treat upstream MCP servers as untrusted.
+- Treat MCP tool descriptors and schemas as hints, not proof of safety.
+- Deny unsupported MCP methods by default.
+- Deny unknown or ambiguous capabilities by default.
+- Deny broad shell strings by default.
+- Treat network rules as argument-level intent checks, not socket enforcement.
+- Redact before audit writes, JSON output, completion output, and error details.
+- Never store raw environment values, tokens, prompts, or full sensitive tool arguments in audit
+  events.
+- Default audit write failure to fail-closed unless policy explicitly chooses warn-and-continue.
+- Keep public fixtures synthetic.
+
+## Matcher Requirements
+
+- Path matching must define normalization, realpath behavior, missing write-target behavior,
+  symlink handling, Windows drive/UNC behavior, case sensitivity, and Unicode normalization.
+- Command matching must prefer executable plus argv arrays.
+- Network matching must document which argument fields were inspected and which fields were not.
+- Redaction must report replacement counts without returning the original values.
 
 ## Review Blockers
 
-- A change bypasses the source of truth.
+- A change claims OS sandboxing, malware scanning, secret-vault behavior, or socket enforcement.
+- A change passes unsupported methods through without policy.
+- A change logs raw secrets, raw environment values, raw prompts, or raw tool arguments.
+- A change broadens path, shell, network, or token access without tests and migration notes.
 - A change weakens validation or hides skipped checks.
-- A change lacks failure, recovery, security, performance, or test evidence where relevant.

@@ -19,18 +19,20 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 - JSON output should be stable, redacted, and safe to pipe into tests or host integrations.
 - Audit output should be JSON Lines and should not duplicate full raw tool arguments.
 - Denial messages should name the rule, capability, and high-level reason without exposing secrets.
+- A policy deny decision is a valid policy result, not a CLI crash.
 
 ## Provisional Exit Codes
 
 | Code | Meaning |
 | ---: | --- |
-| 0 | Command completed successfully |
-| 1 | Policy denied a tool call or command failed with a handled runtime error |
+| 0 | Command completed successfully, including dry-run commands that return an allow or deny decision |
+| 1 | Handled runtime failure outside normal policy decision flow |
 | 2 | CLI usage error |
 | 3 | Policy file parse or validation error |
 | 4 | Upstream MCP server startup or protocol error |
 | 5 | Audit output failure |
-| 6 | Internal proxy error |
+| 6 | Unsupported method or protocol feature when invoked as a standalone CLI evaluation |
+| 7 | Internal proxy error |
 
 ## JSON Result Shape
 

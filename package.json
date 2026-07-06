@@ -1,0 +1,23 @@
+{
+  "name": "mcp-security-proxy-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs",
+    "contract": "pnpm --filter @0disoft/mcp-security-proxy-contracts typecheck && pnpm --filter @0disoft/mcp-security-proxy-core test",
+    "docs": "node scripts/check-docs.mjs",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  }
+}

@@ -18,16 +18,18 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Public API ownership: docs/library/public-api.md
 - Semantic versioning policy: docs/library/semver.md
 - Runtime and platform compatibility: docs/library/compatibility.md
-- Package artifact and export surface: UNDECIDED until implementation language and package manager are chosen.
+- Package artifact and export surface: private pnpm workspace packages exist; public registry
+  artifacts remain UNDECIDED.
 - Deprecation and migration policy: docs/library/migration-guide.md
 
 ## Expected Package Surfaces
 
-- CLI binary entrypoint, if the implementation language supports packaged executables.
-- Library exports for policy, classifier, evaluator, redactor, audit, and MCP adapter types.
-- Schema files or generated types for policy and audit event formats.
-- Example deny-by-default policy.
-- Test fixtures for discovery, allowed call, denied call, and redaction.
+- `packages/contracts`: policy, decision, audit event types, and JSON schema files.
+- `packages/core`: method policy, classifier, evaluator, redactor, and audit formatter.
+- `packages/mcp-adapter`: JSON-RPC envelope and method-policy adapter helpers.
+- `packages/proxy-runtime`: runtime startup planning and future stdio proxy ownership.
+- `packages/cli`: command registry and future CLI entrypoint.
+- `packages/testkit`: synthetic fixtures for future integration tests.
 
 ## Package Surface Rules
 
@@ -35,6 +37,7 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Do not bundle generated audit logs or example secrets.
 - Keep CLI output examples synchronized with docs/cli/output-and-exit-codes.md.
 - Keep policy and audit schemas discoverable from package documentation.
+- Keep packages private until release readiness records public package names and artifacts.
 
 ## Review Blockers
 
