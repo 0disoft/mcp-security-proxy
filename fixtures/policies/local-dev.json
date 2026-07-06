@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "msp.policy.v1",
+  "defaultAction": "deny",
+  "methodPolicy": {
+    "allowedMethods": ["initialize", "notifications/initialized", "ping", "tools/list", "tools/call"],
+    "denyUnsupported": true
+  },
+  "profiles": [
+    {
+      "id": "local",
+      "defaultAction": "deny",
+      "rules": [
+        {
+          "id": "deny-private-files",
+          "action": "deny",
+          "capabilities": ["file-read"],
+          "paths": {
+            "deniedRoots": ["workspace/private"]
+          }
+        },
+        {
+          "id": "allow-public-files",
+          "action": "allow",
+          "capabilities": ["file-read"],
+          "paths": {
+            "allowedRoots": ["workspace/public"]
+          }
+        },
+        {
+          "id": "deny-shell-by-default",
+          "action": "deny",
+          "capabilities": ["shell"]
+        },
+        {
+          "id": "allow-example-network",
+          "action": "allow",
+          "capabilities": ["network"],
+          "networks": [
+            {
+              "domains": ["example.com"]
+            }
+          ]
+        },
+        {
+          "id": "approval-workflow",
+          "action": "approval_required",
+          "capabilities": ["workflow"]
+        }
+      ],
+      "audit": {
+        "destination": "stdout",
+        "onFailure": "fail_closed",
+        "includeRawArguments": false,
+        "includeFullPaths": false
+      }
+    }
+  ],
+  "redaction": {
+    "detectors": [
+      {
+        "id": "synthetic-redaction-marker",
+        "kind": "secret_like",
+        "replacement": "[REDACTED_VALUE]"
+      }
+    ]
+  }
+}

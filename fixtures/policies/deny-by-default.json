@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "msp.policy.v1",
+  "defaultAction": "deny",
+  "methodPolicy": {
+    "allowedMethods": ["initialize", "notifications/initialized", "ping", "tools/list", "tools/call"],
+    "denyUnsupported": true
+  },
+  "profiles": [
+    {
+      "id": "local",
+      "defaultAction": "deny",
+      "rules": [],
+      "audit": {
+        "destination": "stdout",
+        "onFailure": "fail_closed",
+        "includeRawArguments": false,
+        "includeFullPaths": false
+      }
+    }
+  ]
+}

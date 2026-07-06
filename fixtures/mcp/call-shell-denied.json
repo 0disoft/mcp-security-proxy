@@ -1,0 +1,12 @@
+{
+  "method": "tools/call",
+  "toolName": "run_command",
+  "capabilities": ["shell"],
+  "argumentFacts": [
+    {
+      "kind": "command",
+      "executable": "bash",
+      "argv": ["-c", "echo synthetic"]
+    }
+  ]
+}

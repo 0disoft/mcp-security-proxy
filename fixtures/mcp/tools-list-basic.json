@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "read_file",
+      "description": "Read a file from a caller-provided path."
+    },
+    {
+      "name": "run_command",
+      "description": "Run a shell command."
+    },
+    {
+      "name": "unknown_tool",
+      "description": "Do something vaguely useful."
+    }
+  ]
+}

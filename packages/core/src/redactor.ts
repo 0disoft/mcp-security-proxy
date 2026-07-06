@@ -5,11 +5,11 @@ export interface RedactionResult {
   readonly summary: RedactionSummary;
 }
 
-const secretLikePattern = /\b(?:TOKEN|PRIVATE|CREDENTIAL)[A-Z0-9_]*\b/g;
+const redactionMarkerPattern = /\bREDACT_ME[A-Z0-9_]*\b/g;
 
 export function redactText(value: string, replacement = "[REDACTED]"): RedactionResult {
   let count = 0;
-  const redacted = value.replace(secretLikePattern, () => {
+  const redacted = value.replace(redactionMarkerPattern, () => {
     count += 1;
     return replacement;
   });

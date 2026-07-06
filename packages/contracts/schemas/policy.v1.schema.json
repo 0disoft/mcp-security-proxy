@@ -13,16 +13,151 @@
       "properties": {
         "allowedMethods": {
           "type": "array",
-          "items": { "type": "string" }
+          "minItems": 1,
+          "items": {
+            "enum": ["initialize", "notifications/initialized", "ping", "tools/list", "tools/call"]
+          }
         },
-        "denyUnsupported": { "type": "boolean" }
+        "denyUnsupported": { "const": true }
       },
       "additionalProperties": false
     },
     "profiles": {
       "type": "array",
-      "items": { "type": "object" }
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/profile" }
+    },
+    "redaction": {
+      "type": "object",
+      "required": ["detectors"],
+      "properties": {
+        "detectors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redactionDetector" }
+        }
+      },
+      "additionalProperties": false
     }
   },
-  "additionalProperties": true
+  "additionalProperties": false,
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "required": ["id", "defaultAction", "rules", "audit"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "defaultAction": { "const": "deny" },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rule" }
+        },
+        "audit": { "$ref": "#/$defs/auditPolicy" }
+      },
+      "additionalProperties": false
+    },
+    "rule": {
+      "type": "object",
+      "required": ["id", "action"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "action": { "enum": ["allow", "deny", "approval_required"] },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "file-read",
+              "file-write",
+              "shell",
+              "network",
+              "secret",
+              "database",
+              "browser",
+              "workflow",
+              "unknown"
+            ]
+          }
+        },
+        "methods": {
+          "type": "array",
+          "items": { "enum": ["tools/call"] }
+        },
+        "paths": { "$ref": "#/$defs/pathRule" },
+        "commands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/commandRule" }
+        },
+        "networks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/networkRule" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "pathRule": {
+      "type": "object",
+      "properties": {
+        "allowedRoots": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "deniedRoots": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "commandRule": {
+      "type": "object",
+      "required": ["executable"],
+      "properties": {
+        "executable": { "type": "string", "minLength": 1 },
+        "argv": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "networkRule": {
+      "type": "object",
+      "properties": {
+        "domains": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "ips": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "auditPolicy": {
+      "type": "object",
+      "required": ["destination", "onFailure", "includeRawArguments", "includeFullPaths"],
+      "properties": {
+        "destination": { "enum": ["file", "stdout"] },
+        "path": { "type": "string", "minLength": 1 },
+        "onFailure": { "enum": ["fail_closed", "warn_and_continue"] },
+        "includeRawArguments": { "const": false },
+        "includeFullPaths": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "redactionDetector": {
+      "type": "object",
+      "required": ["id", "kind", "replacement"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["secret_like", "environment_value", "path", "prompt"] },
+        "replacement": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
 }

@@ -1,16 +1,25 @@
 import {
   DECISION_SCHEMA_VERSION,
   type Capability,
+  type DecisionEvidence,
   type NormalizedToolCall,
   type PolicyDecision,
   type PolicyDocument,
   type PolicyRule
 } from "@0disoft/mcp-security-proxy-contracts";
+import {
+  commandRuleMatches,
+  findBlockingArgumentIssue,
+  hasFactKind,
+  networkRuleMatches,
+  pathRuleMatches
+} from "./matchers.js";
 
 export interface EvaluateToolCallOptions {
   readonly policy: PolicyDocument;
   readonly profileId: string;
   readonly call: NormalizedToolCall;
+  readonly approvalHookAvailable?: boolean;
 }
 
 export function evaluateToolCall(options: EvaluateToolCallOptions): PolicyDecision {
@@ -19,19 +28,41 @@ export function evaluateToolCall(options: EvaluateToolCallOptions): PolicyDecisi
     return deny("profile not found");
   }
 
+  const blockingIssue = findBlockingArgumentIssue(options.call.argumentFacts);
+  if (blockingIssue) {
+    return deny(blockingIssue.reason, capabilityForFactKind(blockingIssue.kind));
+  }
+
+  if (options.call.capabilities.includes("unknown")) {
+    return deny("unknown capability denied by default", "unknown");
+  }
+
   for (const action of ["deny", "approval_required", "allow"] as const) {
     const rule = profile.rules.find((candidate) => candidate.action === action && ruleMatches(candidate, options.call));
     if (rule) {
+      const evidence: DecisionEvidence = {
+        ruleId: rule.id,
+        ...withCapability(firstMatchingCapability(rule, options.call)),
+        reason: `matched ${action} rule`
+      };
+
+      if (action === "approval_required" && !options.approvalHookAvailable) {
+        return {
+          schemaVersion: DECISION_SCHEMA_VERSION,
+          action: "deny",
+          evidence: [
+            {
+              ...evidence,
+              reason: "approval required but no approval hook is available"
+            }
+          ]
+        };
+      }
+
       return {
         schemaVersion: DECISION_SCHEMA_VERSION,
         action,
-        evidence: [
-          {
-            ruleId: rule.id,
-            ...withCapability(firstMatchingCapability(rule, options.call)),
-            reason: `matched ${action} rule`
-          }
-        ]
+        evidence: [evidence]
       };
     }
   }
@@ -44,8 +75,11 @@ function ruleMatches(rule: PolicyRule, call: NormalizedToolCall): boolean {
   const capabilityMatches =
     !rule.capabilities || call.capabilities.some((capability) => rule.capabilities?.includes(capability));
   const methodMatches = !rule.methods || rule.methods.includes(call.method);
+  const pathMatches = matcherMatches("path", rule, call);
+  const commandMatches = matcherMatches("command", rule, call);
+  const networkMatches = matcherMatches("network", rule, call);
 
-  return toolMatches && capabilityMatches && methodMatches;
+  return toolMatches && capabilityMatches && methodMatches && pathMatches && commandMatches && networkMatches;
 }
 
 function firstMatchingCapability(rule: PolicyRule, call: NormalizedToolCall): Capability | undefined {
@@ -56,10 +90,62 @@ function withCapability(capability: Capability | undefined): { readonly capabili
   return capability ? { capability } : {};
 }
 
-function deny(reason: string): PolicyDecision {
+function matcherMatches(kind: "path" | "command" | "network", rule: PolicyRule, call: NormalizedToolCall): boolean {
+  if (kind === "path") {
+    return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "path"), Boolean(rule.paths), () =>
+      rule.paths ? pathRuleMatches(rule.paths, call.argumentFacts, rule.action === "deny" ? "deny" : "allow") : false
+    );
+  }
+
+  if (kind === "command") {
+    return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "command"), Boolean(rule.commands), () =>
+      rule.commands ? commandRuleMatches(rule.commands, call.argumentFacts) : false
+    );
+  }
+
+  return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "network"), Boolean(rule.networks), () =>
+    rule.networks ? networkRuleMatches(rule.networks, call.argumentFacts) : false
+  );
+}
+
+function factMatcherMatches(
+  action: PolicyRule["action"],
+  hasFact: boolean,
+  hasRuleMatcher: boolean,
+  match: () => boolean
+): boolean {
+  if (!hasFact && !hasRuleMatcher) {
+    return true;
+  }
+
+  if (action === "deny" && hasFact && !hasRuleMatcher) {
+    return true;
+  }
+
+  if (hasFact !== hasRuleMatcher) {
+    return false;
+  }
+
+  return match();
+}
+
+function capabilityForFactKind(kind: "path" | "command" | "network" | "secret"): Capability {
+  if (kind === "path") {
+    return "file-read";
+  }
+  if (kind === "command") {
+    return "shell";
+  }
+  if (kind === "network") {
+    return "network";
+  }
+  return "secret";
+}
+
+function deny(reason: string, capability?: Capability): PolicyDecision {
   return {
     schemaVersion: DECISION_SCHEMA_VERSION,
     action: "deny",
-    evidence: [{ reason }]
+    evidence: [{ ...withCapability(capability), reason }]
   };
 }

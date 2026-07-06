@@ -1,0 +1,11 @@
+{
+  "method": "tools/call",
+  "toolName": "read_file",
+  "capabilities": ["file-read"],
+  "argumentFacts": [
+    {
+      "kind": "path",
+      "value": "workspace/private/notes.md"
+    }
+  ]
+}

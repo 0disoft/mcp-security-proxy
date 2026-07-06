@@ -14,7 +14,11 @@ const requiredFiles = [
   "docs/adr/0004-implementation-stack-direction.md",
   "packages/contracts/schemas/policy.v1.schema.json",
   "packages/contracts/schemas/decision.v1.schema.json",
-  "packages/contracts/schemas/audit-event.v1.schema.json"
+  "packages/contracts/schemas/audit-event.v1.schema.json",
+  "fixtures/policies/deny-by-default.json",
+  "fixtures/policies/local-dev.json",
+  "fixtures/mcp/call-file-read-denied.json",
+  "fixtures/audit/decision-denied.redacted.jsonl"
 ];
 
 const forbiddenPhrases = [
@@ -48,4 +52,3 @@ if (missing.length > 0 || forbiddenHits.length > 0) {
   }
   process.exit(1);
 }
-
