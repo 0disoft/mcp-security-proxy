@@ -174,6 +174,30 @@ describe("stdio proxy bridge", () => {
       })
     );
   });
+
+  it("kills upstream when stdout closes and the process does not exit within the grace window", async () => {
+    const harness = createHarness({ upstreamNeverExits: true });
+    const resultPromise = runHarness(harness, { shutdownGraceMs: 1 });
+
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(4);
+    expect(harness.upstream.killed).toBe(true);
+    expect(harness.auditEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "error",
+        decision: expect.objectContaining({
+          evidence: [
+            {
+              reason: "upstream process did not exit after stdout closed"
+            }
+          ]
+        })
+      })
+    );
+  });
 });
 
 function runHarness(

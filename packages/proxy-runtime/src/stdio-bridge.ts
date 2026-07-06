@@ -102,14 +102,14 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
 
     if (first === "client") {
       upstream.stdin.end();
-      const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs);
+      const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs, -2);
       await upstreamDone;
       await stderrDone;
       return { exitCode: await normalizeUpstreamExit(exitCode, options.profileId, recordAudit) };
     }
 
     if (first === "upstream-output") {
-      const exitCode = await upstreamExit;
+      const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs, -3);
       await stderrDone;
       return { exitCode: await normalizeUpstreamExit(exitCode, options.profileId, recordAudit) };
     }
@@ -144,12 +144,13 @@ function writeLine(stream: Writable, line: string): void {
 async function waitForUpstreamExitOrKill(
   upstream: UpstreamProcess,
   upstreamExit: Promise<number>,
-  shutdownGraceMs: number
+  shutdownGraceMs: number,
+  timeoutExitCode: -2 | -3
 ): Promise<number> {
   const timeoutExit = new Promise<number>((resolve) => {
     const timer = setTimeout(() => {
       upstream.kill();
-      resolve(-2);
+      resolve(timeoutExitCode);
     }, Math.max(0, shutdownGraceMs));
     upstreamExit.finally(() => clearTimeout(timer));
   });
@@ -177,9 +178,11 @@ async function normalizeUpstreamExit(
             reason:
               exitCode === -2
                 ? "upstream process did not exit after client input closed"
-                : exitCode === -1
-                  ? "upstream process failed before reporting an exit code"
-                  : `upstream process exited with code ${exitCode}`
+                : exitCode === -3
+                  ? "upstream process did not exit after stdout closed"
+                  : exitCode === -1
+                    ? "upstream process failed before reporting an exit code"
+                    : `upstream process exited with code ${exitCode}`
           }
         ]
       },

@@ -39,6 +39,8 @@ Current implemented responsibilities:
 - map non-zero upstream exits to the CLI upstream-failure exit code and record a redacted audit event
 - after client input closes, end upstream stdin and kill the upstream process if it does not exit
   within a bounded grace window
+- after upstream stdout closes, kill the upstream process if it does not exit within the same
+  bounded grace window
 - allow the CLI `run` command to configure the shutdown grace window with
   `--shutdown-grace-ms`, defaulting to 1000 ms
 
@@ -73,3 +75,5 @@ transports remain future runtime responsibilities.
   audit event without converting the crash into policy success.
 - Upstream shutdown hang: proxy kills the process after the shutdown grace window and records a
   redacted upstream-failure audit event.
+- Upstream stdout close without process exit: proxy kills the process after the shutdown grace
+  window and records a redacted upstream-failure audit event.
