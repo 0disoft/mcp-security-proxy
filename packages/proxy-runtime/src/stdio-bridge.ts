@@ -114,7 +114,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       return { exitCode: await normalizeUpstreamExit(exitCode, options.profileId, recordAudit) };
     }
 
-    upstream.kill();
+    await upstreamDone;
     await stderrDone;
     return { exitCode: await normalizeUpstreamExit(first, options.profileId, recordAudit) };
   } catch (error) {

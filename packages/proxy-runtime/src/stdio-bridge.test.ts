@@ -97,6 +97,33 @@ describe("stdio proxy bridge", () => {
     expect(harness.upstream.killed).toBe(true);
   });
 
+  it("continues when audit writing fails under warn_and_continue policy", async () => {
+    const harness = createHarness({ failAuditWrites: true });
+    const resultPromise = runHarness(harness, { auditOnFailure: "warn_and_continue" });
+
+    harness.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: 4, method: "resources/list" })}\n`);
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(0);
+    expect(harness.upstream.killed).toBe(false);
+    expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({
+        id: 4,
+        error: expect.objectContaining({
+          data: expect.objectContaining({
+            decision: expect.objectContaining({
+              action: "deny"
+            })
+          })
+        })
+      })
+    );
+    expect(harness.auditEvents).toEqual([]);
+  });
+
   it("records upstream stderr as a redacted summary without raw stderr content", async () => {
     const harness = createHarness();
     const resultPromise = runHarness(harness);
@@ -202,10 +229,10 @@ describe("stdio proxy bridge", () => {
 
 function runHarness(
   harness: ReturnType<typeof createHarness>,
-  options: { readonly shutdownGraceMs?: number } = {}
+  options: { readonly shutdownGraceMs?: number; readonly auditOnFailure?: PolicyDocument["profiles"][number]["audit"]["onFailure"] } = {}
 ): Promise<{ readonly exitCode: number }> {
   return runStdioProxy({
-    policy: readPolicy(),
+    policy: readPolicy(options.auditOnFailure),
     profileId: "local",
     upstreamCommand: {
       executable: "fixture",
@@ -271,8 +298,25 @@ function createHarness(
   };
 }
 
-function readPolicy(): PolicyDocument {
-  return JSON.parse(readFileSync(resolve(repoRoot, "fixtures/policies/local-dev.json"), "utf8")) as PolicyDocument;
+function readPolicy(auditOnFailure?: PolicyDocument["profiles"][number]["audit"]["onFailure"]): PolicyDocument {
+  const policy = JSON.parse(readFileSync(resolve(repoRoot, "fixtures/policies/local-dev.json"), "utf8")) as PolicyDocument;
+  if (!auditOnFailure) {
+    return policy;
+  }
+  return {
+    ...policy,
+    profiles: policy.profiles.map((profile) =>
+      profile.id === "local"
+        ? {
+            ...profile,
+            audit: {
+              ...profile.audit,
+              onFailure: auditOnFailure
+            }
+          }
+        : profile
+    )
+  };
 }
 
 function readLines(chunks: readonly Buffer[]): readonly string[] {
