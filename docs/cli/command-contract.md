@@ -40,6 +40,11 @@ Required inputs:
 - upstream server command after `--`
 - audit output file path
 
+Optional inputs:
+
+- `--shutdown-grace-ms <0..2147483647>` controls how long `run` waits after client input closes
+  before killing the upstream process. The default is 1000 ms.
+
 ### `mcp-security-proxy check-policy`
 
 Implemented. Validates policy syntax, schema version, method policy, profiles, rules, audit
@@ -63,6 +68,7 @@ prints the decision without forwarding it.
 - `--input` points to captured tool-list or tool-call JSON for dry-run commands.
 - `--approval-hook` marks approval hook availability for dry-run call evaluation.
 - `--audit-log` selects JSON Lines audit output for live proxy behavior.
+- `--shutdown-grace-ms` selects the live proxy shutdown grace window in milliseconds.
 - `--dry-run` never forwards a tool call.
 
 `run` does not support `--json` because stdout is reserved for MCP protocol messages.

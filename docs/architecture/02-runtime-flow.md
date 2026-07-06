@@ -39,8 +39,10 @@ Current implemented responsibilities:
 - map non-zero upstream exits to the CLI upstream-failure exit code and record a redacted audit event
 - after client input closes, end upstream stdin and kill the upstream process if it does not exit
   within a bounded grace window
+- allow the CLI `run` command to configure the shutdown grace window with
+  `--shutdown-grace-ms`, defaulting to 1000 ms
 
-Retry policy, richer upstream stderr policy controls, configurable lifecycle policy, and non-stdio
+Retry policy, richer upstream stderr policy controls, broader lifecycle policy, and non-stdio
 transports remain future runtime responsibilities.
 
 ## Tool Discovery Flow

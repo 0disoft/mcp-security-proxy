@@ -122,6 +122,33 @@ describe("dry-run CLI commands", () => {
     expect(output.auditLines()).toHaveLength(1);
   });
 
+  it("passes a configured shutdown grace window to the live run path", async () => {
+    const output = await invokeAsync(
+      [
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--audit-log",
+        "audit.jsonl",
+        "--shutdown-grace-ms",
+        "0",
+        "--",
+        "fixture-server"
+      ],
+      { upstreamNeverExits: true }
+    );
+
+    output.clientInput.end();
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(4);
+    expect(output.upstream.killed).toBe(true);
+    expect(output.mcpOutputLines()).toEqual([]);
+    expect(output.auditLines().join("\n")).toContain("upstream process did not exit after client input closed");
+  });
+
   it("reports run startup usage errors on stderr because stdout is reserved for MCP", async () => {
     const output = await invokeAsync(["run", "--json"]);
 
@@ -129,6 +156,51 @@ describe("dry-run CLI commands", () => {
     expect(result.exitCode).toBe(2);
     expect(output.mcpOutputLines()).toEqual([]);
     expect(output.stderr).toEqual(["run does not support --json because stdout is reserved for MCP messages"]);
+  });
+
+  it.each([
+    ["abc", "--shutdown-grace-ms must be a non-negative integer between 0 and 2147483647"],
+    ["-1", "--shutdown-grace-ms must be a non-negative integer between 0 and 2147483647"],
+    ["2147483648", "--shutdown-grace-ms must be a non-negative integer between 0 and 2147483647"]
+  ])("rejects invalid shutdown grace values: %s", async (value, message) => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "audit.jsonl",
+      "--shutdown-grace-ms",
+      value,
+      "--",
+      "fixture-server"
+    ]);
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(2);
+    expect(output.mcpOutputLines()).toEqual([]);
+    expect(output.stderr).toEqual([message]);
+  });
+
+  it("rejects a missing shutdown grace value", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "audit.jsonl",
+      "--shutdown-grace-ms",
+      "--",
+      "fixture-server"
+    ]);
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(2);
+    expect(output.mcpOutputLines()).toEqual([]);
+    expect(output.stderr).toEqual(["missing required --shutdown-grace-ms value"]);
   });
 
   it("reports missing required flags as usage errors", () => {
@@ -182,12 +254,15 @@ function invoke(argv: readonly string[], virtualFiles: Readonly<Record<string, s
   };
 }
 
-async function invokeAsync(argv: readonly string[]): Promise<{
+async function invokeAsync(
+  argv: readonly string[],
+  options: { readonly upstreamNeverExits?: boolean } = {}
+): Promise<{
   readonly result: Promise<{ readonly exitCode: number }>;
   readonly clientInput: PassThrough;
   readonly mcpOutputLines: () => readonly string[];
   readonly mcpOutputJson: () => any;
-  readonly upstream: UpstreamProcess & { readonly stdout: PassThrough };
+  readonly upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly killed: boolean };
   readonly upstreamInputLines: () => readonly string[];
   readonly auditLines: () => readonly string[];
   readonly stderr: readonly string[];
@@ -200,15 +275,24 @@ async function invokeAsync(argv: readonly string[]): Promise<{
   const upstreamInputChunks: Buffer[] = [];
   const auditWrites: string[] = [];
   const stderr: string[] = [];
+  let killed = false;
 
   mcpOutput.on("data", (chunk: Buffer) => mcpChunks.push(chunk));
   upstreamInput.on("data", (chunk: Buffer) => upstreamInputChunks.push(chunk));
 
-  const upstream: UpstreamProcess & { readonly stdout: PassThrough } = {
+  const upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly killed: boolean } = {
     stdin: upstreamInput,
     stdout: upstreamOutput,
-    exit: new Promise((resolve) => upstreamOutput.once("end", () => resolve(0))),
-    kill: () => undefined
+    exit: options.upstreamNeverExits
+      ? new Promise(() => undefined)
+      : new Promise((resolve) => upstreamOutput.once("end", () => resolve(0))),
+    kill: () => {
+      killed = true;
+      upstreamOutput.end();
+    },
+    get killed() {
+      return killed;
+    }
   };
 
   const io: CliRunIo = {

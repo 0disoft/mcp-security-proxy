@@ -45,6 +45,8 @@ interface ParsedArgs {
   readonly positionals: readonly string[];
 }
 
+const maximumShutdownGraceMs = 2_147_483_647;
+
 export function createCommandRegistry(): readonly CommandContract[] {
   return [
     {
@@ -356,6 +358,25 @@ function readOptionalStringFlag(flags: Readonly<Record<string, string | true>>, 
   return typeof value === "string" ? value : undefined;
 }
 
+function readOptionalShutdownGraceMsFlag(flags: Readonly<Record<string, string | true>>): number | undefined {
+  const name = "shutdown-grace-ms";
+  const value = flags[name];
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === true) {
+    throw new CliError(2, `missing required --${name} value`);
+  }
+  if (!/^\d+$/.test(value)) {
+    throw new CliError(2, `--${name} must be a non-negative integer between 0 and ${maximumShutdownGraceMs}`);
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed > maximumShutdownGraceMs) {
+    throw new CliError(2, `--${name} must be a non-negative integer between 0 and ${maximumShutdownGraceMs}`);
+  }
+  return parsed;
+}
+
 async function runProxy(flags: Readonly<Record<string, string | true>>, upstreamArgv: readonly string[], io: CliRunIo): Promise<CliResult> {
   if (flags["json"] === true) {
     throw new CliError(2, "run does not support --json because stdout is reserved for MCP messages");
@@ -363,6 +384,7 @@ async function runProxy(flags: Readonly<Record<string, string | true>>, upstream
   const policyPath = readRequiredStringFlag(flags, "policy");
   const profileId = readRequiredStringFlag(flags, "profile");
   const auditLogPath = readRequiredStringFlag(flags, "audit-log");
+  const shutdownGraceMs = readOptionalShutdownGraceMsFlag(flags);
   if (auditLogPath === "-") {
     throw new CliError(2, "run requires --audit-log to be a file path; stdout is reserved for MCP messages");
   }
@@ -390,7 +412,8 @@ async function runProxy(flags: Readonly<Record<string, string | true>>, upstream
     clientOutput: io.mcpOutput,
     spawnUpstream: io.spawnUpstream,
     writeAuditEvent: (event) => io.appendTextFile(auditLogPath, `${JSON.stringify(event)}\n`),
-    approvalHookAvailable: flags["approval-hook"] === true
+    approvalHookAvailable: flags["approval-hook"] === true,
+    ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {})
   });
 }
 

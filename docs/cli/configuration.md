@@ -19,6 +19,7 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 - Server profile name
 - Upstream stdio server command after `--`
 - Audit output file path
+- Optional shutdown grace window in milliseconds
 - Optional dry-run input file
 - Optional JSON output flag for non-`run` commands
 
@@ -43,6 +44,8 @@ Proposed precedence:
 - Shell command matching: exact or narrow argv pattern only
 - CLI `run` stdout: MCP protocol messages only
 - CLI `run` audit output: JSON Lines file selected by `--audit-log`
+- CLI `run` shutdown grace: 1000 ms unless `--shutdown-grace-ms` supplies an integer between
+  0 and 2147483647
 
 ## Review Blockers
 
