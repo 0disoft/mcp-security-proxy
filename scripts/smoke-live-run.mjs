@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 const repoRoot = resolve(import.meta.dirname, "..");
 const tempDir = mkdtempSync(join(tmpdir(), "mcp-security-proxy-"));
 const auditLog = join(tempDir, "audit.jsonl");
+const failedAuditLog = join(tempDir, "failed-audit.jsonl");
 
 try {
   const child = spawn(
@@ -87,6 +88,41 @@ try {
   }
   if (!auditText.includes('"stderr_line":1')) {
     throw new Error(`expected redacted stderr summary audit event, got ${auditText}`);
+  }
+
+  const failedChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      failedAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--exit-nonzero"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  failedChild.stdin.end();
+  const failedExitCode = await new Promise((resolve, reject) => {
+    failedChild.once("error", reject);
+    failedChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (failedExitCode !== 4) {
+    throw new Error(`expected non-zero upstream exit to map to 4, got ${failedExitCode}`);
+  }
+  const failedAudit = readFileSync(failedAuditLog, "utf8");
+  if (!failedAudit.includes("upstream process exited with code 19")) {
+    throw new Error(`expected upstream exit audit event, got ${failedAudit}`);
   }
 } finally {
   rmSync(tempDir, { recursive: true, force: true });

@@ -90,7 +90,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
   });
 
   try {
-    const upstreamExit = upstream.exit.catch(() => 4);
+    const upstreamExit = upstream.exit.catch(() => -1);
     const first = await Promise.race([
       clientDone.then(() => "client" as const),
       upstreamDone.then(() => "upstream-output" as const),
@@ -102,18 +102,18 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       const exitCode = await upstreamExit;
       await upstreamDone;
       await stderrDone;
-      return { exitCode };
+      return { exitCode: await normalizeUpstreamExit(exitCode, options.profileId, recordAudit) };
     }
 
     if (first === "upstream-output") {
       const exitCode = await upstreamExit;
       await stderrDone;
-      return { exitCode };
+      return { exitCode: await normalizeUpstreamExit(exitCode, options.profileId, recordAudit) };
     }
 
     upstream.kill();
     await stderrDone;
-    return { exitCode: first };
+    return { exitCode: await normalizeUpstreamExit(first, options.profileId, recordAudit) };
   } catch (error) {
     if (error instanceof AuditFailure) {
       fatalExitCode = 5;
@@ -136,6 +136,37 @@ async function consumeLines(lines: ReturnType<typeof createInterface>, onLine: (
 
 function writeLine(stream: Writable, line: string): void {
   stream.write(`${line}\n`);
+}
+
+async function normalizeUpstreamExit(
+  exitCode: number,
+  profileId: string,
+  recordAudit: (events: readonly AuditEvent[]) => Promise<void>
+): Promise<number> {
+  if (exitCode === 0) {
+    return 0;
+  }
+
+  await recordAudit([
+    createAuditEvent({
+      kind: "error",
+      profileId,
+      decision: {
+        schemaVersion: "msp.decision.v1",
+        action: "deny",
+        evidence: [
+          {
+            reason: exitCode === -1 ? "upstream process failed before reporting an exit code" : `upstream process exited with code ${exitCode}`
+          }
+        ]
+      },
+      redaction: {
+        applied: false,
+        counts: {}
+      }
+    })
+  ]);
+  return 4;
 }
 
 async function observeUpstreamStderr(

@@ -36,6 +36,7 @@ Current implemented responsibilities:
 - keep stdout reserved for MCP protocol messages
 - append audit events to the file selected by `--audit-log`
 - summarize upstream stderr as redacted audit metadata without storing raw stderr lines
+- map non-zero upstream exits to the CLI upstream-failure exit code and record a redacted audit event
 
 Retry policy, richer upstream stderr policy controls, process lifecycle cleanup, and non-stdio
 transports remain future runtime responsibilities.
@@ -64,4 +65,5 @@ transports remain future runtime responsibilities.
 - Unclassified risky capability: call is denied by default.
 - Unsupported method: request is denied by default and is not passed through.
 - Audit write failure: fail closed by default; policy may explicitly choose warn-and-continue.
-- Upstream server crash: proxy returns upstream failure without converting it into policy success.
+- Upstream server crash: proxy exits with the upstream-failure CLI code and records a redacted error
+  audit event without converting the crash into policy success.

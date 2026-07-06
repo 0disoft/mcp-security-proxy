@@ -1,5 +1,9 @@
 import { createInterface } from "node:readline";
 
+if (process.argv.includes("--exit-nonzero")) {
+  process.exit(19);
+}
+
 const tools = [
   {
     name: "read_file",

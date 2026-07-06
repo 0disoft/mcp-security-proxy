@@ -123,6 +123,32 @@ describe("stdio proxy bridge", () => {
       })
     );
   });
+
+  it("maps non-zero upstream exits to the upstream failure exit code and audits the exit", async () => {
+    const harness = createHarness({ upstreamExitCode: 19 });
+    const resultPromise = runHarness(harness);
+
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(4);
+    expect(harness.auditEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "error",
+        decision: {
+          schemaVersion: "msp.decision.v1",
+          action: "deny",
+          evidence: [
+            {
+              reason: "upstream process exited with code 19"
+            }
+          ]
+        }
+      })
+    );
+  });
 });
 
 function runHarness(harness: ReturnType<typeof createHarness>): Promise<{ readonly exitCode: number }> {
@@ -145,7 +171,7 @@ function runHarness(harness: ReturnType<typeof createHarness>): Promise<{ readon
   });
 }
 
-function createHarness(options: { readonly failAuditWrites?: boolean } = {}): {
+function createHarness(options: { readonly failAuditWrites?: boolean; readonly upstreamExitCode?: number } = {}): {
   readonly clientInput: PassThrough;
   readonly clientOutput: PassThrough;
   readonly clientOutputCapture: Buffer[];
@@ -174,7 +200,7 @@ function createHarness(options: { readonly failAuditWrites?: boolean } = {}): {
       stdin: upstreamInput,
       stdout: upstreamOutput,
       stderr: upstreamError,
-      exit: new Promise((resolve) => upstreamOutput.once("end", () => resolve(0))),
+      exit: new Promise((resolve) => upstreamOutput.once("end", () => resolve(options.upstreamExitCode ?? 0))),
       kill: () => {
         killed = true;
       },
