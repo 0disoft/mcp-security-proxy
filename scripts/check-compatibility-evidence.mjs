@@ -15,6 +15,40 @@ const requiredKinds = new Set([
   "cli.json.eval-call",
   "library.decision-result"
 ]);
+const requiredEvidenceIds = new Set([
+  "mcp-discovery-basic",
+  "mcp-call-file-read-allowed",
+  "mcp-call-file-read-denied",
+  "mcp-call-file-read-traversal",
+  "mcp-call-network-allowed",
+  "mcp-call-network-denied",
+  "mcp-call-network-ambiguous",
+  "mcp-call-shell-denied",
+  "mcp-call-secret-denied",
+  "mcp-call-secret-api-key-allowed",
+  "mcp-call-workflow-approval",
+  "audit-decision-denied-redacted",
+  "cli-check-policy-local-dev",
+  "cli-inspect-tools-local",
+  "cli-eval-call-file-read-traversal-local",
+  "cli-eval-call-network-allowed-local",
+  "cli-eval-call-network-denied-local",
+  "cli-eval-call-network-ambiguous-local",
+  "cli-eval-call-shell-denied-local",
+  "cli-eval-call-secret-denied-local",
+  "cli-eval-call-secret-api-key-allowed-local",
+  "cli-eval-call-workflow-no-hook-local",
+  "cli-eval-call-workflow-approval-hook-local",
+  "library-decision-file-read-traversal",
+  "library-decision-network-allowed",
+  "library-decision-network-denied",
+  "library-decision-network-ambiguous",
+  "library-decision-shell-denied",
+  "library-decision-secret-denied",
+  "library-decision-secret-api-key-allowed",
+  "library-decision-workflow-no-hook",
+  "library-decision-workflow-approval-hook"
+]);
 
 const failures = [];
 const manifest = readJson(manifestPath);
@@ -46,6 +80,11 @@ for (const item of evidence) {
 for (const kind of requiredKinds) {
   if (!seenKinds.has(kind)) {
     failures.push(`${manifestPath}: missing required compatibility evidence kind ${kind}`);
+  }
+}
+for (const id of requiredEvidenceIds) {
+  if (!seenIds.has(id)) {
+    failures.push(`${manifestPath}: missing required compatibility evidence id ${id}`);
   }
 }
 

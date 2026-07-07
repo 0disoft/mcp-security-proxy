@@ -18,9 +18,29 @@
       "path": "fixtures/mcp/call-file-read-denied.json"
     },
     {
+      "id": "mcp-call-file-read-traversal",
+      "kind": "mcp.call.denied",
+      "path": "fixtures/mcp/call-file-read-traversal.json"
+    },
+    {
+      "id": "mcp-call-network-allowed",
+      "kind": "mcp.call.allowed",
+      "path": "fixtures/mcp/call-network-allowed.json"
+    },
+    {
+      "id": "mcp-call-network-denied",
+      "kind": "mcp.call.denied",
+      "path": "fixtures/mcp/call-network-denied.json"
+    },
+    {
       "id": "mcp-call-network-ambiguous",
       "kind": "mcp.call.denied",
       "path": "fixtures/mcp/call-network-ambiguous.json"
+    },
+    {
+      "id": "mcp-call-shell-denied",
+      "kind": "mcp.call.denied",
+      "path": "fixtures/mcp/call-shell-denied.json"
     },
     {
       "id": "mcp-call-secret-denied",
