@@ -29,6 +29,7 @@ Current implemented responsibilities:
 
 - deny unsupported client methods before upstream forwarding
 - deny unsupported upstream server-origin methods before response correlation
+- enforce request-vs-notification JSON-RPC id shape for supported MCP methods
 - allow only payload-free server-origin `ping` in the current direction policy
 - track `tools/list` request IDs so discovery responses can be filtered
 - require upstream responses to match a pending client request id before forwarding

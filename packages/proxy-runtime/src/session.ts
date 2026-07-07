@@ -48,6 +48,8 @@ interface ToolMetadata {
 const policyDeniedErrorCode = -32001;
 const invalidRequestErrorCode = -32600;
 const upstreamServerOriginAllowedMethods = new Set(["ping"]);
+const requestMethodIdsRequired = new Set(["initialize", "ping", "tools/list", "tools/call"]);
+const notificationMethods = new Set(["notifications/initialized"]);
 const redactedUpstreamErrorMessage = "upstream error message redacted";
 const defaultMaxFrameBytes = 1_048_576;
 const defaultMaxJsonDepth = 64;
@@ -143,6 +145,14 @@ export class ProxySession {
       return {
         kind: "result",
         result: this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied")
+      };
+    }
+
+    const shapeDenied = this.denyInvalidMethodShape(envelope);
+    if (shapeDenied) {
+      return {
+        kind: "result",
+        result: shapeDenied
       };
     }
 
@@ -306,6 +316,11 @@ export class ProxySession {
         return this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied");
       }
 
+      const shapeDenied = this.denyInvalidServerOriginMethodShape(envelope);
+      if (shapeDenied) {
+        return shapeDenied;
+      }
+
       const duplicatePending = this.denyDuplicatePendingRequest(
         envelope,
         this.pendingServerOriginMethods,
@@ -427,6 +442,47 @@ export class ProxySession {
       "MCP request denied by proxy protocol state",
       "error"
     );
+  }
+
+  private denyInvalidMethodShape(envelope: JsonRpcEnvelope): ProxyFrameResult | undefined {
+    if (requestMethodIdsRequired.has(envelope.method ?? "") && envelope.id === undefined) {
+      return this.denyInvalidClientMessage(
+        envelope,
+        "MCP request method must include a JSON-RPC id",
+        "MCP request denied by proxy protocol state"
+      );
+    }
+    if (notificationMethods.has(envelope.method ?? "") && envelope.id !== undefined) {
+      return this.denyInvalidClientMessage(
+        envelope,
+        "MCP notification method must not include a JSON-RPC id",
+        "MCP notification denied by proxy protocol state"
+      );
+    }
+    return undefined;
+  }
+
+  private denyInvalidServerOriginMethodShape(envelope: JsonRpcEnvelope): ProxyFrameResult | undefined {
+    if (envelope.method === "ping" && envelope.id === undefined) {
+      return this.denyEnvelope(
+        envelope,
+        denyDecision("server-origin ping must include a JSON-RPC id", { code: "jsonrpc.invalid", method: envelope.method }),
+        "MCP method denied by policy",
+        "method-denied"
+      );
+    }
+    return undefined;
+  }
+
+  private denyInvalidClientMessage(envelope: JsonRpcEnvelope, reason: string, message: string): ProxyFrameResult {
+    const decision = denyDecision(reason, {
+      code: "jsonrpc.invalid",
+      ...(typeof envelope.method === "string" ? { method: envelope.method } : {})
+    });
+    return {
+      responseLine: encodeJsonRpcError(envelope.id ?? null, invalidRequestErrorCode, message, decision),
+      auditEvents: [this.createAudit("error", decision, undefined, envelope.method)]
+    };
   }
 
   private denyEnvelope(

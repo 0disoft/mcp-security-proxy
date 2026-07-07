@@ -44,9 +44,11 @@ Method-bearing messages from either side of the proxy must pass the configured m
 before they are forwarded. Direction matters: `initialize`, `notifications/initialized`,
 `tools/list`, and `tools/call` are client-originated in the MVP. The only upstream
 server-originated method currently forwarded is `ping`, and it is forwarded only when the configured
-method policy also allows `ping`. Server-origin `ping` is liveness-only: `params` must be absent or
-an empty object. Any non-empty or non-object `params` value is denied without forwarding raw payload
-data.
+method policy also allows `ping`. Method shape matters too: `initialize`, `ping`, `tools/list`, and
+`tools/call` are request-style methods and must carry a JSON-RPC `id`; `notifications/initialized`
+is a notification and must omit `id`. Server-origin `ping` is liveness-only and must be a request
+with an `id`; `params` must be absent or an empty object. Any missing `id`, non-empty `params`, or
+non-object `params` value is denied without forwarding raw payload data.
 An upstream server request or notification must not be mistaken for a response to a pending client
 request, even when it reuses the same JSON-RPC id. Denied upstream server requests with an id
 receive a JSON-RPC error response back to the upstream server; denied upstream notifications are

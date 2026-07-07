@@ -786,6 +786,100 @@ describe("proxy runtime session", () => {
     expect(result.auditEvents).toHaveLength(1);
   });
 
+  it("denies request-style client methods sent without a JSON-RPC id", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        method: "tools/list",
+        params: {
+          debug: "RAW_IDLESS_DISCOVERY_MARKER"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32600,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ code: "jsonrpc.invalid", method: "tools/list", reason: "MCP request method must include a JSON-RPC id" }]
+          }
+        }
+      }
+    });
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_IDLESS_DISCOVERY_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      method: "tools/list",
+      decision: {
+        evidence: [{ code: "jsonrpc.invalid", method: "tools/list" }]
+      }
+    });
+  });
+
+  it("forwards initialized notifications only when they do not carry a JSON-RPC id", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const notificationLine = JSON.stringify({
+      jsonrpc: "2.0",
+      method: "notifications/initialized"
+    });
+    const allowed = session.handleClientLine(notificationLine);
+
+    expect(allowed.forwardLine).toBe(notificationLine);
+    expect(allowed.responseLine).toBeUndefined();
+    expect(allowed.auditEvents).toHaveLength(0);
+
+    const denied = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "initialized-with-id",
+        method: "notifications/initialized"
+      })
+    );
+
+    expect(denied.forwardLine).toBeUndefined();
+    expect(JSON.parse(denied.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "initialized-with-id",
+      error: {
+        code: -32600,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                method: "notifications/initialized",
+                reason: "MCP notification method must not include a JSON-RPC id"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(denied.auditEvents[0]).toMatchObject({
+      kind: "error",
+      method: "notifications/initialized",
+      decision: {
+        evidence: [{ code: "jsonrpc.invalid", method: "notifications/initialized" }]
+      }
+    });
+  });
+
   it("rejects client messages that exceed the configured frame byte limit", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -977,6 +1071,32 @@ describe("proxy runtime session", () => {
     expect(result.forwardLine).toBe(line);
     expect(result.responseLine).toBeUndefined();
     expect(result.auditEvents).toHaveLength(0);
+  });
+
+  it("denies upstream server ping notifications without a JSON-RPC id", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        method: "ping"
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "method-denied",
+      method: "ping",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.invalid", method: "ping", reason: "server-origin ping must include a JSON-RPC id" }]
+      }
+    });
   });
 
   it("forwards client responses only after a matching upstream server ping request", () => {
