@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 const repoRoot = resolve(import.meta.dirname, "..");
 const tempDir = mkdtempSync(join(tmpdir(), "mcp-security-proxy-"));
 const auditLog = join(tempDir, "audit.jsonl");
+const auditFailurePath = join(tempDir, "audit-directory");
 const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
@@ -13,6 +14,61 @@ const failedAuditLog = join(tempDir, "failed-audit.jsonl");
 const secretAuditLog = join(tempDir, "secret-audit.jsonl");
 
 try {
+  mkdirSync(auditFailurePath);
+
+  const auditFailureChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      auditFailurePath,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const auditFailureStdoutChunks = [];
+  const auditFailureStderrChunks = [];
+  auditFailureChild.stdout.on("data", (chunk) => auditFailureStdoutChunks.push(chunk));
+  auditFailureChild.stderr.on("data", (chunk) => auditFailureStderrChunks.push(chunk));
+  auditFailureChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "audit-failure-denied",
+      method: "tools/call",
+      params: {
+        name: "read_file",
+        arguments: {
+          path: "workspace/private/secret.txt"
+        }
+      }
+    })}\n`
+  );
+  auditFailureChild.stdin.end();
+  const auditFailureExitCode = await new Promise((resolve, reject) => {
+    auditFailureChild.once("error", reject);
+    auditFailureChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (auditFailureExitCode !== 5) {
+    throw new Error(
+      `expected audit write failure to fail closed with exit 5, got ${auditFailureExitCode}: ${Buffer.concat(auditFailureStderrChunks).toString("utf8")}`
+    );
+  }
+  const auditFailureOutput = Buffer.concat(auditFailureStdoutChunks).toString("utf8");
+  if (auditFailureOutput.length > 0) {
+    throw new Error(`audit write failure emitted MCP stdout before failing closed: ${auditFailureOutput}`);
+  }
+
   const child = spawn(
     process.execPath,
     [
