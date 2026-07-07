@@ -492,6 +492,65 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("removes non-standard upstream JSON-RPC error fields before forwarding", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "error-with-extra-fields",
+        method: "ping"
+      })
+    );
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "error-with-extra-fields",
+        error: {
+          code: -32000,
+          message: "upstream failure",
+          stack: "RAW_ERROR_STACK_MARKER at workspace/private/secret.txt",
+          details: {
+            marker: "RAW_ERROR_DETAILS_MARKER"
+          }
+        }
+      })
+    );
+
+    expect(JSON.parse(result.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      id: "error-with-extra-fields",
+      error: {
+        code: -32000,
+        message: "upstream failure"
+      }
+    });
+    expect(result.responseLine).toBeUndefined();
+    expect(result.forwardLine).not.toContain("RAW_ERROR_STACK_MARKER");
+    expect(result.forwardLine).not.toContain("workspace/private/secret.txt");
+    expect(result.forwardLine).not.toContain("RAW_ERROR_DETAILS_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_ERROR_STACK_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("workspace/private/secret.txt");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_ERROR_DETAILS_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.upstream_error_redacted", reason: "upstream JSON-RPC error extra fields removed before forwarding" }]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_error_extra_fields: 2
+        }
+      }
+    });
+  });
+
   it("forwards benign upstream JSON-RPC error messages unchanged", () => {
     const session = createProxySession({
       policy: readPolicy(),

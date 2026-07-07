@@ -65,11 +65,12 @@ return `-32600`; invalid upstream server messages are dropped with a redacted au
 Each newline-delimited frame is bounded before parsing. The default maximum frame size is 1 MiB,
 and the default parsed JSON depth limit is 64. Hosts may configure stricter or looser limits within
 the CLI-supported bounds, but oversized or overly deep frames fail closed before forwarding.
-Valid upstream error responses are forwarded with `code` and a message. Any upstream `error.data`
-member is removed before forwarding and recorded as a redaction event. If the upstream
-`error.message` looks sensitive, such as a path, URL, or redaction marker, the proxy replaces the
-message with a generic redacted message and records that redaction. Proxy-generated errors may
-include the proxy's own redacted decision data.
+Valid upstream error responses are rebuilt with only `code` and a sanitized `message`. Any upstream
+`error.data` member and any non-standard upstream error fields, such as stack traces, debug
+metadata, or nested details, are removed before forwarding and recorded as redaction. If the
+upstream `error.message` looks sensitive, such as a path, URL, or redaction marker, the proxy
+replaces the message with a generic redacted message and records that redaction. Proxy-generated
+errors may include the proxy's own redacted decision data.
 Valid upstream responses are forwarded only when their JSON-RPC `id` exactly matches a pending
 client request, including the original id type. Responses that do not match a pending request are
 dropped with a redacted audit event instead of being treated as unsolicited server messages.

@@ -35,6 +35,8 @@ Define how sensitive data moves through MCP Security Proxy and what must never b
   removed before forwarding.
 - Malformed discovery success payloads are not forwarded as-is; they are replaced with an empty
   tool list and a redacted audit event.
+- Upstream JSON-RPC error forwarding is allowlisted to `code` and sanitized `message`; error data,
+  stack traces, debug fields, and nested details are removed before forwarding.
 - Raw MCP payloads may be inspected for policy facts but must not be stored in audit events.
 - Audit events receive redacted summaries only.
 - Redaction must happen before audit write and before machine-readable CLI output.

@@ -625,15 +625,23 @@ function isJsonRpcErrorObject(value: unknown): boolean {
 }
 
 function sanitizeUpstreamError(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
-  if (!isRecord(envelope.error)) {
+  const originalError = isRecord(envelope.error) ? envelope.error : undefined;
+  if (!originalError) {
     return { envelope, redaction: noRedaction() };
   }
 
-  const error = { ...envelope.error };
+  const error: Record<string, unknown> = {
+    code: originalError["code"],
+    message: originalError["message"]
+  };
   const counts: Record<string, number> = {};
-  if ("data" in error) {
-    delete error["data"];
+  if ("data" in originalError) {
     counts["jsonrpc_error_data"] = 1;
+  }
+
+  const extraFieldCount = Object.keys(originalError).filter((key) => key !== "code" && key !== "message" && key !== "data").length;
+  if (extraFieldCount > 0) {
+    counts["jsonrpc_error_extra_fields"] = extraFieldCount;
   }
 
   if (typeof error["message"] === "string" && looksSensitiveErrorMessage(error["message"])) {
@@ -659,20 +667,37 @@ function sanitizeUpstreamError(envelope: JsonRpcEnvelope): { readonly envelope: 
 
 function upstreamErrorRedactionReason(redaction: RedactionSummary): string {
   const removedData = redaction.counts["jsonrpc_error_data"] !== undefined;
+  const removedExtraFields = redaction.counts["jsonrpc_error_extra_fields"] !== undefined;
   const redactedMessage = redaction.counts["jsonrpc_error_message"] !== undefined;
+  if (removedData && removedExtraFields && redactedMessage) {
+    return "upstream JSON-RPC error data and extra fields removed and message redacted before forwarding";
+  }
   if (removedData && redactedMessage) {
     return "upstream JSON-RPC error data removed and message redacted before forwarding";
   }
+  if (removedExtraFields && redactedMessage) {
+    return "upstream JSON-RPC error extra fields removed and message redacted before forwarding";
+  }
   if (redactedMessage) {
     return "upstream JSON-RPC error message redacted before forwarding";
+  }
+  if (removedData && removedExtraFields) {
+    return "upstream JSON-RPC error data and extra fields removed before forwarding";
+  }
+  if (removedExtraFields) {
+    return "upstream JSON-RPC error extra fields removed before forwarding";
   }
   return "upstream JSON-RPC error data removed before forwarding";
 }
 
 function upstreamErrorRedactionCode(redaction: RedactionSummary): DecisionReasonCode {
   const removedData = redaction.counts["jsonrpc_error_data"] !== undefined;
+  const removedExtraFields = redaction.counts["jsonrpc_error_extra_fields"] !== undefined;
   const redactedMessage = redaction.counts["jsonrpc_error_message"] !== undefined;
-  if (removedData && redactedMessage) {
+  if ((removedData || removedExtraFields) && redactedMessage) {
+    return "jsonrpc.upstream_error_redacted";
+  }
+  if (removedExtraFields) {
     return "jsonrpc.upstream_error_redacted";
   }
   if (redactedMessage) {

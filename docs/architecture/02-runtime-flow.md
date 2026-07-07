@@ -39,7 +39,8 @@ Current implemented responsibilities:
 - call an embedding host approval hook before forwarding approval-required tool calls
 - deny approval-required tool calls when no runtime approval hook is available
 - reject oversized JSON-RPC frames and overly deep parsed JSON messages
-- remove upstream JSON-RPC `error.data` and redact sensitive-looking upstream error messages
+- remove upstream JSON-RPC error data and extra fields, and redact sensitive-looking upstream error
+  messages
 - avoid raw tool arguments in audit events
 - include stable decision evidence codes in audit decisions
 - start one upstream stdio process from the CLI command after `--`
@@ -97,7 +98,8 @@ transports remain future runtime responsibilities.
 - Approval hook unavailable: approval-required call is denied and is not passed through.
 - Unmatched upstream response: response is dropped with a redacted audit event.
 - Oversized or overly deep JSON-RPC message: message is denied or dropped before forwarding.
-- Upstream error response with data or sensitive message: error is sanitized before forwarding.
+- Upstream error response with data, non-standard fields, or sensitive message: error is sanitized
+  before forwarding.
 - Malformed tool discovery result: visible tool state is cleared and an empty tool list is
   forwarded without the malformed raw payload.
 - Audit write failure: fail closed by default; policy may explicitly choose warn-and-continue.

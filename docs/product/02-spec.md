@@ -62,7 +62,8 @@ discovery and tool calls through explicit policy, redaction, and audit events.
 - Match shell commands against executable and argv allowlists.
 - Express network domain allow and deny rules as argument-level intent policy.
 - Redact environment values, secret-like strings, and sensitive audit fields.
-- Remove upstream JSON-RPC `error.data` before forwarding and replace sensitive-looking upstream
+- Forward only upstream JSON-RPC error `code` and sanitized `message`; remove `error.data` and any
+  non-standard upstream error fields before forwarding. Replace sensitive-looking upstream
   `error.message` strings with a generic message.
 - Bound newline-delimited JSON-RPC frame size and parsed JSON depth.
 - Emit JSON Lines audit events.
