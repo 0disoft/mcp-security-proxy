@@ -4,6 +4,14 @@ import { join, relative } from "node:path";
 const root = process.cwd();
 const expectedNodeEngine = ">=24.0.0";
 const expectedLicense = "Apache-2.0";
+const expectedWorkspacePackages = [
+  "cli",
+  "contracts",
+  "core",
+  "mcp-adapter",
+  "proxy-runtime",
+  "testkit"
+];
 
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 const formatPath = (path) => relative(root, path).replaceAll("\\", "/");
@@ -26,12 +34,32 @@ const checkCommonManifest = (manifest, manifestPath) => {
 
 const checkWorkspacePackage = (manifest, manifestPath) => {
   const file = formatPath(manifestPath);
+  const packageRoot = manifestPath.slice(0, -"package.json".length);
   checkCommonManifest(manifest, manifestPath);
   assertEqual(manifest.version === "0.0.0", `${file}: version must stay 0.0.0 until release readiness records a public version`);
   assertEqual(typeof manifest.name === "string" && manifest.name.startsWith("@0disoft/mcp-security-proxy-"), `${file}: package name must stay under @0disoft/mcp-security-proxy-*`);
   assertEqual(manifest.types === "./src/index.ts", `${file}: types must point at ./src/index.ts`);
   assertEqual(manifest.exports?.["."]?.types === "./src/index.ts", `${file}: exports[.].types must point at ./src/index.ts`);
   assertEqual(manifest.exports?.["."]?.default === "./dist/index.js", `${file}: exports[.].default must point at ./dist/index.js`);
+  assertEqual(existsSync(join(packageRoot, "src", "index.ts")), `${file}: src/index.ts must exist for the exported type surface`);
+  assertEqual(existsSync(join(packageRoot, "tsconfig.json")), `${file}: tsconfig.json must exist for package build/typecheck ownership`);
+  assertEqual(manifest.scripts?.build === "tsc -p tsconfig.json", `${file}: build script must use tsc -p tsconfig.json`);
+  assertEqual(manifest.scripts?.typecheck === "tsc -p tsconfig.json --noEmit", `${file}: typecheck script must use tsc -p tsconfig.json --noEmit`);
+};
+
+const checkDependencies = (manifest, manifestPath, workspacePackageNames) => {
+  const file = formatPath(manifestPath);
+  const dependencyGroups = ["dependencies", "peerDependencies", "optionalDependencies"];
+  for (const group of dependencyGroups) {
+    const dependencies = manifest[group] ?? {};
+    for (const [name, version] of Object.entries(dependencies)) {
+      if (!workspacePackageNames.has(name)) {
+        failures.push(`${file}: ${group}.${name} must not introduce external runtime dependencies before release readiness records them`);
+        continue;
+      }
+      assertEqual(version === "workspace:*", `${file}: ${group}.${name} must use workspace:*`);
+    }
+  }
 };
 
 const rootManifestPath = join(root, "package.json");
@@ -52,15 +80,24 @@ if (existsSync(packagesDir)) {
 
   assertEqual(packageManifestPaths.length > 0, "packages/: no package manifests found");
 
+  const actualWorkspacePackages = packageManifestPaths
+    .map((path) => relative(packagesDir, path).split(/[\\/]/)[0])
+    .sort((left, right) => left.localeCompare(right));
+  assertEqual(JSON.stringify(actualWorkspacePackages) === JSON.stringify(expectedWorkspacePackages), `packages/: expected workspace packages ${expectedWorkspacePackages.join(", ")}, got ${actualWorkspacePackages.join(", ")}`);
+
+  const workspacePackageNames = new Set(packageManifestPaths.map((path) => readJson(path).name));
+
   for (const manifestPath of packageManifestPaths) {
     const manifest = readJson(manifestPath);
     checkWorkspacePackage(manifest, manifestPath);
+    checkDependencies(manifest, manifestPath, workspacePackageNames);
   }
 
   const cliManifestPath = join(packagesDir, "cli", "package.json");
   if (existsSync(cliManifestPath)) {
     const cliManifest = readJson(cliManifestPath);
     assertEqual(cliManifest.bin?.["mcp-security-proxy"] === "./dist/main.js", "packages/cli/package.json: CLI bin must point at ./dist/main.js");
+    assertEqual(existsSync(join(packagesDir, "cli", "src", "main.ts")), "packages/cli/package.json: src/main.ts must exist for the CLI bin surface");
   } else {
     failures.push("packages/cli/package.json: CLI package is missing");
   }
