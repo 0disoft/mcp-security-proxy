@@ -2247,6 +2247,77 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("forwards secret tool calls only when the extracted secret label is allowed", () => {
+    const session = createProxySession({
+      policy: readSecretLabelPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "allowed-secret-label",
+        method: "tools/call",
+        params: {
+          name: "read_secret",
+          arguments: {
+            ["api" + "Key"]: "RAW_ALLOWED_SECRET_ARGUMENT_MARKER"
+          }
+        }
+      })
+    );
+
+    expect(result.responseLine).toBeUndefined();
+    expect(result.forwardLine).toContain("RAW_ALLOWED_SECRET_ARGUMENT_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_ALLOWED_SECRET_ARGUMENT_MARKER");
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "read_secret",
+      decision: {
+        action: "allow",
+        evidence: [{ ruleId: "allow-api-key-secret", capability: "secret" }]
+      }
+    });
+  });
+
+  it("denies secret tool calls when the extracted secret label is not allowed", () => {
+    const session = createProxySession({
+      policy: readSecretLabelPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "denied-secret-label",
+        method: "tools/call",
+        params: {
+          name: "read_secret",
+          arguments: {
+            token: "RAW_DENIED_SECRET_ARGUMENT_MARKER"
+          }
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).not.toContain("RAW_DENIED_SECRET_ARGUMENT_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_DENIED_SECRET_ARGUMENT_MARKER");
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      id: "denied-secret-label",
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ code: "policy.default_deny" }]
+          }
+        }
+      }
+    });
+  });
+
   it("does not treat denied tool calls as pending upstream requests", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -2935,6 +3006,10 @@ function primeShellDiscovery(session: ReturnType<typeof createProxySession>): vo
 
 function readPolicy(): PolicyDocument {
   return readJsonFixture<PolicyDocument>("fixtures/policies/local-dev.json");
+}
+
+function readSecretLabelPolicy(): PolicyDocument {
+  return readJsonFixture<PolicyDocument>("fixtures/policies/secret-labels.json");
 }
 
 function readApprovalPolicy(): PolicyDocument {
