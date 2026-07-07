@@ -308,6 +308,74 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("denies duplicate pending client request ids without overwriting the original request", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const first = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "duplicate-client-id",
+        method: "tools/list"
+      })
+    );
+    expect(first.forwardLine).toBeTruthy();
+
+    const duplicate = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "duplicate-client-id",
+        method: "ping"
+      })
+    );
+
+    expect(duplicate.forwardLine).toBeUndefined();
+    expect(JSON.parse(duplicate.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "duplicate-client-id",
+      error: {
+        code: -32001,
+        message: "MCP request denied by proxy protocol state",
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                method: "ping",
+                reason: "client JSON-RPC request id already has a pending upstream response"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(duplicate.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.invalid", method: "ping" }]
+      }
+    });
+
+    const originalResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "duplicate-client-id",
+        result: readJsonFixture("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+
+    expect(JSON.parse(originalResponse.forwardLine ?? "{}")).toMatchObject({
+      id: "duplicate-client-id",
+      result: {
+        tools: [{ name: "read_file" }]
+      }
+    });
+  });
+
   it("drops upstream error responses with invalid error object fields", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -934,6 +1002,66 @@ describe("proxy runtime session", () => {
     expect(result.forwardLine).toBe(responseLine);
     expect(result.responseLine).toBeUndefined();
     expect(result.auditEvents).toHaveLength(0);
+  });
+
+  it("denies duplicate pending upstream server request ids without overwriting the original request", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    const firstPing = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "duplicate-server-id",
+      method: "ping"
+    });
+
+    expect(session.handleServerLine(firstPing).forwardLine).toBe(firstPing);
+
+    const duplicate = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "duplicate-server-id",
+        method: "ping"
+      })
+    );
+
+    expect(duplicate.forwardLine).toBeUndefined();
+    expect(JSON.parse(duplicate.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "duplicate-server-id",
+      error: {
+        code: -32001,
+        message: "MCP request denied by proxy protocol state",
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                method: "ping",
+                reason: "upstream server JSON-RPC request id already has a pending client response"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(duplicate.auditEvents[0]).toMatchObject({
+      kind: "error",
+      method: "ping",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.invalid", method: "ping" }]
+      }
+    });
+
+    const originalResponse = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "duplicate-server-id",
+      result: {}
+    });
+
+    expect(session.handleClientLine(originalResponse).forwardLine).toBe(originalResponse);
   });
 
   it("forwards upstream server ping requests with empty params only", () => {

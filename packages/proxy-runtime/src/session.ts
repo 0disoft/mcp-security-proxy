@@ -127,6 +127,18 @@ export class ProxySession {
       };
     }
 
+    const duplicatePending = this.denyDuplicatePendingRequest(
+      envelope,
+      this.pendingRequestMethods,
+      "client JSON-RPC request id already has a pending upstream response"
+    );
+    if (duplicatePending) {
+      return {
+        kind: "result",
+        result: duplicatePending
+      };
+    }
+
     if (envelope.method !== "tools/call") {
       this.rememberPendingRequest(envelope);
       return {
@@ -275,6 +287,15 @@ export class ProxySession {
         return this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied");
       }
 
+      const duplicatePending = this.denyDuplicatePendingRequest(
+        envelope,
+        this.pendingServerOriginMethods,
+        "upstream server JSON-RPC request id already has a pending client response"
+      );
+      if (duplicatePending) {
+        return duplicatePending;
+      }
+
       this.rememberPendingServerOriginRequest(envelope);
       return {
         forwardLine: line,
@@ -371,11 +392,30 @@ export class ProxySession {
     this.pendingServerOriginMethods.set(requestIdKey(envelope.id), envelope.method);
   }
 
+  private denyDuplicatePendingRequest(
+    envelope: JsonRpcEnvelope,
+    pending: ReadonlyMap<string, string>,
+    reason: string
+  ): ProxyFrameResult | undefined {
+    if (envelope.id === undefined || !pending.has(requestIdKey(envelope.id))) {
+      return undefined;
+    }
+    return this.denyEnvelope(
+      envelope,
+      denyDecision(reason, {
+        code: "jsonrpc.invalid",
+        ...(typeof envelope.method === "string" ? { method: envelope.method } : {})
+      }),
+      "MCP request denied by proxy protocol state",
+      "error"
+    );
+  }
+
   private denyEnvelope(
     envelope: JsonRpcEnvelope,
     decision: PolicyDecision,
     message: string,
-    kind: "method-denied" | "call-decision",
+    kind: "method-denied" | "call-decision" | "error",
     toolName?: string
   ): ProxyFrameResult {
     const auditEvent = this.createAudit(kind, decision, toolName, envelope.method);
