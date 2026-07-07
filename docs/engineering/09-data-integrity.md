@@ -20,6 +20,8 @@ versioning, and contract drift.
 - Schema constants and JSON Schema assets must stay synchronized through `pnpm run
   schema-contract`.
 - Evaluator decisions must include rule evidence.
+- Compatibility decision and audit fixtures must include stable decision evidence codes, not only
+  human-readable reasons.
 - Discovery filtering must preserve upstream tool identity for visible tools and must not invent
   tools.
 - Audit events must be written from redacted summaries.

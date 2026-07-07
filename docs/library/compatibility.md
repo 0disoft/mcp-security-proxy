@@ -61,7 +61,9 @@ The current evidence registry is `fixtures/compatibility/manifest.json`. Its `ta
 `synthetic-local` until a later ADR and release record approve a broader compatibility target.
 `pnpm run compatibility` builds the workspace, verifies every manifest entry, compares the captured
 CLI, library, and runtime session fixtures against the current implementation, and runs registered
-runtime smoke evidence commands.
+runtime smoke evidence commands. Decision fixtures and audit-event fixtures must include stable
+machine-readable decision evidence `code` values; the compatibility check rejects fixture evidence
+that relies only on human-readable `reason` text.
 Approval-required library fixtures may explicitly record `approvalHookAvailable` in the manifest so
 hook-present and hook-missing decisions are both checked.
 

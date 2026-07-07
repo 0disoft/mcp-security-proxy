@@ -218,6 +218,7 @@ function checkAuditRedactionFixture(id, path) {
   }
   for (const [index, line] of lines.entries()) {
     const event = parseJsonText(line, `${path}:${index + 1}`);
+    checkDecisionEvidenceCodes(`${path}:${index + 1}`, event);
     if (event?.redaction?.applied !== true) {
       failures.push(`${id}: redaction fixture event ${index + 1} must mark redaction.applied true`);
     }
@@ -439,6 +440,8 @@ function approvalRuntimeScenario(scenario) {
 }
 
 function assertJsonEqual(id, actual, expected) {
+  checkDecisionEvidenceCodes(`${id}: actual`, actual);
+  checkDecisionEvidenceCodes(`${id}: expected`, expected);
   const actualText = stableJson(actual);
   const expectedText = stableJson(expected);
   if (actualText !== expectedText) {
@@ -474,6 +477,35 @@ function stableJson(value) {
       .join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+function checkDecisionEvidenceCodes(label, value, path = "$") {
+  if (Array.isArray(value)) {
+    for (const [index, item] of value.entries()) {
+      checkDecisionEvidenceCodes(label, item, `${path}[${index}]`);
+    }
+    return;
+  }
+
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  if (value.schemaVersion === "msp.decision.v1") {
+    if (!Array.isArray(value.evidence)) {
+      failures.push(`${label}${path}: decision evidence must be an array`);
+    } else {
+      for (const [index, evidence] of value.evidence.entries()) {
+        if (!evidence || typeof evidence !== "object" || typeof evidence.code !== "string") {
+          failures.push(`${label}${path}.evidence[${index}]: decision evidence must include code`);
+        }
+      }
+    }
+  }
+
+  for (const [key, item] of Object.entries(value)) {
+    checkDecisionEvidenceCodes(label, item, `${path}.${key}`);
+  }
 }
 
 async function checkCompatibilityEvidenceValidator() {
@@ -517,6 +549,19 @@ async function checkCompatibilityEvidenceValidator() {
   });
   if (!invalidRuntimeCommandFailures.some((item) => item.includes("must run node scripts/smoke-live-run.mjs"))) {
     failures.push(`compatibility self-test runtime command mismatch was not rejected: ${invalidRuntimeCommandFailures.join("; ")}`);
+  }
+
+  const missingDecisionCodeFailures = collectCompatibilityFailures(() => {
+    checkDecisionEvidenceCodes("<compatibility-self-test-missing-decision-code>", {
+      schemaVersion: "msp.decision.v1",
+      action: "deny",
+      evidence: [{ reason: "operator text is not a stable fixture contract" }]
+    });
+  });
+  if (!missingDecisionCodeFailures.some((item) => item.includes("decision evidence must include code"))) {
+    failures.push(
+      `compatibility self-test missing decision evidence code was not rejected: ${missingDecisionCodeFailures.join("; ")}`
+    );
   }
 
   const missingRuntimeSessionFailures = await collectCompatibilityFailuresAsync(async () => {
