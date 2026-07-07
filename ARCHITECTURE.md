@@ -34,10 +34,24 @@ Unsupported MCP methods are denied by default, not passed through blindly. Netwo
 argument-level intent policy; it does not claim to block sockets opened directly by an upstream
 server.
 
+The implemented stdio runtime also enforces protocol-boundary hygiene before forwarding:
+
+- JSON-RPC frames are size-bounded before parsing and depth-bounded after parsing.
+- Upstream responses must match a pending client request id, preserving JSON-RPC id type.
+- Server-origin method-bearing messages are direction-gated; only liveness `ping` is forwarded,
+  and only without payload params.
+- Upstream JSON-RPC `error.data` is removed before forwarding.
+- Upstream `error.message` is replaced when it looks like a path, URL, or secret-like marker.
+- Audit events carry redaction summaries and stable decision evidence codes, not raw payloads.
+
+The CLI `run` command owns subprocess IO, shutdown grace, upstream stderr summarization, and JSON
+Lines audit output. The reusable runtime session owns MCP message gating and does not claim process
+or OS isolation.
+
 ## Quality Attributes
 
 - Security: deny-by-default for unknown methods, unknown capabilities, and high-risk capability.
 - Privacy: audit events must avoid raw secrets and sensitive payloads.
-- Explainability: every decision must point to a rule, capability, and reason.
+- Explainability: every decision should point to a rule, capability, stable code, and reason.
 - Compatibility: MCP client/server claims require fixture-backed evidence.
 - Maintainability: CLI command contracts and library APIs must stay synchronized.

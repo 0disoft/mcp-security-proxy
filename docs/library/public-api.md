@@ -38,12 +38,18 @@ This repository type owns public API surface, package compatibility, semantic ve
 
 ## Public Type Principles
 
-- Decision results must include rule evidence.
+- Decision results must include rule evidence when a rule wins.
+- Decision evidence may include an optional stable machine-readable code. Consumers should prefer
+  `code` for programmatic routing and treat `reason` as human-readable operator text.
 - Unsupported-method decisions must use the same evidence model as tool-call decisions.
 - Redaction summaries must count replacements without exposing original values.
 - Policy errors must be value-based and testable.
 - Tool descriptors must preserve upstream identity without inventing tools.
 - Core policy exports should remain independent from filesystem, subprocess, network, and SDK IO.
+
+The current runtime-facing library surface includes a newline-delimited JSON-RPC session gate that
+returns forward lines, denial response lines, and redacted audit events. Subprocess lifecycle,
+stdio wiring, and CLI output routing belong to the CLI/runtime bridge, not the core evaluator.
 
 ## Review Blockers
 

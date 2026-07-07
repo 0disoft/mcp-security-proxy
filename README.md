@@ -27,17 +27,26 @@ before a tool call leaves the host.
 
 ## Initial Product Direction
 
-- stdio MCP proxy first
+Implemented foundation:
+
+- stdio MCP proxy through `mcp-security-proxy run`
 - deny-by-default sample policy
 - explicit MCP method allowlist
 - tool list filtering
 - tool call allow/deny decisions
-- path scope matching
-- command allowlist matching
-- argument-level network policy expression
-- environment and secret redaction
+- path, command, and argument-level network policy matching
+- upstream error data and sensitive error-message redaction
 - JSON Lines audit events
-- dry-run policy evaluation
+- dry-run policy evaluation through `check-policy`, `inspect-tools`, and `eval-call`
+- bounded JSON-RPC frame size and parsed depth guards
+- stable decision evidence codes for audit consumers
+
+Still intentionally narrow:
+
+- only stdio transport is implemented
+- network policy is argument-level intent policy, not OS socket enforcement
+- approval hooks are represented in policy decisions but no host approval UI is bundled
+- public package names, registry distribution, and MCP SDK choice remain UNDECIDED
 
 ## Non-Goals
 

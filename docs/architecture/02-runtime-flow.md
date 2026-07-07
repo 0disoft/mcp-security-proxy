@@ -28,10 +28,16 @@ this gate with a stdio subprocess bridge.
 Current implemented responsibilities:
 
 - deny unsupported client methods before upstream forwarding
+- deny unsupported upstream server-origin methods before response correlation
+- allow only payload-free server-origin `ping` in the current direction policy
 - track `tools/list` request IDs so discovery responses can be filtered
+- require upstream responses to match a pending client request id before forwarding
 - classify discovered tools and hide tools without allow or approval coverage
 - evaluate `tools/call` requests using remembered tool capabilities and extracted argument facts
+- reject oversized JSON-RPC frames and overly deep parsed JSON messages
+- remove upstream JSON-RPC `error.data` and redact sensitive-looking upstream error messages
 - avoid raw tool arguments in audit events
+- include stable decision evidence codes in audit decisions
 - start one upstream stdio process from the CLI command after `--`
 - keep stdout reserved for MCP protocol messages
 - append audit events to the file selected by `--audit-log`
@@ -43,6 +49,8 @@ Current implemented responsibilities:
   bounded grace window
 - allow the CLI `run` command to configure the shutdown grace window with
   `--shutdown-grace-ms`, defaulting to 1000 ms
+- allow the CLI `run` command to configure frame guards with `--max-frame-bytes`, defaulting to
+  1048576 bytes, and `--max-json-depth`, defaulting to 64
 
 Retry policy, richer upstream stderr policy controls, broader lifecycle policy, and non-stdio
 transports remain future runtime responsibilities.
@@ -70,6 +78,9 @@ transports remain future runtime responsibilities.
 - Invalid policy: startup fails with configuration error.
 - Unclassified risky capability: call is denied by default.
 - Unsupported method: request is denied by default and is not passed through.
+- Unmatched upstream response: response is dropped with a redacted audit event.
+- Oversized or overly deep JSON-RPC message: message is denied or dropped before forwarding.
+- Upstream error response with data or sensitive message: error is sanitized before forwarding.
 - Audit write failure: fail closed by default; policy may explicitly choose warn-and-continue.
 - Upstream server crash: proxy exits with the upstream-failure CLI code and records a redacted error
   audit event without converting the crash into policy success.

@@ -16,6 +16,8 @@ for local MCP hosts.
 
 ## Milestone 0: Contract Freeze
 
+Status: mostly implemented for the current draft contract.
+
 - Lock the policy model vocabulary.
 - Lock the MVP MCP method allowlist.
 - Define JSON audit event schema.
@@ -27,6 +29,8 @@ for local MCP hosts.
 
 ## Milestone 1: Local stdio Proxy MVP
 
+Status: implemented for the current stdio-only boundary.
+
 - Launch one MCP server behind stdio proxy.
 - Filter tool list.
 - Evaluate tool calls.
@@ -34,14 +38,21 @@ for local MCP hosts.
 - Support path, command, network, and redaction rules.
 - Emit JSON Lines audit log.
 - Provide deny-by-default sample policy.
+- Require upstream responses to match pending client request ids.
+- Redact upstream JSON-RPC error details before forwarding.
+- Bound JSON-RPC frame size and parsed depth.
+- Summarize upstream stderr without storing raw stderr lines.
 
 ## Milestone 2: Embeddable Library
+
+Status: partially implemented.
 
 - Expose policy parser.
 - Expose tool classifier.
 - Expose call evaluator.
 - Expose redactor and audit formatter.
 - Add compatibility fixtures for representative MCP clients.
+- Expose stable optional decision evidence codes for audit consumers.
 
 ## Milestone 3: Host Integration Hardening
 
@@ -49,6 +60,7 @@ for local MCP hosts.
 - Add approval hook interface.
 - Add transport compatibility plan for HTTP.
 - Add audit export guidance.
+- Add broader MCP client/server compatibility fixtures.
 
 ## Deferred
 
