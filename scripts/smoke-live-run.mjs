@@ -15,6 +15,7 @@ const malformedDiscoveryAuditLog = join(tempDir, "malformed-discovery-audit.json
 const noisyDiscoveryAuditLog = join(tempDir, "noisy-discovery-audit.jsonl");
 const duplicateDiscoveryAuditLog = join(tempDir, "duplicate-discovery-audit.jsonl");
 const replacedDiscoveryAuditLog = join(tempDir, "replaced-discovery-audit.jsonl");
+const unmatchedResponseAuditLog = join(tempDir, "unmatched-response-audit.jsonl");
 const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
@@ -627,6 +628,72 @@ try {
   }
   if (!replacedDiscoveryAudit.includes('"code":"discovery.filtered"') || !replacedDiscoveryAudit.includes('"code":"tool.not_visible"')) {
     throw new Error(`expected replaced discovery filter and deny audit events, got ${replacedDiscoveryAudit}`);
+  }
+
+  const unmatchedResponseChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      unmatchedResponseAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--unmatched-response-on-tools-list"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const unmatchedResponseStdoutChunks = [];
+  const unmatchedResponseStderrChunks = [];
+  unmatchedResponseChild.stdout.on("data", (chunk) => unmatchedResponseStdoutChunks.push(chunk));
+  unmatchedResponseChild.stderr.on("data", (chunk) => unmatchedResponseStderrChunks.push(chunk));
+  unmatchedResponseChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "unmatched-response-tools", method: "tools/list" })}\n`);
+  unmatchedResponseChild.stdin.end();
+  const unmatchedResponseExitCode = await new Promise((resolve, reject) => {
+    unmatchedResponseChild.once("error", reject);
+    unmatchedResponseChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (unmatchedResponseExitCode !== 0) {
+    throw new Error(
+      `expected unmatched response live run smoke to exit 0, got ${unmatchedResponseExitCode}: ${Buffer.concat(unmatchedResponseStderrChunks).toString("utf8")}`
+    );
+  }
+  const unmatchedResponseOutputLines = Buffer.concat(unmatchedResponseStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
+  const unmatchedResponseToolsResult = unmatchedResponseOutputLines.find((line) => line.id === "unmatched-response-tools");
+  const forgedUnmatchedResponse = unmatchedResponseOutputLines.find((line) => line.id === "live-unmatched-upstream-response");
+  if (
+    !unmatchedResponseToolsResult ||
+    unmatchedResponseToolsResult.result.tools.length !== 1 ||
+    unmatchedResponseToolsResult.result.tools[0].name !== "read_file"
+  ) {
+    throw new Error(`unexpected unmatched-response filtered tools response: ${JSON.stringify(unmatchedResponseToolsResult)}`);
+  }
+  if (forgedUnmatchedResponse) {
+    throw new Error(`forged unmatched upstream response leaked to client stdout: ${JSON.stringify(forgedUnmatchedResponse)}`);
+  }
+  const unmatchedResponseOutputText = unmatchedResponseOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (unmatchedResponseOutputText.includes("RAW_UNMATCHED_RESPONSE_MARKER")) {
+    throw new Error("raw unmatched upstream response marker leaked into client output");
+  }
+  const unmatchedResponseAudit = readFileSync(unmatchedResponseAuditLog, "utf8");
+  if (unmatchedResponseAudit.includes("RAW_UNMATCHED_RESPONSE_MARKER") || unmatchedResponseAudit.includes("RAW_STDERR_MARKER")) {
+    throw new Error("raw unmatched upstream response or stderr marker leaked into audit log");
+  }
+  if (!unmatchedResponseAudit.includes('"code":"jsonrpc.unmatched_response"')) {
+    throw new Error(`expected unmatched upstream response audit event, got ${unmatchedResponseAudit}`);
   }
 
   const child = spawn(
