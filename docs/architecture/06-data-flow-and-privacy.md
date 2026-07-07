@@ -32,6 +32,8 @@ Define how sensitive data moves through MCP Security Proxy and what must never b
   descriptor metadata, including `_meta`, is not retained in forwarded discovery responses.
   Nested schema and annotation metadata keys that commonly carry example or debug values are also
   removed before forwarding.
+- Malformed discovery success payloads are not forwarded as-is; they are replaced with an empty
+  tool list and a redacted audit event.
 - Raw MCP payloads may be inspected for policy facts but must not be stored in audit events.
 - Audit events receive redacted summaries only.
 - Redaction must happen before audit write and before machine-readable CLI output.

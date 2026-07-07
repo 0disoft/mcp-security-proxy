@@ -66,8 +66,9 @@ transports remain future runtime responsibilities.
 4. Proxy rebuilds each visible descriptor with only `name`, optional `description`,
    object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`,
    while removing nested `default`, `example`, `examples`, `$comment`, and `_meta` metadata.
-5. Client receives only sanitized tools allowed for discovery.
-6. Proxy records a redacted discovery audit event.
+5. Malformed discovery success results are normalized to an empty `tools` array.
+6. Client receives only sanitized tools allowed for discovery.
+7. Proxy records a redacted discovery audit event.
 
 ## Tool Call Flow
 
@@ -93,6 +94,8 @@ transports remain future runtime responsibilities.
 - Unmatched upstream response: response is dropped with a redacted audit event.
 - Oversized or overly deep JSON-RPC message: message is denied or dropped before forwarding.
 - Upstream error response with data or sensitive message: error is sanitized before forwarding.
+- Malformed tool discovery result: visible tool state is cleared and an empty tool list is
+  forwarded without the malformed raw payload.
 - Audit write failure: fail closed by default; policy may explicitly choose warn-and-continue.
 - Upstream server crash: proxy exits with the upstream-failure CLI code and records a redacted error
   audit event without converting the crash into policy success.

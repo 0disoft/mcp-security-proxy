@@ -1418,6 +1418,81 @@ describe("proxy runtime session", () => {
     expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_ANNOTATION_META_MARKER");
   });
 
+  it("sanitizes malformed tool discovery results to an empty tool list", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-malformed",
+        method: "tools/list"
+      })
+    );
+
+    const inbound = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-malformed",
+        result: {
+          tools: {
+            leaked: "RAW_MALFORMED_DISCOVERY_TOOLS_MARKER"
+          },
+          debug: "RAW_MALFORMED_DISCOVERY_RESULT_MARKER"
+        }
+      })
+    );
+
+    expect(JSON.parse(inbound.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      id: "tools-malformed",
+      result: {
+        tools: []
+      }
+    });
+    expect(JSON.stringify(inbound.forwardLine)).not.toContain("RAW_MALFORMED_DISCOVERY_TOOLS_MARKER");
+    expect(JSON.stringify(inbound.forwardLine)).not.toContain("RAW_MALFORMED_DISCOVERY_RESULT_MARKER");
+    expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_MALFORMED_DISCOVERY_TOOLS_MARKER");
+    expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_MALFORMED_DISCOVERY_RESULT_MARKER");
+    expect(inbound.auditEvents).toHaveLength(1);
+    expect(inbound.auditEvents[0]).toMatchObject({
+      kind: "discovery-filtered",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "discovery.filtered", reason: "malformed tool discovery result sanitized to an empty tool list" }]
+      }
+    });
+
+    const callAfterMalformedDiscovery = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-after-malformed-discovery",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+    expect(callAfterMalformedDiscovery.forwardLine).toBeUndefined();
+    expect(JSON.parse(callAfterMalformedDiscovery.responseLine ?? "{}")).toMatchObject({
+      id: "call-after-malformed-discovery",
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "tool was not visible in filtered discovery" }]
+          }
+        }
+      }
+    });
+  });
+
   it("denies tool calls whose extracted path facts violate policy", () => {
     const session = createProxySession({
       policy: readPolicy(),

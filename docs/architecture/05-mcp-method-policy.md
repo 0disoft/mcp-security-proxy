@@ -91,6 +91,9 @@ object-valued `annotations`; unknown top-level fields, including `_meta`, are re
 protocol boundary. Forwarded schema and annotation objects also remove nested metadata keys that
 commonly carry example or debug values: `default`, `example`, `examples`, `$comment`, and `_meta`.
 Forwarded schemas remain usability hints, not safety proof.
+Malformed `tools/list` success results, including non-array `tools` members or missing result
+objects, are sanitized to an empty `tools` array before forwarding. The malformed raw discovery
+payload must not be forwarded or stored in audit events.
 Each filtered `tools/list` response replaces the current session's visible tool set. A tool that was
 visible in an earlier discovery response must not remain callable after a later filtered discovery
 response hides or omits it.

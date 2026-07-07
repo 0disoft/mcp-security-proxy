@@ -44,6 +44,8 @@ discovery and tool calls through explicit policy, redaction, and audit events.
   Unknown top-level descriptor fields and `_meta` are not forwarded by the MVP proxy. Nested
   discovery metadata keys that commonly carry example values, such as `default`, `example`,
   `examples`, `$comment`, and `_meta`, are removed from forwarded schema and annotation objects.
+- Sanitize malformed `tools/list` success results to an empty `tools` array instead of forwarding
+  raw malformed discovery payloads.
 - Evaluate tool calls before forwarding them.
 - Support embedding-host approval hooks for approval-required calls. Calls must be forwarded only
   when the hook approves.

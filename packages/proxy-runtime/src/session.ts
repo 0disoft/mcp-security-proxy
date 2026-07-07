@@ -355,6 +355,14 @@ export class ProxySession {
       };
     }
 
+    if ("error" in sanitized.envelope) {
+      this.visibleTools.clear();
+      return {
+        forwardLine: responseLine,
+        auditEvents: sanitizeAuditEvents
+      };
+    }
+
     const result = filterToolListResult(sanitized.envelope, this.options.policy, this.options.profileId);
     this.visibleTools.clear();
     for (const tool of result.visibleTools) {
@@ -363,16 +371,7 @@ export class ProxySession {
 
     return {
       forwardLine: JSON.stringify(result.envelope),
-      auditEvents:
-        result.filteredCount > 0
-          ? [
-              ...sanitizeAuditEvents,
-              this.createAudit(
-                "discovery-filtered",
-                denyDecision(`${result.filteredCount} tool(s) hidden by discovery policy`, { code: "discovery.filtered" })
-              )
-            ]
-          : sanitizeAuditEvents
+      auditEvents: [...sanitizeAuditEvents, ...this.createDiscoveryAuditEvents(result.filteredCount, result.sanitizedMalformedResult)]
     };
   }
 
@@ -464,6 +463,24 @@ export class ProxySession {
       ...(toolName ? { toolName } : {}),
       ...(method ? { method } : {})
     });
+  }
+
+  private createDiscoveryAuditEvents(filteredCount: number, sanitizedMalformedResult: boolean): readonly AuditEvent[] {
+    const events: AuditEvent[] = [];
+    if (sanitizedMalformedResult) {
+      events.push(
+        this.createAudit(
+          "discovery-filtered",
+          denyDecision("malformed tool discovery result sanitized to an empty tool list", { code: "discovery.filtered" })
+        )
+      );
+    }
+    if (filteredCount > 0) {
+      events.push(
+        this.createAudit("discovery-filtered", denyDecision(`${filteredCount} tool(s) hidden by discovery policy`, { code: "discovery.filtered" }))
+      );
+    }
+    return events;
   }
 }
 
@@ -666,11 +683,26 @@ function filterToolListResult(
   envelope: JsonRpcEnvelope,
   policy: PolicyDocument,
   profileId: string
-): { readonly envelope: JsonRpcEnvelope; readonly visibleTools: readonly ToolMetadata[]; readonly filteredCount: number } {
+): {
+  readonly envelope: JsonRpcEnvelope;
+  readonly visibleTools: readonly ToolMetadata[];
+  readonly filteredCount: number;
+  readonly sanitizedMalformedResult: boolean;
+} {
   const result = isRecord(envelope.result) ? envelope.result : undefined;
   const tools = Array.isArray(result?.["tools"]) ? result["tools"] : undefined;
   if (!result || !tools) {
-    return { envelope, visibleTools: [], filteredCount: 0 };
+    return {
+      envelope: {
+        ...envelope,
+        result: {
+          tools: []
+        }
+      },
+      visibleTools: [],
+      filteredCount: 0,
+      sanitizedMalformedResult: true
+    };
   }
 
   const visibleTools: ToolMetadata[] = [];
@@ -705,7 +737,8 @@ function filterToolListResult(
       }
     },
     visibleTools,
-    filteredCount: tools.length - filteredTools.length
+    filteredCount: tools.length - filteredTools.length,
+    sanitizedMalformedResult: false
   };
 }
 
