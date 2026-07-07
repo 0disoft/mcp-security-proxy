@@ -1078,6 +1078,62 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("does not treat denied tool calls as pending upstream requests", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    const denied = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "denied-call-id",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/private/secret.txt"
+          }
+        }
+      })
+    );
+    expect(denied.forwardLine).toBeUndefined();
+    expect(JSON.parse(denied.responseLine ?? "{}")).toMatchObject({
+      id: "denied-call-id",
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ ruleId: "deny-private-files" }]
+          }
+        }
+      }
+    });
+
+    const forgedUpstreamResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "denied-call-id",
+        result: {
+          marker: "RAW_DENIED_CALL_RESPONSE_MARKER"
+        }
+      })
+    );
+
+    expect(forgedUpstreamResponse.forwardLine).toBeUndefined();
+    expect(forgedUpstreamResponse.responseLine).toBeUndefined();
+    expect(JSON.stringify(forgedUpstreamResponse.auditEvents)).not.toContain("RAW_DENIED_CALL_RESPONSE_MARKER");
+    expect(forgedUpstreamResponse.auditEvents).toHaveLength(1);
+    expect(forgedUpstreamResponse.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.unmatched_response" }]
+      }
+    });
+  });
+
   it("denies tool calls before the tool is visible in filtered discovery", () => {
     const session = createProxySession({
       policy: readPolicy(),

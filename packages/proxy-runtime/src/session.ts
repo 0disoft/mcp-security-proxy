@@ -112,11 +112,8 @@ export class ProxySession {
       };
     }
 
-    if (envelope.id !== undefined) {
-      this.pendingRequestMethods.set(requestIdKey(envelope.id), envelope.method);
-    }
-
     if (envelope.method !== "tools/call") {
+      this.rememberPendingRequest(envelope);
       return {
         kind: "result",
         result: {
@@ -151,6 +148,7 @@ export class ProxySession {
     });
 
     if (decision.action === "allow") {
+      this.rememberPendingRequest(envelope);
       return {
         forwardLine: line,
         auditEvents: [this.createAudit("call-decision", decision, normalized.toolName)]
@@ -199,6 +197,7 @@ export class ProxySession {
     });
 
     if (decision.action === "allow") {
+      this.rememberPendingRequest(envelope);
       return {
         forwardLine: line,
         auditEvents: [this.createAudit("call-decision", decision, normalized.toolName)]
@@ -226,6 +225,7 @@ export class ProxySession {
     }
 
     if (approval.approved) {
+      this.rememberPendingRequest(envelope);
       return {
         forwardLine: line,
         auditEvents: [this.createAudit("call-decision", decision, normalized.toolName)]
@@ -329,6 +329,13 @@ export class ProxySession {
     const method = this.pendingRequestMethods.get(key);
     this.pendingRequestMethods.delete(key);
     return method;
+  }
+
+  private rememberPendingRequest(envelope: JsonRpcEnvelope): void {
+    if (envelope.id === undefined || typeof envelope.method !== "string") {
+      return;
+    }
+    this.pendingRequestMethods.set(requestIdKey(envelope.id), envelope.method);
   }
 
   private denyEnvelope(
