@@ -4,6 +4,9 @@ if (process.argv.includes("--exit-nonzero")) {
   process.exit(19);
 }
 
+const serverPingOnToolsList = process.argv.includes("--server-ping-on-tools-list");
+const serverPingId = "live-server-origin-ping";
+
 const tools = [
   {
     name: "read_file",
@@ -33,6 +36,14 @@ for await (const line of lines) {
   if (message.method === "tools/list") {
     process.stderr.write("RAW_STDERR_MARKER diagnostic line\n");
     process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools } })}\n`);
+    if (serverPingOnToolsList) {
+      process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: serverPingId, method: "ping" })}\n`);
+    }
+    continue;
+  }
+
+  if (message.id === serverPingId && message.result && Object.keys(message.result).length === 0) {
+    process.stderr.write("RAW_PING_ACK_MARKER diagnostic line\n");
     continue;
   }
 

@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 const repoRoot = resolve(import.meta.dirname, "..");
 const tempDir = mkdtempSync(join(tmpdir(), "mcp-security-proxy-"));
 const auditLog = join(tempDir, "audit.jsonl");
+const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const failedAuditLog = join(tempDir, "failed-audit.jsonl");
 const secretAuditLog = join(tempDir, "secret-audit.jsonl");
 
@@ -89,6 +90,73 @@ try {
   }
   if (!auditText.includes('"stderr_line":1')) {
     throw new Error(`expected redacted stderr summary audit event, got ${auditText}`);
+  }
+
+  const pingChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      pingAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--server-ping-on-tools-list"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const pingStdoutChunks = [];
+  const pingStderrChunks = [];
+  const pingOutputLines = [];
+  pingChild.stdout.on("data", (chunk) => pingStdoutChunks.push(chunk));
+  pingChild.stderr.on("data", (chunk) => pingStderrChunks.push(chunk));
+  const waitForServerPing = waitForJsonLine(pingChild.stdout, (line) => {
+    pingOutputLines.push(line);
+    return line.id === "live-server-origin-ping";
+  });
+  pingChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "ping-tools", method: "tools/list" })}\n`);
+  await waitForServerPing;
+  pingChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "live-server-origin-ping", result: {} })}\n`);
+  pingChild.stdin.end();
+  const pingExitCode = await new Promise((resolve, reject) => {
+    pingChild.once("error", reject);
+    pingChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (pingExitCode !== 0) {
+    throw new Error(`expected server-origin ping live run smoke to exit 0, got ${pingExitCode}: ${Buffer.concat(pingStderrChunks).toString("utf8")}`);
+  }
+  for (const line of Buffer.concat(pingStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line))) {
+    if (!pingOutputLines.some((item) => item.id === line.id)) {
+      pingOutputLines.push(line);
+    }
+  }
+  const pingToolsResult = pingOutputLines.find((line) => line.id === "ping-tools");
+  const serverPingResult = pingOutputLines.find((line) => line.id === "live-server-origin-ping");
+  if (!pingToolsResult || pingToolsResult.result.tools.length !== 1 || pingToolsResult.result.tools[0].name !== "read_file") {
+    throw new Error(`unexpected server-origin ping filtered tools response: ${JSON.stringify(pingToolsResult)}`);
+  }
+  if (serverPingResult?.method !== "ping" || "params" in serverPingResult) {
+    throw new Error(`unexpected forwarded server-origin ping response: ${JSON.stringify(serverPingResult)}`);
+  }
+  const pingAudit = readFileSync(pingAuditLog, "utf8");
+  if (pingAudit.includes("RAW_STDERR_MARKER") || pingAudit.includes("RAW_PING_ACK_MARKER")) {
+    throw new Error("raw server-origin ping fixture stderr leaked into audit log");
+  }
+  if (!pingAudit.includes('"stderr_line":2')) {
+    throw new Error(`expected server-origin ping ack stderr summary audit event, got ${pingAudit}`);
   }
 
   const failedChild = spawn(
