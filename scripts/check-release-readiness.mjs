@@ -22,6 +22,8 @@ const requiredValidations = [
   "smoke",
   "check"
 ];
+const requiredReleaseScopeDecisions = ["mcpSdkDependency", "httpTransport", "hostApprovalUx"];
+const releaseScopeStatuses = new Set(["included", "excluded"]);
 
 const failures = [];
 
@@ -90,6 +92,7 @@ function checkReleaseRecordObject(path, record) {
   if (!isNonPlaceholder(record.publishCredentialsOwner)) {
     failures.push(`${path}: publishCredentialsOwner must be recorded`);
   }
+  checkReleaseScope(path, record.releaseScope);
   if (!Array.isArray(record.publicPackages) || record.publicPackages.length === 0) {
     failures.push(`${path}: publicPackages must contain at least one package`);
   } else {
@@ -171,6 +174,26 @@ function checkReleaseRecordObject(path, record) {
   }
 }
 
+function checkReleaseScope(path, releaseScope) {
+  if (!releaseScope || typeof releaseScope !== "object" || Array.isArray(releaseScope)) {
+    failures.push(`${path}: releaseScope must be an object`);
+    return;
+  }
+  for (const name of requiredReleaseScopeDecisions) {
+    const item = releaseScope[name];
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      failures.push(`${path}: releaseScope.${name} must be an object`);
+      continue;
+    }
+    if (!releaseScopeStatuses.has(item.status)) {
+      failures.push(`${path}: releaseScope.${name}.status must be included or excluded`);
+    }
+    if (!isNonPlaceholder(item.evidence)) {
+      failures.push(`${path}: releaseScope.${name}.evidence must be recorded`);
+    }
+  }
+}
+
 function checkReleaseRecordValidator() {
   const validRecord = createReleaseRecordSelfTestFixture();
   const validFailures = collectReleaseRecordFailures("<release-readiness-self-test-valid>", validRecord);
@@ -229,6 +252,23 @@ function checkReleaseRecordValidator() {
   ) {
     failures.push(`release-readiness self-test mismatch fixture was not rejected: ${mismatchFailures.join("; ")}`);
   }
+
+  const missingScopeFailures = collectReleaseRecordFailures("<release-readiness-self-test-missing-scope>", {
+    ...validRecord,
+    releaseScope: {
+      ...validRecord.releaseScope,
+      httpTransport: {
+        status: "UNDECIDED",
+        evidence: "UNRECORDED"
+      }
+    }
+  });
+  if (
+    !missingScopeFailures.some((item) => item.includes("releaseScope.httpTransport.status must be included or excluded")) ||
+    !missingScopeFailures.some((item) => item.includes("releaseScope.httpTransport.evidence must be recorded"))
+  ) {
+    failures.push(`release-readiness self-test missing scope fixture was not rejected: ${missingScopeFailures.join("; ")}`);
+  }
 }
 
 function createReleaseRecordSelfTestFixture() {
@@ -252,6 +292,20 @@ function createReleaseRecordSelfTestFixture() {
         source: "README.md"
       }
     ],
+    releaseScope: {
+      mcpSdkDependency: {
+        status: "excluded",
+        evidence: "docs/adr/0004-implementation-stack-direction.md"
+      },
+      httpTransport: {
+        status: "excluded",
+        evidence: "docs/architecture/07-http-transport-plan.md"
+      },
+      hostApprovalUx: {
+        status: "excluded",
+        evidence: "docs/architecture/08-host-approval-ux-plan.md"
+      }
+    },
     validation: Object.fromEntries(requiredValidations.map((name) => [name, "self-test recorded"])),
     rollback: {
       lastKnownGoodVersion: cliManifest.version,

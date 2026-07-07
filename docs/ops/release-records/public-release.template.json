@@ -17,6 +17,20 @@
       "source": "UNDECIDED"
     }
   ],
+  "releaseScope": {
+    "mcpSdkDependency": {
+      "status": "UNDECIDED",
+      "evidence": "UNDECIDED"
+    },
+    "httpTransport": {
+      "status": "UNDECIDED",
+      "evidence": "UNDECIDED"
+    },
+    "hostApprovalUx": {
+      "status": "UNDECIDED",
+      "evidence": "UNDECIDED"
+    }
+  },
   "validation": {
     "docs": "UNRECORDED",
     "schema-contract": "UNRECORDED",
