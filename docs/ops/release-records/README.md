@@ -22,5 +22,8 @@ HTTP, hosted control plane, bundled approval UI, SDK compatibility support, or e
 client/server compatibility through package names or release notes when the release record excludes
 it.
 
+The required release scope keys are `mcpSdkDependency`, `httpTransport`, `hostApprovalUx`, and
+`externalMcpFixture`.
+
 Use `public-release.template.json` as the starting shape. Do not put credentials, tokens, private
 audit logs, private policy files, or raw incident evidence in release records.

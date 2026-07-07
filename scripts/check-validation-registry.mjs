@@ -18,6 +18,7 @@ for (const file of readdirSync(join(root, ".agents", "validations")).filter((nam
 checkPackageScripts();
 checkReleaseReadinessScript();
 checkReleaseTemplate();
+checkReleaseScopeRegistry();
 checkReleaseRecordsReadme();
 checkRequiredValidationMentions();
 
@@ -92,6 +93,22 @@ function checkReleaseTemplate() {
   const validationKeys = Object.keys(template.validation ?? {});
   const releaseRequired = extractStringArray("scripts/check-release-readiness.mjs", "requiredValidations");
   assertArrayEqual("docs/ops/release-records/public-release.template.json: validation keys", validationKeys, releaseRequired);
+}
+
+function checkReleaseScopeRegistry() {
+  const path = "docs/ops/release-records/public-release.template.json";
+  const template = readJson(path);
+  const releaseScopeKeys = Object.keys(template.releaseScope ?? {});
+  const requiredScopeKeys = extractStringArray("scripts/check-release-readiness.mjs", "requiredReleaseScopeDecisions");
+  assertArrayEqual(`${path}: releaseScope keys`, releaseScopeKeys, requiredScopeKeys);
+
+  const readmePath = "docs/ops/release-records/README.md";
+  const readme = readText(readmePath);
+  for (const name of requiredScopeKeys) {
+    if (!readme.includes(`\`${name}\``)) {
+      failures.push(`${readmePath}: missing release scope key mention for ${name}`);
+    }
+  }
 }
 
 function checkReleaseRecordsReadme() {

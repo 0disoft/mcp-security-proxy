@@ -290,6 +290,15 @@ function checkReleaseRecordValidator() {
     failures.push(`release-readiness self-test missing scope fixture was not rejected: ${missingScopeFailures.join("; ")}`);
   }
 
+  const { externalMcpFixture, ...releaseScopeWithoutExternalMcpFixture } = validRecord.releaseScope;
+  const omittedScopeFailures = collectReleaseRecordFailures("<release-readiness-self-test-omitted-scope>", {
+    ...validRecord,
+    releaseScope: releaseScopeWithoutExternalMcpFixture
+  });
+  if (!omittedScopeFailures.some((item) => item.includes("releaseScope.externalMcpFixture must be an object"))) {
+    failures.push(`release-readiness self-test omitted scope fixture was not rejected: ${omittedScopeFailures.join("; ")}`);
+  }
+
   const invalidScopeEvidenceFailures = collectReleaseRecordFailures("<release-readiness-self-test-invalid-scope-evidence>", {
     ...validRecord,
     releaseScope: {
