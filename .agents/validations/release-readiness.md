@@ -19,6 +19,7 @@ This document owns stable validation names for this scaffold.
 - package-surface
 - secret-scan
 - compatibility
+- license-report
 - check
 
 ## Required Final Report

@@ -16,5 +16,5 @@ Unnecessary dependency, weak maintenance, license mismatch, vulnerability exposu
 
 ## Validation
 
-- Required validation names: lint, typecheck, test, check
+- Required validation names: lint, typecheck, test, license-report, check
 - Skipped validation must include a reason and remaining risk.

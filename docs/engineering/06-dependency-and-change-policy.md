@@ -14,7 +14,9 @@ Status: Draft
 - Keep core policy logic independent from SDK, filesystem, subprocess, and network dependencies.
 - Pin and review dependency licenses before the first release.
 - Treat MCP SDK, runtime, parser, and release-tool dependencies as compatibility-sensitive.
-- Re-check dependency licenses from the lockfile, not from memory or package marketing text.
+- Re-check dependency licenses from the installed lockfile graph, not from memory or package
+  marketing text.
+- `pnpm run license-report` must pass before public release.
 
 ## License Policy
 
@@ -33,6 +35,8 @@ Any exception must be documented before release.
 - `lightningcss` and `lightningcss-win32-x64-msvc`: transitive dev dependencies through the test
   toolchain, MPL-2.0, reviewed as acceptable for local development tooling. Re-review before release
   if these enter runtime or distributed artifacts.
+- The automated license report scans installed external package manifests under `node_modules/.pnpm`
+  and fails on missing, unknown, or denied license metadata.
 
 ## Change Policy
 
@@ -45,6 +49,7 @@ Any exception must be documented before release.
 ## Review Blockers
 
 - A dependency license is unknown, incompatible, or checked only from an unstated source.
+- `pnpm run license-report` fails.
 - Core policy logic imports runtime IO or SDK dependencies without an ADR.
 - A protocol dependency changes without fixture updates.
 - A change weakens validation or hides skipped checks.

@@ -26,7 +26,8 @@ pnpm run check
 - workspace tests
 - contract checks for contracts and core
 - documentation contract check
-- package surface, tracked-file secret scans, and compatibility evidence checks
+- package surface, tracked-file secret scans, compatibility evidence checks, and dependency license
+  report checks
 - CLI smoke checks against the local fixture policy
 
 ## Hosted Workflow
@@ -43,7 +44,7 @@ GitHub Actions runs `.github/workflows/ci.yml` on `main` pushes and pull request
 ## Validation
 
 - Required validation names: typecheck, test, contract, docs, package-surface, secret-scan,
-  compatibility, check.
+  compatibility, license-report, check.
 - Release blocker status: public behavior changes are blocked when local `check` or hosted CI fails.
 - Remaining operational risk: hosted CI covers one Ubuntu runner; future OS-specific proxy behavior
   still needs targeted validation before release.
