@@ -171,6 +171,66 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("denies client-only methods when they are initiated by the upstream server", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "server-call",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "server-call",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ method: "tools/call", reason: "MCP method is not allowed from upstream server" }]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "method-denied",
+      method: "tools/call",
+      decision: { action: "deny" }
+    });
+  });
+
+  it("forwards upstream server ping requests when the method policy allows ping", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    const line = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "server-ping",
+      method: "ping"
+    });
+
+    const result = session.handleServerLine(line);
+
+    expect(result.forwardLine).toBe(line);
+    expect(result.responseLine).toBeUndefined();
+    expect(result.auditEvents).toHaveLength(0);
+  });
+
   it("denies unsupported client methods without forwarding upstream", () => {
     const session = createProxySession({
       policy: readPolicy(),

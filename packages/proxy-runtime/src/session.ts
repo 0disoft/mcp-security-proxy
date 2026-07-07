@@ -31,6 +31,7 @@ interface ToolMetadata {
 
 const policyDeniedErrorCode = -32001;
 const invalidRequestErrorCode = -32600;
+const upstreamServerOriginAllowedMethods = new Set(["ping"]);
 
 export class ProxySession {
   private readonly pendingRequestMethods = new Map<string, string>();
@@ -113,7 +114,7 @@ export class ProxySession {
 
     const envelope = parsed.value;
     if (isJsonRpcRequest(envelope)) {
-      const methodDecision = evaluateEnvelopeMethod(envelope, this.options.policy);
+      const methodDecision = evaluateServerOriginMethod(envelope, this.options.policy);
       if (methodDecision.action !== "allow") {
         return this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied");
       }
@@ -362,6 +363,19 @@ function requestIdKey(id: string | number | null): string {
     return "null:null";
   }
   return `${typeof id}:${String(id)}`;
+}
+
+function evaluateServerOriginMethod(envelope: JsonRpcEnvelope & { readonly method: string }, policy: PolicyDocument): PolicyDecision {
+  const policyDecision = evaluateEnvelopeMethod(envelope, policy);
+  if (policyDecision.action !== "allow") {
+    return policyDecision;
+  }
+
+  if (upstreamServerOriginAllowedMethods.has(envelope.method)) {
+    return policyDecision;
+  }
+
+  return denyDecision("MCP method is not allowed from upstream server", { method: envelope.method });
 }
 
 function denyDecision(reason: string, evidence?: Omit<DecisionEvidence, "reason">): PolicyDecision {
