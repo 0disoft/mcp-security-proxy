@@ -708,6 +708,7 @@ function filterToolListResult(
 
   const visibleTools: ToolMetadata[] = [];
   const filteredTools: unknown[] = [];
+  const forwardedToolNames = new Set<string>();
   for (const item of tools) {
     if (!isRecord(item) || typeof item["name"] !== "string") {
       continue;
@@ -726,6 +727,10 @@ function filterToolListResult(
     };
 
     if (toolIsDiscoverable(metadata, policy, profileId)) {
+      if (forwardedToolNames.has(metadata.name)) {
+        continue;
+      }
+      forwardedToolNames.add(metadata.name);
       visibleTools.push(metadata);
       filteredTools.push(sanitizeVisibleToolDescriptor(item, metadata));
     }

@@ -1504,6 +1504,101 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("hides duplicate visible tool names after the first sanitized descriptor", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-duplicates",
+        method: "tools/list"
+      })
+    );
+
+    const inbound = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-duplicates",
+        result: {
+          tools: [
+            {
+              name: "read_file",
+              title: "Read File",
+              description: "Read a file from a caller-provided path."
+            },
+            {
+              name: "read_file",
+              title: "RAW_DUPLICATE_DESCRIPTOR_TITLE_MARKER",
+              description: "Read a file from a caller-provided path with RAW_DUPLICATE_DESCRIPTOR_DESC_MARKER.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  path: {
+                    type: "string",
+                    default: "RAW_DUPLICATE_DESCRIPTOR_SCHEMA_MARKER"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      })
+    );
+
+    expect(JSON.parse(inbound.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      id: "tools-duplicates",
+      result: {
+        tools: [
+          {
+            name: "read_file",
+            title: "Read File",
+            description: "Read a file from a caller-provided path."
+          }
+        ]
+      }
+    });
+    expect(JSON.stringify(inbound.forwardLine)).not.toContain("RAW_DUPLICATE_DESCRIPTOR_TITLE_MARKER");
+    expect(JSON.stringify(inbound.forwardLine)).not.toContain("RAW_DUPLICATE_DESCRIPTOR_DESC_MARKER");
+    expect(JSON.stringify(inbound.forwardLine)).not.toContain("RAW_DUPLICATE_DESCRIPTOR_SCHEMA_MARKER");
+    expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_DUPLICATE_DESCRIPTOR_TITLE_MARKER");
+    expect(inbound.auditEvents).toHaveLength(1);
+    expect(inbound.auditEvents[0]).toMatchObject({
+      kind: "discovery-filtered",
+      decision: {
+        evidence: [{ code: "discovery.filtered", reason: "1 tool(s) hidden by discovery policy" }]
+      }
+    });
+
+    const allowedCall = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-after-duplicate-discovery",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+
+    expect(allowedCall.forwardLine).toBeTruthy();
+    expect(allowedCall.responseLine).toBeUndefined();
+    expect(allowedCall.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "read_file",
+      decision: {
+        action: "allow",
+        evidence: [{ ruleId: "allow-public-files" }]
+      }
+    });
+  });
+
   it("denies tool calls whose extracted path facts violate policy", () => {
     const session = createProxySession({
       policy: readPolicy(),

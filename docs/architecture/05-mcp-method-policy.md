@@ -96,6 +96,9 @@ Forwarded schemas remain usability hints, not safety proof.
 Malformed `tools/list` success results, including non-array `tools` members or missing result
 objects, are sanitized to an empty `tools` array before forwarding. The malformed raw discovery
 payload must not be forwarded or stored in audit events.
+When multiple visible descriptors use the same tool `name`, the proxy forwards only the first
+sanitized descriptor and hides later duplicates. This keeps the client-visible tool list aligned
+with the call-time visible-tool state, which is keyed by tool name.
 Each filtered `tools/list` response replaces the current session's visible tool set. A tool that was
 visible in an earlier discovery response must not remain callable after a later filtered discovery
 response hides or omits it.

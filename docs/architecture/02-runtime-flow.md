@@ -66,11 +66,12 @@ transports remain future runtime responsibilities.
 4. Proxy rebuilds each visible descriptor with only `name`, optional `title`, optional `description`,
    object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`,
    while removing nested `default`, `example`, `examples`, `$comment`, and `_meta` metadata.
-5. Proxy rebuilds the `tools/list` success result with only `tools` and optional string
+5. Proxy hides duplicate visible tool names after the first sanitized descriptor.
+6. Proxy rebuilds the `tools/list` success result with only `tools` and optional string
    `nextCursor`.
-6. Malformed discovery success results are normalized to an empty `tools` array.
-7. Client receives only sanitized tools allowed for discovery.
-8. Proxy records a redacted discovery audit event.
+7. Malformed discovery success results are normalized to an empty `tools` array.
+8. Client receives only sanitized tools allowed for discovery.
+9. Proxy records a redacted discovery audit event.
 
 ## Tool Call Flow
 
