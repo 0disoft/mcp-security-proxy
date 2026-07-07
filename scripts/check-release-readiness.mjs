@@ -41,6 +41,8 @@ if (!existsSync(recordsDir)) {
   }
 }
 
+checkReleaseRecordValidator();
+
 if (failures.length > 0) {
   for (const failure of failures) {
     console.error(failure);
@@ -69,7 +71,10 @@ function checkPrivatePreReleasePosture() {
 }
 
 function checkReleaseRecord(path) {
-  const record = readJson(path);
+  checkReleaseRecordObject(path, readJson(path));
+}
+
+function checkReleaseRecordObject(path, record) {
   if (record.schemaVersion !== "msp.release-readiness.v1") {
     failures.push(`${path}: schemaVersion must be msp.release-readiness.v1`);
   }
@@ -164,6 +169,101 @@ function checkReleaseRecord(path) {
   if (!isNonPlaceholder(record.rollback?.procedure)) {
     failures.push(`${path}: rollback.procedure must be recorded`);
   }
+}
+
+function checkReleaseRecordValidator() {
+  const validRecord = createReleaseRecordSelfTestFixture();
+  const validFailures = collectReleaseRecordFailures("<release-readiness-self-test-valid>", validRecord);
+  if (validFailures.length > 0) {
+    failures.push(`release-readiness self-test valid record failed: ${validFailures.join("; ")}`);
+  }
+
+  const unsafePathFailures = collectReleaseRecordFailures("<release-readiness-self-test-unsafe-path>", {
+    ...validRecord,
+    publicPackages: [
+      {
+        ...validRecord.publicPackages[0],
+        workspacePath: "../packages/cli"
+      }
+    ],
+    artifacts: [
+      {
+        ...validRecord.artifacts[0],
+        source: "docs/../README.md"
+      }
+    ]
+  });
+  if (
+    !unsafePathFailures.some((item) => item.includes("workspacePath must be a safe packages/* repo path")) ||
+    !unsafePathFailures.some((item) => item.includes("source must be a safe repo-relative path"))
+  ) {
+    failures.push(`release-readiness self-test unsafe path fixture was not rejected: ${unsafePathFailures.join("; ")}`);
+  }
+
+  const mismatchFailures = collectReleaseRecordFailures("<release-readiness-self-test-package-mismatch>", {
+    ...validRecord,
+    releaseVersion: "9.9.9",
+    publicPackages: [
+      {
+        ...validRecord.publicPackages[0],
+        name: "not-the-cli-package"
+      },
+      {
+        ...validRecord.publicPackages[0]
+      }
+    ],
+    artifacts: [
+      {
+        ...validRecord.artifacts[0]
+      },
+      {
+        ...validRecord.artifacts[0]
+      }
+    ]
+  });
+  if (
+    !mismatchFailures.some((item) => item.includes("duplicate public package workspacePath")) ||
+    !mismatchFailures.some((item) => item.includes("name must match packages/cli/package.json")) ||
+    !mismatchFailures.some((item) => item.includes("version must match releaseVersion")) ||
+    !mismatchFailures.some((item) => item.includes("duplicate artifact name"))
+  ) {
+    failures.push(`release-readiness self-test mismatch fixture was not rejected: ${mismatchFailures.join("; ")}`);
+  }
+}
+
+function createReleaseRecordSelfTestFixture() {
+  const cliManifest = readJson("packages/cli/package.json");
+  return {
+    schemaVersion: "msp.release-readiness.v1",
+    status: "blocked",
+    releaseVersion: cliManifest.version,
+    registryTarget: "npm",
+    publishCredentialsOwner: "0disoft",
+    publicPackages: [
+      {
+        name: cliManifest.name,
+        workspacePath: "packages/cli",
+        artifactName: "mcp-security-proxy-cli"
+      }
+    ],
+    artifacts: [
+      {
+        name: "readme",
+        source: "README.md"
+      }
+    ],
+    validation: Object.fromEntries(requiredValidations.map((name) => [name, "self-test recorded"])),
+    rollback: {
+      lastKnownGoodVersion: cliManifest.version,
+      procedure: "docs/ops/rollback.md"
+    }
+  };
+}
+
+function collectReleaseRecordFailures(path, record) {
+  const before = failures.length;
+  checkReleaseRecordObject(path, record);
+  return failures.splice(before);
 }
 
 function readJson(path) {
