@@ -38,6 +38,10 @@ UNDECIDED. Before publishing any public artifact, a release record must name:
 - the rollback path for a bad package or CLI release.
 
 Until that record exists, package manifests must stay private and versioned as `0.0.0`.
+Release records live under `docs/ops/release-records/*.release.json`; use
+`docs/ops/release-records/public-release.template.json` as the starting shape. `pnpm run
+release-readiness` validates release records and enforces the private-package posture when no record
+exists.
 
 ## Release Blockers
 
@@ -49,12 +53,13 @@ Until that record exists, package manifests must stay private and versioned as `
 - Release artifact includes real logs, real policies, private captures, or exploit corpus data.
 - `pnpm run package-surface` fails.
 - `pnpm run compatibility` fails.
+- `pnpm run release-readiness` fails.
 - Package manifests are public before release readiness records public names and artifacts.
 
 ## Validation
 
 - Required validation names: docs, package-surface, secret-scan, compatibility, license-report,
-  contract, test, smoke, check when commands exist.
+  release-readiness, contract, test, smoke, check when commands exist.
 - Release blocker status: blocked for public npm release until package naming, artifact naming,
   publish credentials ownership, and rollback records exist.
 - Remaining operational risk: release automation does not exist yet; manual release is not allowed

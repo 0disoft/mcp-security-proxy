@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "msp.release-readiness.v1",
+  "status": "proposed",
+  "releaseVersion": "0.1.0-alpha.0",
+  "registryTarget": "UNDECIDED",
+  "publishCredentialsOwner": "UNDECIDED",
+  "publicPackages": [
+    {
+      "name": "UNDECIDED",
+      "workspacePath": "packages/cli",
+      "artifactName": "UNDECIDED"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "UNDECIDED",
+      "source": "UNDECIDED"
+    }
+  ],
+  "validation": {
+    "docs": "UNRECORDED",
+    "package-surface": "UNRECORDED",
+    "secret-scan": "UNRECORDED",
+    "compatibility": "UNRECORDED",
+    "license-report": "UNRECORDED",
+    "contract": "UNRECORDED",
+    "test": "UNRECORDED",
+    "smoke": "UNRECORDED",
+    "check": "UNRECORDED"
+  },
+  "rollback": {
+    "lastKnownGoodVersion": "UNDECIDED",
+    "procedure": "UNDECIDED"
+  }
+}

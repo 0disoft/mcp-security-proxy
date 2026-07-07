@@ -34,6 +34,15 @@ database, migration stream, hosted deployment, or remote control plane to roll b
 4. Run `pnpm run check`, `git diff --check`, and the relevant smoke scenario.
 5. Document the forward fix and any migration notes.
 
+## Pinning Guidance
+
+- Before a public package release exists, consumers should pin a Git commit SHA or local workspace
+  revision.
+- After a public package release exists, the release record must name the package version and the
+  rollback package version.
+- Bad package releases must be handled by publishing a fixed version or deprecating the bad version
+  in the registry named by the release record. Do not silently reuse a published version number.
+
 ## Database Rollback Policy
 
 No project-owned database exists. Local audit logs are append-only operator-owned evidence; do not
@@ -42,7 +51,7 @@ own retention policy.
 
 ## Validation
 
-- Required validation names: docs, smoke, check.
+- Required validation names: docs, release-readiness, smoke, check.
 - Release blocker status: public release is blocked when rollback path, validation output, or
   package pinning guidance is missing.
 - Remaining operational risk: no automated package unpublish/deprecate workflow exists yet.

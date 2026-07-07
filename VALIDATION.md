@@ -20,6 +20,7 @@ This document owns stable validation names for this scaffold.
 - secret-scan
 - compatibility
 - license-report
+- release-readiness
 - check
 
 ## Required Final Report

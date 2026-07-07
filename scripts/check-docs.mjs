@@ -12,6 +12,8 @@ const requiredFiles = [
   "docs/adr/0001-initial-architecture-boundaries.md",
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
+  "docs/ops/release-records/README.md",
+  "docs/ops/release-records/public-release.template.json",
   "packages/contracts/schemas/policy.v1.schema.json",
   "packages/contracts/schemas/decision.v1.schema.json",
   "packages/contracts/schemas/audit-event.v1.schema.json",
