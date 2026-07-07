@@ -42,6 +42,9 @@ UNDECIDED. Before publishing any public artifact, a release record must name:
   from the release scope.
 
 Until that record exists, package manifests must stay private and versioned as `0.0.0`.
+Proposed or blocked release records may describe a future release version, but they do not permit
+package manifests to leave the `0.0.0` private posture. Approved release records must name a
+non-`0.0.0` release version before package manifests can move to public release posture.
 Release records live under `docs/ops/release-records/*.release.json`; use
 `docs/ops/release-records/public-release.template.json` as the starting shape. `pnpm run
 release-readiness` validates release records and enforces the private-package posture when no record

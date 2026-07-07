@@ -100,6 +100,9 @@ function checkReleaseRecordObject(path, record) {
   if (!isNonPlaceholder(record.releaseVersion)) {
     failures.push(`${path}: releaseVersion must be recorded`);
   }
+  if (record.status === "approved" && record.releaseVersion === "0.0.0") {
+    failures.push(`${path}: approved releaseVersion must not be 0.0.0`);
+  }
   if (!isNonPlaceholder(record.registryTarget)) {
     failures.push(`${path}: registryTarget must be recorded`);
   }
@@ -159,8 +162,11 @@ function checkReleaseRecordObject(path, record) {
       if (packageManifest.name !== item.name) {
         failures.push(`${path}: publicPackages[${index}].name must match ${packageManifestPath}`);
       }
-      if (packageManifest.version !== record.releaseVersion) {
+      if (record.status === "approved" && packageManifest.version !== record.releaseVersion) {
         failures.push(`${path}: publicPackages[${index}].version must match releaseVersion`);
+      }
+      if (record.status !== "approved" && packageManifest.version !== "0.0.0") {
+        failures.push(`${path}: publicPackages[${index}].version must stay 0.0.0 until release record is approved`);
       }
     }
   }
@@ -273,6 +279,7 @@ function checkReleaseRecordValidator() {
 
   const mismatchFailures = collectReleaseRecordFailures("<release-readiness-self-test-package-mismatch>", {
     ...validRecord,
+    status: "approved",
     releaseVersion: "9.9.9",
     publicPackages: [
       {
@@ -299,6 +306,28 @@ function checkReleaseRecordValidator() {
     !mismatchFailures.some((item) => item.includes("duplicate artifact name"))
   ) {
     failures.push(`release-readiness self-test mismatch fixture was not rejected: ${mismatchFailures.join("; ")}`);
+  }
+
+  const nonApprovedFutureVersionFailures = collectReleaseRecordFailures("<release-readiness-self-test-non-approved-future-version>", {
+    ...validRecord,
+    status: "proposed",
+    releaseVersion: "0.1.0-alpha.0",
+    rollback: {
+      ...validRecord.rollback,
+      lastKnownGoodVersion: "0.0.0"
+    }
+  });
+  if (nonApprovedFutureVersionFailures.length > 0) {
+    failures.push(`release-readiness self-test non-approved future version failed: ${nonApprovedFutureVersionFailures.join("; ")}`);
+  }
+
+  const approvedZeroVersionFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-zero-version>", {
+    ...validRecord,
+    status: "approved",
+    releaseVersion: "0.0.0"
+  });
+  if (!approvedZeroVersionFailures.some((item) => item.includes("approved releaseVersion must not be 0.0.0"))) {
+    failures.push(`release-readiness self-test approved zero version was not rejected: ${approvedZeroVersionFailures.join("; ")}`);
   }
 
   const untrackedArtifactFailures = collectReleaseRecordFailures("<release-readiness-self-test-untracked-artifact>", {

@@ -8,7 +8,9 @@ No public package release is approved until a `*.release.json` record exists, `p
 passes, and the release record captures the exact validation evidence required by
 `scripts/check-release-readiness.mjs`. Before that point, package manifests must stay private and
 versioned as `0.0.0`. Proposed or blocked records do not unlock public package posture; only an
-approved release record may do that.
+approved release record may do that. Proposed or blocked records may name a future release version,
+but package manifests must remain at `0.0.0` until approval. Approved records must not use
+`0.0.0` as the release version.
 
 Release records must include validation evidence for: `docs`, `schema-contract`,
 `migration-check`, `package-surface`, `secret-scan`, `artifact-safety`, `repository-hygiene`,
