@@ -122,35 +122,63 @@ const checkPackageSurfaceValidator = () => {
     failures.push("package-surface self-test release record package version was not collected");
   }
 
+  const validReleaseManifest = {
+    private: false,
+    type: "module",
+    license: expectedLicense,
+    engines: {
+      node: expectedNodeEngine
+    },
+    version: "0.1.0-alpha.0",
+    name: "@0disoft/mcp-security-proxy-cli",
+    types: "./src/index.ts",
+    exports: {
+      ".": {
+        types: "./src/index.ts",
+        default: "./dist/index.js"
+      }
+    },
+    scripts: {
+      build: "tsc -p tsconfig.json",
+      typecheck: "tsc -p tsconfig.json --noEmit"
+    }
+  };
+
   const releaseManifestFailures = collectPackageSurfaceFailures(() => {
+    checkWorkspacePackage(validReleaseManifest, join(root, "packages", "cli", "package.json"), releaseRecordPackages);
+  });
+  if (releaseManifestFailures.length > 0) {
+    failures.push(`package-surface self-test release manifest failed: ${releaseManifestFailures.join("; ")}`);
+  }
+
+  const privateReleaseManifestFailures = collectPackageSurfaceFailures(() => {
     checkWorkspacePackage(
       {
-        private: false,
-        type: "module",
-        license: expectedLicense,
-        engines: {
-          node: expectedNodeEngine
-        },
-        version: "0.1.0-alpha.0",
-        name: "@0disoft/mcp-security-proxy-cli",
-        types: "./src/index.ts",
-        exports: {
-          ".": {
-            types: "./src/index.ts",
-            default: "./dist/index.js"
-          }
-        },
-        scripts: {
-          build: "tsc -p tsconfig.json",
-          typecheck: "tsc -p tsconfig.json --noEmit"
-        }
+        ...validReleaseManifest,
+        private: true
       },
       join(root, "packages", "cli", "package.json"),
       releaseRecordPackages
     );
   });
-  if (releaseManifestFailures.length > 0) {
-    failures.push(`package-surface self-test release manifest failed: ${releaseManifestFailures.join("; ")}`);
+  if (!privateReleaseManifestFailures.some((item) => item.includes("private must be removed or false"))) {
+    failures.push(`package-surface self-test private release manifest was not rejected: ${privateReleaseManifestFailures.join("; ")}`);
+  }
+
+  const versionMismatchReleaseManifestFailures = collectPackageSurfaceFailures(() => {
+    checkWorkspacePackage(
+      {
+        ...validReleaseManifest,
+        version: "0.1.0-alpha.1"
+      },
+      join(root, "packages", "cli", "package.json"),
+      releaseRecordPackages
+    );
+  });
+  if (!versionMismatchReleaseManifestFailures.some((item) => item.includes("version must match release readiness version"))) {
+    failures.push(
+      `package-surface self-test release manifest version mismatch was not rejected: ${versionMismatchReleaseManifestFailures.join("; ")}`
+    );
   }
 
   const conflictingReleaseRecordFailures = collectPackageSurfaceFailures(() => {
