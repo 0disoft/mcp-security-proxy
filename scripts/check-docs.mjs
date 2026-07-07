@@ -12,6 +12,7 @@ const requiredFiles = [
   "docs/adr/0001-initial-architecture-boundaries.md",
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
+  "docs/cli/output-and-exit-codes.md",
   "docs/ops/release-records/README.md",
   "docs/ops/release-records/public-release.template.json",
   "packages/contracts/schemas/policy.v1.schema.json",
@@ -46,7 +47,10 @@ for (const file of requiredFiles) {
   }
 }
 
-const cliContractFailures = checkCliCommandDocs();
+const cliContractFailures = [
+  ...checkCliCommandDocs(),
+  ...checkCliExitCodeDocs()
+];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
   for (const file of missing) {
@@ -102,4 +106,53 @@ function extractCommandNames(source) {
     return [];
   }
   return [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
+}
+
+function checkCliExitCodeDocs() {
+  const failures = [];
+  const commandSource = readFileSync(join(root, "packages/cli/src/commands.ts"), "utf8");
+  const runtimeSource = readFileSync(join(root, "packages/proxy-runtime/src/stdio-bridge.ts"), "utf8");
+  const exitCodeContract = readFileSync(join(root, "docs/cli/output-and-exit-codes.md"), "utf8");
+  const documentedCodes = extractDocumentedExitCodes(exitCodeContract);
+  const expectedCodes = [0, 1, 2, 3, 4, 5];
+
+  if (JSON.stringify(documentedCodes) !== JSON.stringify(expectedCodes)) {
+    failures.push(
+      `docs/cli/output-and-exit-codes.md: expected public exit codes ${expectedCodes.join(", ")}, got ${documentedCodes.join(", ")}`
+    );
+  }
+
+  for (const [code, phrase] of [
+    [0, "Command completed successfully"],
+    [1, "Handled runtime failure"],
+    [2, "CLI usage error"],
+    [3, "Policy file parse or validation error"],
+    [4, "Upstream MCP server startup, protocol, or non-zero exit failure"],
+    [5, "Audit output failure"]
+  ]) {
+    const rowPattern = new RegExp(`\\| ${code} \\| [^\\n]*${escapeRegExp(phrase)}[^\\n]*\\|`);
+    if (!rowPattern.test(exitCodeContract)) {
+      failures.push(`docs/cli/output-and-exit-codes.md: missing or changed meaning for exit code ${code}`);
+    }
+  }
+
+  if (!commandSource.includes("readonly exitCode: 2 | 3;")) {
+    failures.push("packages/cli/src/commands.ts: CliError must stay limited to usage and policy validation exits");
+  }
+  if (!commandSource.includes("return { exitCode: 1 };")) {
+    failures.push("packages/cli/src/commands.ts: handled runtime failure exit code 1 is not visible");
+  }
+  if (!runtimeSource.includes("return { exitCode: 4 };") || !runtimeSource.includes("fatalExitCode = 5;")) {
+    failures.push("packages/proxy-runtime/src/stdio-bridge.ts: runtime exit code 4/5 mappings are not visible");
+  }
+
+  return failures;
+}
+
+function extractDocumentedExitCodes(markdown) {
+  return [...markdown.matchAll(/^\| (\d+) \| .+ \|$/gm)].map((match) => Number(match[1]));
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -31,8 +31,6 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 | 3 | Policy file parse or validation error |
 | 4 | Upstream MCP server startup, protocol, or non-zero exit failure |
 | 5 | Audit output failure |
-| 6 | Unsupported method, protocol feature, or deferred live proxy command |
-| 7 | Internal proxy error |
 
 ## JSON Result Shape
 
