@@ -1518,6 +1518,48 @@ describe("proxy runtime session", () => {
     expect(result.auditEvents).toHaveLength(0);
   });
 
+  it("preserves JSON-RPC id type when matching server-origin ping responses", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    const pingLine = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "1",
+      method: "ping"
+    });
+    const numericIdResponse = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {}
+    });
+    const stringIdResponse = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "1",
+      result: {}
+    });
+
+    expect(session.handleServerLine(pingLine).forwardLine).toBe(pingLine);
+
+    const mismatched = session.handleClientLine(numericIdResponse);
+
+    expect(mismatched.forwardLine).toBeUndefined();
+    expect(mismatched.responseLine).toBeUndefined();
+    expect(mismatched.auditEvents).toContainEqual(
+      expect.objectContaining({
+        decision: expect.objectContaining({
+          evidence: [expect.objectContaining({ code: "jsonrpc.unmatched_response" })]
+        })
+      })
+    );
+
+    const matched = session.handleClientLine(stringIdResponse);
+
+    expect(matched.forwardLine).toBe(stringIdResponse);
+    expect(matched.responseLine).toBeUndefined();
+    expect(matched.auditEvents).toHaveLength(0);
+  });
+
   it("removes non-standard client JSON-RPC response envelope fields before forwarding server-origin ping responses", () => {
     const session = createProxySession({
       policy: readPolicy(),
