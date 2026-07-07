@@ -77,6 +77,7 @@ if (manifest.schemaVersion !== "msp.compatibility-evidence.v1") {
 if (manifest.target !== "local-stdio-mvp") {
   failures.push(`${manifestPath}: target must be local-stdio-mvp`);
 }
+checkManifestScope(manifestPath, manifest);
 
 if (!Array.isArray(manifest.evidence)) {
   failures.push(`${manifestPath}: evidence must be an array`);
@@ -163,6 +164,15 @@ async function checkEvidenceEntry(item) {
   }
   if (kind === "mcp.call.allowed" || kind === "mcp.call.denied" || kind === "mcp.call.approval-required") {
     checkToolCallFixture(id, path);
+  }
+}
+
+function checkManifestScope(path, manifestObject) {
+  if (manifestObject.transport !== "stdio") {
+    failures.push(`${path}: transport must be stdio for local-stdio-mvp evidence`);
+  }
+  if (manifestObject.fixtureSource !== "synthetic-local") {
+    failures.push(`${path}: fixtureSource must be synthetic-local for local-stdio-mvp evidence`);
   }
 }
 
@@ -467,6 +477,19 @@ function stableJson(value) {
 }
 
 async function checkCompatibilityEvidenceValidator() {
+  const invalidManifestScopeFailures = collectCompatibilityFailures(() => {
+    checkManifestScope("<compatibility-self-test-invalid-manifest-scope>", {
+      transport: "http",
+      fixtureSource: "external"
+    });
+  });
+  if (
+    !invalidManifestScopeFailures.some((item) => item.includes("transport must be stdio")) ||
+    !invalidManifestScopeFailures.some((item) => item.includes("fixtureSource must be synthetic-local"))
+  ) {
+    failures.push(`compatibility self-test invalid manifest scope was not rejected: ${invalidManifestScopeFailures.join("; ")}`);
+  }
+
   const invalidCliCommandFailures = collectCompatibilityFailures(() => {
     checkCliCommandShape("<compatibility-self-test-invalid-cli-command>", "cli.json.eval-call", [
       "node",

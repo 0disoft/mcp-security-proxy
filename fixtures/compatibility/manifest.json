@@ -1,6 +1,8 @@
 {
   "schemaVersion": "msp.compatibility-evidence.v1",
   "target": "local-stdio-mvp",
+  "transport": "stdio",
+  "fixtureSource": "synthetic-local",
   "evidence": [
     {
       "id": "mcp-discovery-basic",

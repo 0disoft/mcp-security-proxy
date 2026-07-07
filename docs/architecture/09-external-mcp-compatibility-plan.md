@@ -74,4 +74,6 @@ External MCP compatibility support remains blocked until:
 
 External MCP compatibility fixtures are not implemented. The current compatibility evidence is
 limited to synthetic MCP fixtures, CLI/library golden outputs, and the registered live local stdio
-smoke command.
+smoke command. The current `fixtures/compatibility/manifest.json` registry records
+`transport: "stdio"` and `fixtureSource: "synthetic-local"` so it cannot be used as external MCP
+compatibility evidence.

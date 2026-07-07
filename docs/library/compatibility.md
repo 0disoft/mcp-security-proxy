@@ -56,10 +56,12 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Runtime session-result fixtures for approval rejection, approval hook error, approval timeout
   fail-closed behavior, and invalid server-origin ping response denial.
 
-The current evidence registry is `fixtures/compatibility/manifest.json`. `pnpm run compatibility`
-builds the workspace, verifies every manifest entry, compares the captured CLI, library, and
-runtime session fixtures against the current implementation, and runs registered runtime smoke
-evidence commands.
+The current evidence registry is `fixtures/compatibility/manifest.json`. Its `target` must remain
+`local-stdio-mvp`, `transport` must remain `stdio`, and `fixtureSource` must remain
+`synthetic-local` until a later ADR and release record approve a broader compatibility target.
+`pnpm run compatibility` builds the workspace, verifies every manifest entry, compares the captured
+CLI, library, and runtime session fixtures against the current implementation, and runs registered
+runtime smoke evidence commands.
 Approval-required library fixtures may explicitly record `approvalHookAvailable` in the manifest so
 hook-present and hook-missing decisions are both checked.
 
