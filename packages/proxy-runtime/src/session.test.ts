@@ -105,6 +105,72 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("denies unsupported upstream server requests before response correlation", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "same-id",
+        method: "tools/list"
+      })
+    );
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "same-id",
+        method: "sampling/createMessage",
+        params: {
+          messages: []
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "same-id",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ method: "sampling/createMessage" }]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "method-denied",
+      method: "sampling/createMessage",
+      decision: { action: "deny" }
+    });
+
+    const discovery = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "same-id",
+        result: readJsonFixture("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+
+    expect(JSON.parse(discovery.forwardLine ?? "{}")).toMatchObject({
+      id: "same-id",
+      result: {
+        tools: [
+          {
+            name: "read_file"
+          }
+        ]
+      }
+    });
+  });
+
   it("denies unsupported client methods without forwarding upstream", () => {
     const session = createProxySession({
       policy: readPolicy(),

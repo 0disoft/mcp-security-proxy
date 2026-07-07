@@ -112,6 +112,18 @@ export class ProxySession {
     }
 
     const envelope = parsed.value;
+    if (isJsonRpcRequest(envelope)) {
+      const methodDecision = evaluateEnvelopeMethod(envelope, this.options.policy);
+      if (methodDecision.action !== "allow") {
+        return this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied");
+      }
+
+      return {
+        forwardLine: line,
+        auditEvents: []
+      };
+    }
+
     const requestMethod = this.takePendingMethod(envelope);
     if (requestMethod !== "tools/list") {
       return {

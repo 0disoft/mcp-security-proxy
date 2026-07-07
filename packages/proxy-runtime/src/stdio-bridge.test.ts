@@ -103,6 +103,53 @@ describe("stdio proxy bridge", () => {
     );
   });
 
+  it("returns denied upstream server request errors to upstream stdin without exposing them to client stdout", async () => {
+    const harness = createHarness();
+    const run = runHarness(harness);
+
+    harness.upstream.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "server-request",
+        method: "sampling/createMessage",
+        params: {
+          messages: []
+        }
+      })}\n`
+    );
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await run;
+    expect(result.exitCode).toBe(0);
+    expect(readLines(harness.clientOutputCapture)).toEqual([]);
+
+    const upstreamReplies = readLines(harness.upstreamInputCapture).map((line) => JSON.parse(line) as any);
+    expect(upstreamReplies).toContainEqual(
+      expect.objectContaining({
+        jsonrpc: "2.0",
+        id: "server-request",
+        error: expect.objectContaining({
+          code: -32001,
+          data: expect.objectContaining({
+            decision: expect.objectContaining({
+              action: "deny",
+              evidence: [expect.objectContaining({ method: "sampling/createMessage" })]
+            })
+          })
+        })
+      })
+    );
+    expect(harness.auditEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "method-denied",
+        method: "sampling/createMessage",
+        decision: expect.objectContaining({ action: "deny" })
+      })
+    );
+  });
+
   it("fails closed when audit writing fails under fail_closed policy", async () => {
     const harness = createHarness({ failAuditWrites: true });
     const resultPromise = runHarness(harness);

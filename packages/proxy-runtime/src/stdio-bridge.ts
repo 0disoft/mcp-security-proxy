@@ -87,6 +87,9 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
   const upstreamDone = consumeLines(upstreamLines, async (line) => {
     const result = session.handleServerLine(line);
     await recordAudit(result.auditEvents);
+    if (result.responseLine) {
+      writeLine(upstream.stdin, result.responseLine);
+    }
     if (result.forwardLine) {
       writeLine(options.clientOutput, result.forwardLine);
     }
