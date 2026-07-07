@@ -39,6 +39,9 @@ discovery and tool calls through explicit policy, redaction, and audit events.
 - Forward client responses to server-origin `ping` only when the response is an empty `result`
   object.
 - Filter tool discovery output before the client sees it.
+- Forward only sanitized visible tool descriptors from discovery: `name`, optional `description`,
+  object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`.
+  Unknown top-level descriptor fields and `_meta` are not forwarded by the MVP proxy.
 - Evaluate tool calls before forwarding them.
 - Support embedding-host approval hooks for approval-required calls. Calls must be forwarded only
   when the hook approves.

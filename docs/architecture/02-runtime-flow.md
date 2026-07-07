@@ -33,6 +33,7 @@ Current implemented responsibilities:
 - track `tools/list` request IDs so discovery responses can be filtered
 - require upstream responses to match a pending client request id before forwarding
 - classify discovered tools and hide tools without allow or approval coverage
+- rebuild visible discovery descriptors with only the MVP-forwarded descriptor fields
 - evaluate `tools/call` requests using remembered tool capabilities and extracted argument facts
 - call an embedding host approval hook before forwarding approval-required tool calls
 - deny approval-required tool calls when no runtime approval hook is available
@@ -60,10 +61,12 @@ transports remain future runtime responsibilities.
 ## Tool Discovery Flow
 
 1. Upstream server returns tool descriptors.
-2. Proxy classifies tool capabilities from explicit policy, tool name, description, and schema.
+2. Proxy classifies tool capabilities from explicit policy, tool name, and description.
 3. Proxy applies discovery filtering rules.
-4. Client receives only tools allowed for discovery.
-5. Proxy records a redacted discovery audit event.
+4. Proxy rebuilds each visible descriptor with only `name`, optional `description`,
+   object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`.
+5. Client receives only sanitized tools allowed for discovery.
+6. Proxy records a redacted discovery audit event.
 
 ## Tool Call Flow
 

@@ -85,6 +85,10 @@ forwarding so one request cannot overwrite another request's correlation state.
 `tools/list` responses are not trusted as proof of safety. Tool descriptors may be incomplete,
 misleading, or stale. Discovery filtering may hide tools from the host, but call-time evaluation is
 still required because the upstream server and tool arguments remain untrusted.
+Visible discovery descriptors are rebuilt before forwarding. The MVP proxy forwards only `name`,
+optional `description`, object-valued `inputSchema`, object-valued `outputSchema`, and
+object-valued `annotations`; unknown top-level fields, including `_meta`, are removed at the
+protocol boundary. Forwarded schemas remain usability hints, not safety proof.
 Each filtered `tools/list` response replaces the current session's visible tool set. A tool that was
 visible in an earlier discovery response must not remain callable after a later filtered discovery
 response hides or omits it.

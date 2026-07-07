@@ -691,7 +691,7 @@ function filterToolListResult(
 
     if (toolIsDiscoverable(metadata, policy, profileId)) {
       visibleTools.push(metadata);
-      filteredTools.push(item);
+      filteredTools.push(sanitizeVisibleToolDescriptor(item, metadata));
     }
   }
 
@@ -706,6 +706,29 @@ function filterToolListResult(
     visibleTools,
     filteredCount: tools.length - filteredTools.length
   };
+}
+
+function sanitizeVisibleToolDescriptor(item: Readonly<Record<string, unknown>>, metadata: ToolMetadata): Readonly<Record<string, unknown>> {
+  const descriptor: Record<string, unknown> = {
+    name: metadata.name
+  };
+
+  if (metadata.description) {
+    descriptor["description"] = metadata.description;
+  }
+
+  copyRecordField(item, descriptor, "inputSchema");
+  copyRecordField(item, descriptor, "outputSchema");
+  copyRecordField(item, descriptor, "annotations");
+
+  return descriptor;
+}
+
+function copyRecordField(source: Readonly<Record<string, unknown>>, target: Record<string, unknown>, field: string): void {
+  const value = source[field];
+  if (isRecord(value)) {
+    target[field] = value;
+  }
 }
 
 function toolIsDiscoverable(tool: ToolMetadata, policy: PolicyDocument, profileId: string): boolean {

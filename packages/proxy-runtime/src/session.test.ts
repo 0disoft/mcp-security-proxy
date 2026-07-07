@@ -1304,6 +1304,84 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("removes non-contract top-level fields from visible tool discovery descriptors", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-sanitize",
+        method: "tools/list"
+      })
+    );
+
+    const inbound = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-sanitize",
+        result: {
+          tools: [
+            {
+              name: "read_file",
+              description: "Read a file from a caller-provided path.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  path: { type: "string" }
+                }
+              },
+              outputSchema: {
+                type: "object"
+              },
+              annotations: {
+                readOnlyHint: true
+              },
+              _meta: {
+                debug: "RAW_VISIBLE_DESCRIPTOR_META_MARKER"
+              },
+              debug: "RAW_VISIBLE_DESCRIPTOR_DEBUG_MARKER"
+            },
+            {
+              name: "unknown_tool",
+              description: "Do something vaguely useful.",
+              debug: "RAW_HIDDEN_DESCRIPTOR_DEBUG_MARKER"
+            }
+          ]
+        }
+      })
+    );
+
+    const forwarded = JSON.parse(inbound.forwardLine ?? "{}") as {
+      readonly result?: { readonly tools?: readonly Record<string, unknown>[] };
+    };
+    expect(forwarded.result?.tools).toEqual([
+      {
+        name: "read_file",
+        description: "Read a file from a caller-provided path.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string" }
+          }
+        },
+        outputSchema: {
+          type: "object"
+        },
+        annotations: {
+          readOnlyHint: true
+        }
+      }
+    ]);
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_VISIBLE_DESCRIPTOR_META_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_VISIBLE_DESCRIPTOR_DEBUG_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_HIDDEN_DESCRIPTOR_DEBUG_MARKER");
+    expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_VISIBLE_DESCRIPTOR_META_MARKER");
+    expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_HIDDEN_DESCRIPTOR_DEBUG_MARKER");
+  });
+
   it("denies tool calls whose extracted path facts violate policy", () => {
     const session = createProxySession({
       policy: readPolicy(),

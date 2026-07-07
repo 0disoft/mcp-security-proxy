@@ -28,6 +28,8 @@ Define how sensitive data moves through MCP Security Proxy and what must never b
 - Policy data is trusted configuration but may be misconfigured.
 - Upstream MCP servers are untrusted.
 - Tool descriptors are hints, not security proof.
+- Tool discovery forwarding is allowlisted at the descriptor field boundary. Unknown top-level
+  descriptor metadata, including `_meta`, is not retained in forwarded discovery responses.
 - Raw MCP payloads may be inspected for policy facts but must not be stored in audit events.
 - Audit events receive redacted summaries only.
 - Redaction must happen before audit write and before machine-readable CLI output.
