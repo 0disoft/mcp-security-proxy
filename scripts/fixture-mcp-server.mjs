@@ -11,6 +11,7 @@ const malformedToolsList = process.argv.includes("--malformed-tools-list");
 const noisyToolsList = process.argv.includes("--noisy-tools-list");
 const duplicateToolsList = process.argv.includes("--duplicate-tools-list");
 const replaceToolsList = process.argv.includes("--replace-tools-list");
+const tooDeepToolsList = process.argv.includes("--too-deep-tools-list");
 const serverPingId = "live-server-origin-ping";
 const serverPingWithParamsId = "live-server-origin-ping-with-params";
 
@@ -133,6 +134,22 @@ for await (const line of lines) {
                 }
               }
             ]
+          }
+        })}\n`
+      );
+      continue;
+    }
+    if (tooDeepToolsList) {
+      process.stdout.write(
+        `${JSON.stringify({
+          jsonrpc: "2.0",
+          id: message.id,
+          result: {
+            nested: {
+              deeper: {
+                deepest: "RAW_TOO_DEEP_DISCOVERY_MARKER"
+              }
+            }
           }
         })}\n`
       );

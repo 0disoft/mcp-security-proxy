@@ -9,6 +9,8 @@ const auditLog = join(tempDir, "audit.jsonl");
 const auditFailurePath = join(tempDir, "audit-directory");
 const auditWarnPolicyPath = join(tempDir, "audit-warn-and-continue-policy.json");
 const auditWarnPath = join(tempDir, "audit-warn-directory");
+const frameGuardAuditLog = join(tempDir, "frame-guard-audit.jsonl");
+const depthGuardAuditLog = join(tempDir, "depth-guard-audit.jsonl");
 const malformedDiscoveryAuditLog = join(tempDir, "malformed-discovery-audit.jsonl");
 const noisyDiscoveryAuditLog = join(tempDir, "noisy-discovery-audit.jsonl");
 const duplicateDiscoveryAuditLog = join(tempDir, "duplicate-discovery-audit.jsonl");
@@ -158,6 +160,124 @@ try {
   const auditWarnOutputText = auditWarnOutputLines.map((line) => JSON.stringify(line)).join("\n");
   if (auditWarnOutputText.includes("workspace/private/secret.txt")) {
     throw new Error("raw denied path leaked into audit warn-and-continue MCP output");
+  }
+
+  const frameGuardChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      frameGuardAuditLog,
+      "--max-frame-bytes",
+      "64",
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const frameGuardStdoutChunks = [];
+  const frameGuardStderrChunks = [];
+  frameGuardChild.stdout.on("data", (chunk) => frameGuardStdoutChunks.push(chunk));
+  frameGuardChild.stderr.on("data", (chunk) => frameGuardStderrChunks.push(chunk));
+  frameGuardChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "oversized-client-frame",
+      method: "ping",
+      params: {
+        marker: "RAW_OVERSIZED_CLIENT_FRAME_MARKER"
+      }
+    })}\n`
+  );
+  frameGuardChild.stdin.end();
+  const frameGuardExitCode = await new Promise((resolve, reject) => {
+    frameGuardChild.once("error", reject);
+    frameGuardChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (frameGuardExitCode !== 0) {
+    throw new Error(`expected frame guard live run smoke to exit 0, got ${frameGuardExitCode}: ${Buffer.concat(frameGuardStderrChunks).toString("utf8")}`);
+  }
+  const frameGuardOutputLines = Buffer.concat(frameGuardStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
+  if (
+    frameGuardOutputLines.length !== 1 ||
+    frameGuardOutputLines[0]?.id !== null ||
+    frameGuardOutputLines[0]?.error?.data?.decision?.evidence?.[0]?.code !== "jsonrpc.frame_too_large"
+  ) {
+    throw new Error(`unexpected oversized frame response: ${JSON.stringify(frameGuardOutputLines)}`);
+  }
+  const frameGuardOutputText = frameGuardOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (frameGuardOutputText.includes("RAW_OVERSIZED_CLIENT_FRAME_MARKER")) {
+    throw new Error("raw oversized client frame marker leaked into MCP output");
+  }
+  const frameGuardAudit = readFileSync(frameGuardAuditLog, "utf8");
+  if (frameGuardAudit.includes("RAW_OVERSIZED_CLIENT_FRAME_MARKER") || frameGuardAudit.includes("RAW_STDERR_MARKER")) {
+    throw new Error("raw oversized client frame or stderr marker leaked into audit log");
+  }
+  if (!frameGuardAudit.includes('"code":"jsonrpc.frame_too_large"')) {
+    throw new Error(`expected frame-too-large audit event, got ${frameGuardAudit}`);
+  }
+
+  const depthGuardChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      depthGuardAuditLog,
+      "--max-json-depth",
+      "4",
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--too-deep-tools-list"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const depthGuardStdoutChunks = [];
+  const depthGuardStderrChunks = [];
+  depthGuardChild.stdout.on("data", (chunk) => depthGuardStdoutChunks.push(chunk));
+  depthGuardChild.stderr.on("data", (chunk) => depthGuardStderrChunks.push(chunk));
+  depthGuardChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "too-deep-tools", method: "tools/list" })}\n`);
+  depthGuardChild.stdin.end();
+  const depthGuardExitCode = await new Promise((resolve, reject) => {
+    depthGuardChild.once("error", reject);
+    depthGuardChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (depthGuardExitCode !== 0) {
+    throw new Error(`expected depth guard live run smoke to exit 0, got ${depthGuardExitCode}: ${Buffer.concat(depthGuardStderrChunks).toString("utf8")}`);
+  }
+  const depthGuardOutputText = Buffer.concat(depthGuardStdoutChunks).toString("utf8");
+  if (depthGuardOutputText.length > 0) {
+    throw new Error(`too-deep upstream response leaked to client output: ${depthGuardOutputText}`);
+  }
+  const depthGuardAudit = readFileSync(depthGuardAuditLog, "utf8");
+  if (depthGuardAudit.includes("RAW_TOO_DEEP_DISCOVERY_MARKER") || depthGuardAudit.includes("RAW_STDERR_MARKER")) {
+    throw new Error("raw too-deep upstream response or stderr marker leaked into audit log");
+  }
+  if (!depthGuardAudit.includes('"code":"jsonrpc.too_deep"')) {
+    throw new Error(`expected too-deep audit event, got ${depthGuardAudit}`);
   }
 
   const malformedDiscoveryChild = spawn(
