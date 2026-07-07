@@ -102,7 +102,7 @@ for (const id of requiredEvidenceIds) {
   }
 }
 
-checkCompatibilityEvidenceValidator();
+await checkCompatibilityEvidenceValidator();
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -384,7 +384,7 @@ function stableJson(value) {
   return JSON.stringify(value);
 }
 
-function checkCompatibilityEvidenceValidator() {
+async function checkCompatibilityEvidenceValidator() {
   const invalidCliCommandFailures = collectCompatibilityFailures(() => {
     checkCliCommandShape("<compatibility-self-test-invalid-cli-command>", "cli.json.eval-call", [
       "node",
@@ -413,10 +413,49 @@ function checkCompatibilityEvidenceValidator() {
   if (!invalidRuntimeCommandFailures.some((item) => item.includes("must run node scripts/smoke-live-run.mjs"))) {
     failures.push(`compatibility self-test runtime command mismatch was not rejected: ${invalidRuntimeCommandFailures.join("; ")}`);
   }
+
+  const missingRuntimeSessionFailures = await collectCompatibilityFailuresAsync(async () => {
+    await checkRuntimeSessionFixture(
+      "<compatibility-self-test-runtime-session-missing-fields>",
+      "fixtures/compatibility/runtime-approval-timeout.json",
+      {
+        policy: "fixtures/policies/approval-shell.json",
+        profile: "local"
+      }
+    );
+  });
+  if (!missingRuntimeSessionFailures.some((item) => item.includes("runtime session evidence must include policy, profile, and scenario"))) {
+    failures.push(
+      `compatibility self-test missing runtime session fields were not rejected: ${missingRuntimeSessionFailures.join("; ")}`
+    );
+  }
+
+  const unsupportedRuntimeSessionFailures = await collectCompatibilityFailuresAsync(async () => {
+    await checkRuntimeSessionFixture(
+      "<compatibility-self-test-runtime-session-unsupported-scenario>",
+      "fixtures/compatibility/runtime-approval-timeout.json",
+      {
+        policy: "fixtures/policies/approval-shell.json",
+        profile: "local",
+        scenario: "not-supported"
+      }
+    );
+  });
+  if (!unsupportedRuntimeSessionFailures.some((item) => item.includes("unsupported runtime session scenario not-supported"))) {
+    failures.push(
+      `compatibility self-test unsupported runtime session scenario was not rejected: ${unsupportedRuntimeSessionFailures.join("; ")}`
+    );
+  }
 }
 
 function collectCompatibilityFailures(fn) {
   const before = failures.length;
   fn();
+  return failures.splice(before);
+}
+
+async function collectCompatibilityFailuresAsync(fn) {
+  const before = failures.length;
+  await fn();
   return failures.splice(before);
 }
