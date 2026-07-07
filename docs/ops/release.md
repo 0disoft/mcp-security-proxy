@@ -46,7 +46,7 @@ Release records live under `docs/ops/release-records/*.release.json`; use
 `docs/ops/release-records/public-release.template.json` as the starting shape. `pnpm run
 release-readiness` validates release records and enforces the private-package posture when no record
 exists. `pnpm run artifact-safety` checks public fixtures and release artifact references for
-private, real-log, generated-output, capture, and exploit-corpus paths. `pnpm run
+private, raw synthetic leak marker, real-log, generated-output, capture, and exploit-corpus paths. `pnpm run
 repository-hygiene` checks tracked files, ignore rules, line endings, and generated-output
 exclusions. `pnpm run validation-registry` keeps validation names synchronized across
 `VALIDATION.md`, agent validation profiles, runner scripts, release-readiness requirements, and
