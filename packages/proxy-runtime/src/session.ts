@@ -660,7 +660,7 @@ function parseJsonLine(
       return { ok: false, reason: "message is not a JSON-RPC 2.0 object", code: "jsonrpc.invalid" };
     }
     if ("id" in parsed && !isJsonRpcId(parsed["id"])) {
-      return { ok: false, reason: "JSON-RPC id must be a string, number, null, or absent", code: "jsonrpc.invalid" };
+      return { ok: false, reason: "JSON-RPC id must be a string, safe integer number, null, or absent", code: "jsonrpc.invalid" };
     }
     if ("method" in parsed && typeof parsed["method"] !== "string") {
       return { ok: false, reason: "JSON-RPC method must be a string when present", code: "jsonrpc.invalid" };
@@ -709,7 +709,7 @@ function jsonDepthExceeds(value: unknown, maxDepth: number): boolean {
 }
 
 function isJsonRpcId(value: unknown): value is string | number | null {
-  return value === null || typeof value === "string" || typeof value === "number";
+  return value === null || typeof value === "string" || (typeof value === "number" && Number.isSafeInteger(value));
 }
 
 function isJsonRpcErrorObject(value: unknown): boolean {

@@ -31,6 +31,8 @@ discovery and tool calls through explicit policy, redaction, and audit events.
   `tools/list`, and `tools/call`.
 - Require request-style methods `initialize`, `ping`, `tools/list`, and `tools/call` to carry a
   JSON-RPC `id`; require `notifications/initialized` to omit `id`.
+- Accept JSON-RPC `id` values only when they are strings, safe integer numbers, `null`, or absent
+  where the message shape allows absence.
 - Deny unsupported MCP methods instead of passing them through by default.
 - Gate server-origin method-bearing messages by direction. Only payload-free liveness `ping` is
   forwarded from upstream server to client in the current contract.

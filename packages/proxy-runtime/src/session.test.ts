@@ -30,7 +30,7 @@ describe("proxy runtime session", () => {
         data: {
           decision: {
             action: "deny",
-            evidence: [{ reason: "JSON-RPC id must be a string, number, null, or absent" }]
+            evidence: [{ reason: "JSON-RPC id must be a string, safe integer number, null, or absent" }]
           }
         }
       }
@@ -39,6 +39,84 @@ describe("proxy runtime session", () => {
     expect(result.auditEvents[0]).toMatchObject({
       kind: "error",
       decision: { action: "deny" }
+    });
+  });
+
+  it("rejects client messages with unsafe numeric JSON-RPC ids", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: Number.MAX_SAFE_INTEGER + 1,
+        method: "ping"
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32600,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                reason: "JSON-RPC id must be a string, safe integer number, null, or absent"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.invalid" }]
+      }
+    });
+  });
+
+  it("rejects client messages with fractional numeric JSON-RPC ids", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1.5,
+        method: "ping"
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32600,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                reason: "JSON-RPC id must be a string, safe integer number, null, or absent"
+              }
+            ]
+          }
+        }
+      }
     });
   });
 
@@ -100,8 +178,62 @@ describe("proxy runtime session", () => {
       kind: "error",
       decision: {
         action: "deny",
-        evidence: [{ reason: "JSON-RPC id must be a string, number, null, or absent" }]
+        evidence: [{ reason: "JSON-RPC id must be a string, safe integer number, null, or absent" }]
       }
+    });
+  });
+
+  it("drops upstream responses with unsafe numeric JSON-RPC ids before pending correlation", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: Number.MAX_SAFE_INTEGER,
+        method: "ping"
+      })
+    );
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: Number.MAX_SAFE_INTEGER + 1,
+        result: {
+          marker: "RAW_UNSAFE_NUMERIC_ID_RESULT_MARKER"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_UNSAFE_NUMERIC_ID_RESULT_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "jsonrpc.invalid",
+            reason: "JSON-RPC id must be a string, safe integer number, null, or absent"
+          }
+        ]
+      }
+    });
+
+    const matchingSafeResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: Number.MAX_SAFE_INTEGER,
+        result: {}
+      })
+    );
+    expect(JSON.parse(matchingSafeResponse.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      id: Number.MAX_SAFE_INTEGER,
+      result: {}
     });
   });
 

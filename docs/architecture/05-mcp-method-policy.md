@@ -57,11 +57,13 @@ dropped with a redacted audit event.
 ## Envelope Validation
 
 Malformed JSON-RPC envelopes must not be forwarded across the proxy boundary. The runtime accepts
-only JSON-RPC 2.0 objects whose `id`, when present, is a string, number, or `null`, and whose
-`method`, when present, is a string. Request or notification envelopes must not include `result` or
-`error`. Response envelopes must include an `id` and exactly one of `result` or `error`; an `error`
-member must be an object with numeric `code` and string `message` fields. Invalid client messages
-return `-32600`; invalid upstream server messages are dropped with a redacted audit event.
+only JSON-RPC 2.0 objects whose `id`, when present, is a string, safe integer number, or `null`,
+and whose `method`, when present, is a string. Numeric ids outside JavaScript's safe-integer range
+and fractional numeric ids are rejected before pending request correlation. Request or notification
+envelopes must not include `result` or `error`. Response envelopes must include an `id` and exactly
+one of `result` or `error`; an `error` member must be an object with numeric `code` and string
+`message` fields. Invalid client messages return `-32600`; invalid upstream server messages are
+dropped with a redacted audit event.
 Each newline-delimited frame is bounded before parsing. The default maximum frame size is 1 MiB,
 and the default parsed JSON depth limit is 64. Hosts may configure stricter or looser limits within
 the CLI-supported bounds, but oversized or overly deep frames fail closed before forwarding.
