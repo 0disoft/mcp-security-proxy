@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 
 const root = process.cwd();
 const recordsDir = join(root, "docs", "ops", "release-records");
@@ -88,22 +88,68 @@ function checkReleaseRecord(path) {
   if (!Array.isArray(record.publicPackages) || record.publicPackages.length === 0) {
     failures.push(`${path}: publicPackages must contain at least one package`);
   } else {
+    const seenPackageNames = new Set();
+    const seenPackagePaths = new Set();
     for (const [index, item] of record.publicPackages.entries()) {
+      if (!item || typeof item !== "object") {
+        failures.push(`${path}: publicPackages[${index}] must be an object`);
+        continue;
+      }
       for (const field of ["name", "workspacePath", "artifactName"]) {
         if (!isNonPlaceholder(item?.[field])) {
           failures.push(`${path}: publicPackages[${index}].${field} must be recorded`);
         }
+      }
+      if (!isSafeRelativeRepoPath(item?.workspacePath) || !String(item?.workspacePath).startsWith("packages/")) {
+        failures.push(`${path}: publicPackages[${index}].workspacePath must be a safe packages/* repo path`);
+        continue;
+      }
+      if (seenPackageNames.has(item.name)) {
+        failures.push(`${path}: duplicate public package name ${item.name}`);
+      }
+      if (seenPackagePaths.has(item.workspacePath)) {
+        failures.push(`${path}: duplicate public package workspacePath ${item.workspacePath}`);
+      }
+      seenPackageNames.add(item.name);
+      seenPackagePaths.add(item.workspacePath);
+      const packageManifestPath = `${item.workspacePath}/package.json`;
+      if (!existsSync(join(root, packageManifestPath))) {
+        failures.push(`${path}: publicPackages[${index}].workspacePath must contain package.json`);
+        continue;
+      }
+      const packageManifest = readJson(packageManifestPath);
+      if (packageManifest.name !== item.name) {
+        failures.push(`${path}: publicPackages[${index}].name must match ${packageManifestPath}`);
+      }
+      if (packageManifest.version !== record.releaseVersion) {
+        failures.push(`${path}: publicPackages[${index}].version must match releaseVersion`);
       }
     }
   }
   if (!Array.isArray(record.artifacts) || record.artifacts.length === 0) {
     failures.push(`${path}: artifacts must contain at least one artifact`);
   } else {
+    const seenArtifactNames = new Set();
     for (const [index, item] of record.artifacts.entries()) {
+      if (!item || typeof item !== "object") {
+        failures.push(`${path}: artifacts[${index}] must be an object`);
+        continue;
+      }
       for (const field of ["name", "source"]) {
         if (!isNonPlaceholder(item?.[field])) {
           failures.push(`${path}: artifacts[${index}].${field} must be recorded`);
         }
+      }
+      if (seenArtifactNames.has(item.name)) {
+        failures.push(`${path}: duplicate artifact name ${item.name}`);
+      }
+      seenArtifactNames.add(item.name);
+      if (!isSafeRelativeRepoPath(item?.source)) {
+        failures.push(`${path}: artifacts[${index}].source must be a safe repo-relative path`);
+        continue;
+      }
+      if (!existsSync(join(root, item.source))) {
+        failures.push(`${path}: artifacts[${index}].source must exist`);
       }
     }
   }
@@ -126,4 +172,12 @@ function readJson(path) {
 
 function isNonPlaceholder(value) {
   return typeof value === "string" && value.trim().length > 0 && value !== "UNDECIDED" && value !== "UNRECORDED";
+}
+
+function isSafeRelativeRepoPath(value) {
+  if (!isNonPlaceholder(value) || value.includes("\\") || isAbsolute(value)) {
+    return false;
+  }
+  const segments = value.split("/");
+  return segments.every((segment) => segment.length > 0 && segment !== "." && segment !== "..");
 }
