@@ -7,6 +7,7 @@ const repoRoot = resolve(import.meta.dirname, "..");
 const tempDir = mkdtempSync(join(tmpdir(), "mcp-security-proxy-"));
 const auditLog = join(tempDir, "audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
+const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
 const failedAuditLog = join(tempDir, "failed-audit.jsonl");
 const secretAuditLog = join(tempDir, "secret-audit.jsonl");
 
@@ -157,6 +158,75 @@ try {
   }
   if (!pingAudit.includes('"stderr_line":2')) {
     throw new Error(`expected server-origin ping ack stderr summary audit event, got ${pingAudit}`);
+  }
+
+  const deniedPingChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      deniedPingAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--server-ping-with-params-on-tools-list"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const deniedPingStdoutChunks = [];
+  const deniedPingStderrChunks = [];
+  deniedPingChild.stdout.on("data", (chunk) => deniedPingStdoutChunks.push(chunk));
+  deniedPingChild.stderr.on("data", (chunk) => deniedPingStderrChunks.push(chunk));
+  deniedPingChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "denied-ping-tools", method: "tools/list" })}\n`);
+  deniedPingChild.stdin.end();
+  const deniedPingExitCode = await new Promise((resolve, reject) => {
+    deniedPingChild.once("error", reject);
+    deniedPingChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (deniedPingExitCode !== 0) {
+    throw new Error(
+      `expected denied server-origin ping live run smoke to exit 0, got ${deniedPingExitCode}: ${Buffer.concat(deniedPingStderrChunks).toString("utf8")}`
+    );
+  }
+  const deniedPingOutputLines = Buffer.concat(deniedPingStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
+  const deniedPingToolsResult = deniedPingOutputLines.find((line) => line.id === "denied-ping-tools");
+  const deniedServerPingResult = deniedPingOutputLines.find((line) => line.id === "live-server-origin-ping-with-params");
+  if (
+    !deniedPingToolsResult ||
+    deniedPingToolsResult.result.tools.length !== 1 ||
+    deniedPingToolsResult.result.tools[0].name !== "read_file"
+  ) {
+    throw new Error(`unexpected denied server-origin ping filtered tools response: ${JSON.stringify(deniedPingToolsResult)}`);
+  }
+  if (deniedServerPingResult) {
+    throw new Error(`server-origin ping with params leaked to client stdout: ${JSON.stringify(deniedServerPingResult)}`);
+  }
+  const deniedPingOutputText = deniedPingOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (deniedPingOutputText.includes("RAW_SERVER_PING_PARAMS_MARKER")) {
+    throw new Error("raw server-origin ping params leaked into client output");
+  }
+  const deniedPingAudit = readFileSync(deniedPingAuditLog, "utf8");
+  if (deniedPingAudit.includes("RAW_SERVER_PING_PARAMS_MARKER") || deniedPingAudit.includes("RAW_PING_DENY_ACK_MARKER")) {
+    throw new Error("raw denied server-origin ping fixture content leaked into audit log");
+  }
+  if (!deniedPingAudit.includes('"code":"method.server_origin_ping_params"')) {
+    throw new Error(`expected server-origin ping params denial audit event, got ${deniedPingAudit}`);
+  }
+  if (!deniedPingAudit.includes('"stderr_line":1')) {
+    throw new Error(`expected denied server-origin ping stderr summary audit event, got ${deniedPingAudit}`);
   }
 
   const failedChild = spawn(

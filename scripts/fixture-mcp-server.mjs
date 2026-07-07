@@ -5,7 +5,9 @@ if (process.argv.includes("--exit-nonzero")) {
 }
 
 const serverPingOnToolsList = process.argv.includes("--server-ping-on-tools-list");
+const serverPingWithParamsOnToolsList = process.argv.includes("--server-ping-with-params-on-tools-list");
 const serverPingId = "live-server-origin-ping";
+const serverPingWithParamsId = "live-server-origin-ping-with-params";
 
 const tools = [
   {
@@ -38,6 +40,11 @@ for await (const line of lines) {
     process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools } })}\n`);
     if (serverPingOnToolsList) {
       process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: serverPingId, method: "ping" })}\n`);
+    }
+    if (serverPingWithParamsOnToolsList) {
+      process.stdout.write(
+        `${JSON.stringify({ jsonrpc: "2.0", id: serverPingWithParamsId, method: "ping", params: { payload: "RAW_SERVER_PING_PARAMS_MARKER" } })}\n`
+      );
     }
     continue;
   }
