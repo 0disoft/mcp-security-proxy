@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   AUDIT_DESTINATIONS,
@@ -16,6 +16,15 @@ import {
 
 const root = process.cwd();
 const failures = [];
+const expectedSchemaFiles = ["audit-event.v1.schema.json", "decision.v1.schema.json", "policy.v1.schema.json"];
+
+assertArrayEqual(
+  "packages/contracts/schemas files",
+  readdirSync(join(root, "packages", "contracts", "schemas"))
+    .filter((name) => name.endsWith(".schema.json"))
+    .sort((left, right) => left.localeCompare(right)),
+  expectedSchemaFiles
+);
 
 const policySchema = readJson("packages/contracts/schemas/policy.v1.schema.json");
 const decisionSchema = readJson("packages/contracts/schemas/decision.v1.schema.json");
