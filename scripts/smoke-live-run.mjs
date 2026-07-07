@@ -10,6 +10,7 @@ const auditFailurePath = join(tempDir, "audit-directory");
 const auditWarnPolicyPath = join(tempDir, "audit-warn-and-continue-policy.json");
 const auditWarnPath = join(tempDir, "audit-warn-directory");
 const malformedDiscoveryAuditLog = join(tempDir, "malformed-discovery-audit.jsonl");
+const noisyDiscoveryAuditLog = join(tempDir, "noisy-discovery-audit.jsonl");
 const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
@@ -220,6 +221,88 @@ try {
   }
   if (!malformedDiscoveryAudit.includes('"code":"discovery.filtered"')) {
     throw new Error(`expected malformed discovery filtered audit event, got ${malformedDiscoveryAudit}`);
+  }
+
+  const noisyDiscoveryChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      noisyDiscoveryAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--noisy-tools-list"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const noisyDiscoveryStdoutChunks = [];
+  const noisyDiscoveryStderrChunks = [];
+  noisyDiscoveryChild.stdout.on("data", (chunk) => noisyDiscoveryStdoutChunks.push(chunk));
+  noisyDiscoveryChild.stderr.on("data", (chunk) => noisyDiscoveryStderrChunks.push(chunk));
+  noisyDiscoveryChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "noisy-tools", method: "tools/list" })}\n`);
+  noisyDiscoveryChild.stdin.end();
+  const noisyDiscoveryExitCode = await new Promise((resolve, reject) => {
+    noisyDiscoveryChild.once("error", reject);
+    noisyDiscoveryChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (noisyDiscoveryExitCode !== 0) {
+    throw new Error(
+      `expected noisy discovery live run smoke to exit 0, got ${noisyDiscoveryExitCode}: ${Buffer.concat(noisyDiscoveryStderrChunks).toString("utf8")}`
+    );
+  }
+  const noisyDiscoveryOutputLines = Buffer.concat(noisyDiscoveryStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
+  const noisyDiscoveryToolsResult = noisyDiscoveryOutputLines.find((line) => line.id === "noisy-tools");
+  const noisyTools = noisyDiscoveryToolsResult?.result?.tools;
+  const noisyTool = Array.isArray(noisyTools) ? noisyTools[0] : undefined;
+  if (!noisyTool || noisyTools.length !== 1 || noisyTool.name !== "read_file" || noisyTool.debug !== undefined || noisyTool._meta !== undefined) {
+    throw new Error(`unexpected noisy discovery sanitized response: ${JSON.stringify(noisyDiscoveryToolsResult)}`);
+  }
+  if ("debug" in noisyDiscoveryToolsResult.result) {
+    throw new Error(`noisy discovery result-level debug field leaked: ${JSON.stringify(noisyDiscoveryToolsResult)}`);
+  }
+  if (
+    noisyTool.inputSchema?.properties?.path?.description !== "Path to read." ||
+    noisyTool.inputSchema.properties.path.default !== undefined ||
+    noisyTool.inputSchema.properties.path.examples !== undefined ||
+    noisyTool.inputSchema.$comment !== undefined ||
+    noisyTool.inputSchema._meta !== undefined ||
+    noisyTool.annotations?.safe !== true ||
+    noisyTool.annotations.example !== undefined
+  ) {
+    throw new Error(`unexpected noisy discovery metadata sanitization: ${JSON.stringify(noisyTool)}`);
+  }
+  const noisyDiscoveryOutputText = noisyDiscoveryOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  for (const marker of [
+    "RAW_NOISY_DISCOVERY_DEFAULT_MARKER",
+    "RAW_NOISY_DISCOVERY_EXAMPLE_MARKER",
+    "RAW_NOISY_DISCOVERY_COMMENT_MARKER",
+    "RAW_NOISY_DISCOVERY_SCHEMA_META_MARKER",
+    "RAW_NOISY_DISCOVERY_ANNOTATION_EXAMPLE_MARKER",
+    "RAW_NOISY_DISCOVERY_TOOL_META_MARKER",
+    "RAW_NOISY_DISCOVERY_TOP_LEVEL_MARKER",
+    "RAW_NOISY_DISCOVERY_RESULT_MARKER"
+  ]) {
+    if (noisyDiscoveryOutputText.includes(marker)) {
+      throw new Error(`raw noisy discovery marker leaked into client output: ${marker}`);
+    }
+  }
+  const noisyDiscoveryAudit = readFileSync(noisyDiscoveryAuditLog, "utf8");
+  if (noisyDiscoveryAudit.includes("RAW_NOISY_DISCOVERY") || noisyDiscoveryAudit.includes("RAW_STDERR_MARKER")) {
+    throw new Error("raw noisy discovery or stderr marker leaked into audit log");
   }
 
   const child = spawn(

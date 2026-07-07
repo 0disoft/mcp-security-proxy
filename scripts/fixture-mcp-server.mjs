@@ -8,6 +8,7 @@ const serverPingOnToolsList = process.argv.includes("--server-ping-on-tools-list
 const serverPingWithParamsOnToolsList = process.argv.includes("--server-ping-with-params-on-tools-list");
 const upstreamErrorOnToolCall = process.argv.includes("--upstream-error-on-tool-call");
 const malformedToolsList = process.argv.includes("--malformed-tools-list");
+const noisyToolsList = process.argv.includes("--noisy-tools-list");
 const serverPingId = "live-server-origin-ping";
 const serverPingWithParamsId = "live-server-origin-ping-with-params";
 
@@ -49,6 +50,49 @@ for await (const line of lines) {
             debug: {
               raw: "RAW_MALFORMED_DISCOVERY_DEBUG_MARKER"
             }
+          }
+        })}\n`
+      );
+      continue;
+    }
+    if (noisyToolsList) {
+      process.stdout.write(
+        `${JSON.stringify({
+          jsonrpc: "2.0",
+          id: message.id,
+          result: {
+            tools: [
+              {
+                name: "read_file",
+                title: "Read File",
+                description: "Read a file from a caller-provided path.",
+                inputSchema: {
+                  type: "object",
+                  properties: {
+                    path: {
+                      type: "string",
+                      default: "RAW_NOISY_DISCOVERY_DEFAULT_MARKER",
+                      examples: ["RAW_NOISY_DISCOVERY_EXAMPLE_MARKER"],
+                      description: "Path to read."
+                    }
+                  },
+                  $comment: "RAW_NOISY_DISCOVERY_COMMENT_MARKER",
+                  _meta: {
+                    raw: "RAW_NOISY_DISCOVERY_SCHEMA_META_MARKER"
+                  }
+                },
+                annotations: {
+                  title: "Read",
+                  example: "RAW_NOISY_DISCOVERY_ANNOTATION_EXAMPLE_MARKER",
+                  safe: true
+                },
+                _meta: {
+                  raw: "RAW_NOISY_DISCOVERY_TOOL_META_MARKER"
+                },
+                debug: "RAW_NOISY_DISCOVERY_TOP_LEVEL_MARKER"
+              }
+            ],
+            debug: "RAW_NOISY_DISCOVERY_RESULT_MARKER"
           }
         })}\n`
       );
