@@ -208,6 +208,8 @@ function checkReleaseRecordObject(path, record) {
   for (const validation of requiredValidations) {
     if (!isNonPlaceholder(record.validation?.[validation])) {
       failures.push(`${path}: validation.${validation} must be recorded`);
+    } else if (record.status === "approved") {
+      checkApprovedValidationEvidence(path, validation, record.validation[validation]);
     }
   }
   if (!isNonPlaceholder(record.rollback?.lastKnownGoodVersion)) {
@@ -258,12 +260,24 @@ function checkReleaseScope(path, releaseScope) {
   }
 }
 
+function checkApprovedValidationEvidence(path, validation, evidence) {
+  const commandPattern = validation === "check" ? /\bpnpm\s+(?:run\s+)?check\b/ : new RegExp(`\\bpnpm\\s+run\\s+${escapeRegExp(validation)}\\b`);
+  if (!commandPattern.test(evidence)) {
+    failures.push(`${path}: validation.${validation} must include the executed validation command`);
+  }
+  if (!/\bexit\s+0\b/i.test(evidence)) {
+    failures.push(`${path}: validation.${validation} must include exit 0 evidence`);
+  }
+}
+
 function checkReleaseRecordValidator() {
   const validRecord = createReleaseRecordSelfTestFixture();
   const validFailures = collectReleaseRecordFailures("<release-readiness-self-test-valid>", validRecord);
   if (validFailures.length > 0) {
     failures.push(`release-readiness self-test valid record failed: ${validFailures.join("; ")}`);
   }
+
+  const validApprovedShapeRecord = createApprovedReleaseRecordSelfTestFixture();
 
   const unsafePathFailures = collectReleaseRecordFailures("<release-readiness-self-test-unsafe-path>", {
     ...validRecord,
@@ -288,24 +302,24 @@ function checkReleaseRecordValidator() {
   }
 
   const mismatchFailures = collectReleaseRecordFailures("<release-readiness-self-test-package-mismatch>", {
-    ...validRecord,
+    ...validApprovedShapeRecord,
     status: "approved",
     releaseVersion: "9.9.9",
     publicPackages: [
       {
-        ...validRecord.publicPackages[0],
+        ...validApprovedShapeRecord.publicPackages[0],
         name: "not-the-cli-package"
       },
       {
-        ...validRecord.publicPackages[0]
+        ...validApprovedShapeRecord.publicPackages[0]
       }
     ],
     artifacts: [
       {
-        ...validRecord.artifacts[0]
+        ...validApprovedShapeRecord.artifacts[0]
       },
       {
-        ...validRecord.artifacts[0]
+        ...validApprovedShapeRecord.artifacts[0]
       }
     ]
   });
@@ -332,7 +346,7 @@ function checkReleaseRecordValidator() {
   }
 
   const approvedZeroVersionFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-zero-version>", {
-    ...validRecord,
+    ...validApprovedShapeRecord,
     status: "approved",
     releaseVersion: "0.0.0"
   });
@@ -401,6 +415,24 @@ function checkReleaseRecordValidator() {
   ) {
     failures.push(
       `release-readiness self-test missing validation and rollback evidence was not rejected: ${missingValidationFailures.join("; ")}`
+    );
+  }
+
+  const approvedWeakValidationFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-weak-validation>", {
+    ...validApprovedShapeRecord,
+    validation: {
+      ...validApprovedShapeRecord.validation,
+      docs: "docs passed",
+      check: "pnpm check passed"
+    }
+  });
+  if (
+    !approvedWeakValidationFailures.some((item) => item.includes("validation.docs must include the executed validation command")) ||
+    !approvedWeakValidationFailures.some((item) => item.includes("validation.docs must include exit 0 evidence")) ||
+    !approvedWeakValidationFailures.some((item) => item.includes("validation.check must include exit 0 evidence"))
+  ) {
+    failures.push(
+      `release-readiness self-test approved weak validation evidence was not rejected: ${approvedWeakValidationFailures.join("; ")}`
     );
   }
 
@@ -578,6 +610,20 @@ function createReleaseRecordSelfTestFixture() {
   };
 }
 
+function createApprovedReleaseRecordSelfTestFixture() {
+  return {
+    ...createReleaseRecordSelfTestFixture(),
+    status: "approved",
+    releaseVersion: "9.9.9",
+    validation: Object.fromEntries(requiredValidations.map((name) => [name, createApprovedValidationEvidence(name)]))
+  };
+}
+
+function createApprovedValidationEvidence(name) {
+  const command = name === "check" ? "pnpm check" : `pnpm run ${name}`;
+  return `${command} exit 0`;
+}
+
 function collectReleaseRecordFailures(path, record) {
   const before = failures.length;
   checkReleaseRecordObject(path, record);
@@ -602,4 +648,8 @@ function isSafeRelativeRepoPath(value) {
 
 function isReleaseScopeEvidencePath(value) {
   return releaseScopeEvidencePrefixes.some((prefix) => value.startsWith(prefix));
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

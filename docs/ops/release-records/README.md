@@ -16,6 +16,8 @@ Release records must include validation evidence for: `docs`, `schema-contract`,
 `migration-check`, `package-surface`, `secret-scan`, `artifact-safety`, `repository-hygiene`,
 `validation-registry`, `ci-contract`, `compatibility`, `license-report`, `release-readiness`,
 `performance-smoke`, `contract`, `test`, `smoke`, and `check`.
+For `approved` release records, each validation evidence value must include the executed command
+and `exit 0`; for example, `pnpm run docs exit 0` or `pnpm check exit 0`.
 
 Release records must also name whether MCP SDK dependency usage, HTTP transport support,
 host-specific approval UX, and external MCP compatibility fixtures are included or excluded from
