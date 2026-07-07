@@ -53,6 +53,7 @@ for (const file of trackedFiles) {
 }
 
 checkCompatibilityManifest("fixtures/compatibility/manifest.json");
+checkArtifactSafetyValidator();
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -73,7 +74,10 @@ function checkCompatibilityManifest(path) {
   if (!trackedSet.has(path)) {
     return;
   }
-  const manifest = readJson(path);
+  checkCompatibilityManifestObject(path, readJson(path));
+}
+
+function checkCompatibilityManifestObject(path, manifest) {
   if (!Array.isArray(manifest.evidence)) {
     failures.push(`${path}: evidence must be an array`);
     return;
@@ -102,7 +106,10 @@ function checkCompatibilityManifest(path) {
 
 function checkReleaseRecord(path) {
   checkTextMarkers(path, `${path}: release record`);
-  const record = readJson(path);
+  checkReleaseRecordObject(path, readJson(path));
+}
+
+function checkReleaseRecordObject(path, record) {
   const publicPackages = Array.isArray(record.publicPackages) ? record.publicPackages : [];
   const artifacts = Array.isArray(record.artifacts) ? record.artifacts : [];
 
@@ -168,11 +175,99 @@ function checkForbiddenSegments(value, label) {
 
 function checkTextMarkers(file, label) {
   const text = readFileSync(join(root, file), "utf8");
+  checkTextContentMarkers(text, label);
+}
+
+function checkTextContentMarkers(text, label) {
   for (const marker of forbiddenTextMarkers) {
     if (marker.pattern.test(text)) {
       failures.push(`${label}: forbidden marker ${marker.name}`);
     }
   }
+}
+
+function checkArtifactSafetyValidator() {
+  const validRecord = createArtifactSafetyReleaseRecordSelfTestFixture();
+  const validRecordFailures = collectArtifactSafetyFailures(() => {
+    checkTextContentMarkers(JSON.stringify(validRecord), "<artifact-safety-self-test-valid-record>");
+    checkReleaseRecordObject("<artifact-safety-self-test-valid-record>", validRecord);
+  });
+  if (validRecordFailures.length > 0) {
+    failures.push(`artifact-safety self-test valid release record failed: ${validRecordFailures.join("; ")}`);
+  }
+
+  const forbiddenTextFailures = collectArtifactSafetyFailures(() => {
+    checkTextContentMarkers('{"rawPrompt":"synthetic self-test marker"}', "<artifact-safety-self-test-forbidden-text>");
+  });
+  if (!forbiddenTextFailures.some((item) => item.includes("forbidden marker raw-prompt-field"))) {
+    failures.push(`artifact-safety self-test forbidden text marker was not rejected: ${forbiddenTextFailures.join("; ")}`);
+  }
+
+  const unsafeRecordFailures = collectArtifactSafetyFailures(() => {
+    checkReleaseRecordObject("<artifact-safety-self-test-unsafe-release-record>", {
+      publicPackages: [
+        {
+          workspacePath: "../private/.env",
+          artifactName: "../dist/private-key.tgz"
+        }
+      ],
+      artifacts: [
+        {
+          name: "capture-logs.tgz",
+          source: "logs/private/capture.json"
+        }
+      ]
+    });
+  });
+  if (
+    !unsafeRecordFailures.some((item) => item.includes("paths must not contain traversal or empty segments")) ||
+    !unsafeRecordFailures.some((item) => item.includes("artifact names must not contain path separators or traversal")) ||
+    !unsafeRecordFailures.some((item) => item.includes('forbidden public artifact path segment "logs"'))
+  ) {
+    failures.push(`artifact-safety self-test unsafe release record was not rejected: ${unsafeRecordFailures.join("; ")}`);
+  }
+
+  const unsafeCompatibilityFailures = collectArtifactSafetyFailures(() => {
+    checkCompatibilityManifestObject("<artifact-safety-self-test-unsafe-compatibility-manifest>", {
+      evidence: [
+        {
+          path: "private/capture.json",
+          policy: "fixtures/policies/local-dev.json",
+          call: "fixtures/audit/tool-call.json"
+        }
+      ]
+    });
+  });
+  if (
+    !unsafeCompatibilityFailures.some((item) => item.includes("compatibility fixture references must stay under fixtures/")) ||
+    !unsafeCompatibilityFailures.some((item) => item.includes("referenced fixture must be tracked")) ||
+    !unsafeCompatibilityFailures.some((item) => item.includes("public audit fixture references must be explicitly redacted"))
+  ) {
+    failures.push(`artifact-safety self-test unsafe compatibility manifest was not rejected: ${unsafeCompatibilityFailures.join("; ")}`);
+  }
+}
+
+function createArtifactSafetyReleaseRecordSelfTestFixture() {
+  return {
+    publicPackages: [
+      {
+        workspacePath: "packages/cli",
+        artifactName: "mcp-security-proxy-cli"
+      }
+    ],
+    artifacts: [
+      {
+        name: "readme",
+        source: "README.md"
+      }
+    ]
+  };
+}
+
+function collectArtifactSafetyFailures(fn) {
+  const before = failures.length;
+  fn();
+  return failures.splice(before);
 }
 
 function readJson(path) {
