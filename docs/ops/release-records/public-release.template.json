@@ -23,6 +23,7 @@
     "package-surface": "UNRECORDED",
     "secret-scan": "UNRECORDED",
     "artifact-safety": "UNRECORDED",
+    "validation-registry": "UNRECORDED",
     "compatibility": "UNRECORDED",
     "license-report": "UNRECORDED",
     "release-readiness": "UNRECORDED",

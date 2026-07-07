@@ -20,6 +20,7 @@ This document owns stable validation names for this scaffold.
 - package-surface
 - secret-scan
 - artifact-safety
+- validation-registry
 - compatibility
 - license-report
 - release-readiness

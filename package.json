@@ -11,7 +11,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "artifact-safety": "node scripts/check-artifact-safety.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs && pnpm run schema-contract && pnpm run package-surface && pnpm run secret-scan && pnpm run artifact-safety && pnpm run compatibility && pnpm run license-report && pnpm run release-readiness && pnpm run performance-smoke && pnpm run smoke",
+    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs && pnpm run schema-contract && pnpm run package-surface && pnpm run secret-scan && pnpm run artifact-safety && pnpm run validation-registry && pnpm run compatibility && pnpm run license-report && pnpm run release-readiness && pnpm run performance-smoke && pnpm run smoke",
     "compatibility": "pnpm build && node scripts/check-compatibility-evidence.mjs",
     "contract": "pnpm build && pnpm --filter @0disoft/mcp-security-proxy-contracts typecheck && pnpm --filter @0disoft/mcp-security-proxy-core test",
     "docs": "node scripts/check-docs.mjs",
@@ -23,6 +23,7 @@
     "secret-scan": "node scripts/check-secrets.mjs",
     "smoke": "pnpm build && node packages/cli/dist/main.js check-policy --policy fixtures/policies/local-dev.json --json && node packages/cli/dist/main.js eval-call --policy fixtures/policies/local-dev.json --profile local --input fixtures/mcp/call-file-read-denied.json --json && node scripts/smoke-live-run.mjs",
     "test": "pnpm build && pnpm -r test",
+    "validation-registry": "node scripts/check-validation-registry.mjs",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

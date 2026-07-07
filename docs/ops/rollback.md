@@ -51,7 +51,8 @@ own retention policy.
 
 ## Validation
 
-- Required validation names: docs, artifact-safety, release-readiness, smoke, check.
+- Required validation names: docs, artifact-safety, validation-registry, release-readiness, smoke,
+  check.
 - Release blocker status: public release is blocked when rollback path, validation output, or
   package pinning guidance is missing.
 - Remaining operational risk: no automated package unpublish/deprecate workflow exists yet.
