@@ -30,6 +30,7 @@ pnpm workspace used to validate implementation ownership and internal imports.
 Until release readiness records public package names and artifacts:
 
 - the root workspace and every `packages/*` manifest must keep `private: true`;
+- `pnpm-workspace.yaml` must include only the `packages/*` workspace package glob;
 - versions must remain `0.0.0`;
 - package names must stay under `@0disoft/mcp-security-proxy-*`;
 - Node.js compatibility must stay `>=24.0.0`;

@@ -12,6 +12,7 @@ const expectedWorkspacePackages = [
   "proxy-runtime",
   "testkit"
 ];
+const expectedWorkspaceGlobs = ["packages/*"];
 const dependencyGroups = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
 const mcpSdkDependencyPatterns = [
   /^@modelcontextprotocol\/sdk$/,
@@ -130,6 +131,13 @@ const checkPackageSurfaceValidator = () => {
   if (!documentedPackageFailures.some((item) => item.includes("documented package surfaces"))) {
     failures.push(`package-surface self-test documented package drift was not rejected: ${documentedPackageFailures.join("; ")}`);
   }
+
+  const workspaceGlobFailures = collectPackageSurfaceFailures(() => {
+    checkWorkspacePackageGlobNames("<package-surface-self-test-workspace-globs>", ["packages/*", "examples/*"]);
+  });
+  if (!workspaceGlobFailures.some((item) => item.includes("workspace package globs"))) {
+    failures.push(`package-surface self-test workspace glob drift was not rejected: ${workspaceGlobFailures.join("; ")}`);
+  }
 };
 
 const collectPackageSurfaceFailures = (fn) => {
@@ -146,6 +154,7 @@ assertEqual(rootManifest.version === "0.0.0", "package.json: workspace version m
 checkDependencyDecisionGuards(rootManifest, "package.json");
 checkRootRuntimeDependencies(rootManifest, "package.json");
 checkDocumentedPackageSurfaces("docs/library/package-surface.md", expectedWorkspacePackages);
+checkWorkspacePackageGlobs("pnpm-workspace.yaml", expectedWorkspaceGlobs);
 
 const packagesDir = join(root, "packages");
 assertEqual(existsSync(packagesDir), "packages/: workspace packages directory is missing");
@@ -203,5 +212,18 @@ function checkDocumentedPackageSurfaceNames(label, documentedPackages, expectedP
   assertEqual(
     JSON.stringify(documentedPackages) === JSON.stringify(expectedPackages),
     `${label}: documented package surfaces must match ${expectedPackages.join(", ")}`
+  );
+}
+
+function checkWorkspacePackageGlobs(path, expectedGlobs) {
+  const text = readFileSync(join(root, path), "utf8");
+  const workspaceGlobs = [...text.matchAll(/^\s*-\s+([^\r\n#]+?)\s*$/gm)].map((match) => match[1]);
+  checkWorkspacePackageGlobNames(path, workspaceGlobs, expectedGlobs);
+}
+
+function checkWorkspacePackageGlobNames(label, workspaceGlobs, expectedGlobs = expectedWorkspaceGlobs) {
+  assertEqual(
+    JSON.stringify(workspaceGlobs) === JSON.stringify(expectedGlobs),
+    `${label}: workspace package globs must match ${expectedGlobs.join(", ")}`
   );
 }
