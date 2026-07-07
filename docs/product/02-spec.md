@@ -34,6 +34,9 @@ discovery and tool calls through explicit policy, redaction, and audit events.
 - Deny unsupported MCP methods instead of passing them through by default.
 - Gate server-origin method-bearing messages by direction. Only payload-free liveness `ping` is
   forwarded from upstream server to client in the current contract.
+- Forward JSON-RPC requests and notifications across the proxy boundary only after rebuilding the
+  request envelope with `jsonrpc`, `method`, optional `id`, and optional `params`; unknown request
+  envelope fields are removed before forwarding.
 - Forward upstream responses only when their JSON-RPC `id` exactly matches a pending client
   request, including the original id type.
 - Forward client responses only when their JSON-RPC `id` exactly matches a pending upstream

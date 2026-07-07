@@ -376,6 +376,50 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("removes non-standard client JSON-RPC request envelope fields before forwarding non-tool requests", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "ping-with-envelope-extra",
+        method: "ping",
+        trace: "RAW_CLIENT_REQUEST_ENVELOPE_TRACE_MARKER"
+      })
+    );
+
+    expect(JSON.parse(result.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      method: "ping",
+      id: "ping-with-envelope-extra"
+    });
+    expect(result.responseLine).toBeUndefined();
+    expect(result.forwardLine).not.toContain("RAW_CLIENT_REQUEST_ENVELOPE_TRACE_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_CLIENT_REQUEST_ENVELOPE_TRACE_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "jsonrpc.request_extra_fields_redacted",
+            reason: "client JSON-RPC request extra fields removed before forwarding"
+          }
+        ]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_request_extra_fields: 1
+        }
+      }
+    });
+  });
+
   it("drops upstream error responses with invalid error object fields", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -1245,6 +1289,50 @@ describe("proxy runtime session", () => {
     expect(result.forwardLine).toBe(line);
     expect(result.responseLine).toBeUndefined();
     expect(result.auditEvents).toHaveLength(0);
+  });
+
+  it("removes non-standard upstream server JSON-RPC request envelope fields before forwarding ping requests", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "server-ping-request-extra",
+        method: "ping",
+        trace: "RAW_SERVER_REQUEST_ENVELOPE_TRACE_MARKER"
+      })
+    );
+
+    expect(JSON.parse(result.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      method: "ping",
+      id: "server-ping-request-extra"
+    });
+    expect(result.responseLine).toBeUndefined();
+    expect(result.forwardLine).not.toContain("RAW_SERVER_REQUEST_ENVELOPE_TRACE_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_SERVER_REQUEST_ENVELOPE_TRACE_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "jsonrpc.request_extra_fields_redacted",
+            reason: "upstream JSON-RPC request extra fields removed before forwarding"
+          }
+        ]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_request_extra_fields: 1
+        }
+      }
+    });
   });
 
   it("denies upstream server ping notifications without a JSON-RPC id", () => {
@@ -2301,6 +2389,68 @@ describe("proxy runtime session", () => {
     expect(result.forwardLine).toBe(line);
     expect(result.responseLine).toBeUndefined();
     expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "read_file",
+      decision: {
+        action: "allow",
+        evidence: [{ ruleId: "allow-public-files" }]
+      }
+    });
+  });
+
+  it("removes non-standard client JSON-RPC request envelope fields before forwarding allowed tool calls", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-with-envelope-extra",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        },
+        trace: {
+          marker: "RAW_TOOL_CALL_ENVELOPE_TRACE_MARKER"
+        }
+      })
+    );
+
+    expect(JSON.parse(result.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      method: "tools/call",
+      id: "call-with-envelope-extra",
+      params: {
+        name: "read_file",
+        arguments: {
+          path: "workspace/public/readme.md"
+        }
+      }
+    });
+    expect(result.responseLine).toBeUndefined();
+    expect(result.forwardLine).not.toContain("RAW_TOOL_CALL_ENVELOPE_TRACE_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_TOOL_CALL_ENVELOPE_TRACE_MARKER");
+    expect(result.auditEvents).toHaveLength(2);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.request_extra_fields_redacted" }]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_request_extra_fields: 1
+        }
+      }
+    });
+    expect(result.auditEvents[1]).toMatchObject({
       kind: "call-decision",
       toolName: "read_file",
       decision: {

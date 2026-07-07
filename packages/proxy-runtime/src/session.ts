@@ -54,6 +54,7 @@ const redactedUpstreamErrorMessage = "upstream error message redacted";
 const defaultMaxFrameBytes = 1_048_576;
 const defaultMaxJsonDepth = 64;
 const discoveryMetadataRedactionKeys = new Set(["default", "example", "examples", "$comment", "_meta"]);
+const jsonRpcRequestEnvelopeKeys = new Set(["jsonrpc", "id", "method", "params"]);
 const jsonRpcResponseEnvelopeKeys = new Set(["jsonrpc", "id", "result", "error"]);
 
 export class ProxySession {
@@ -73,7 +74,7 @@ export class ProxySession {
     if (prepared.kind === "result") {
       return prepared.result;
     }
-    return this.handlePreparedClientRequest(prepared.line, prepared.envelope);
+    return this.handlePreparedClientRequest(prepared.line, prepared.envelope, prepared.auditEvents);
   }
 
   async handleClientLineWithApproval(line: string, approvalHook: ApprovalHook): Promise<ProxyFrameResult> {
@@ -81,12 +82,14 @@ export class ProxySession {
     if (prepared.kind === "result") {
       return prepared.result;
     }
-    return this.handlePreparedClientRequestWithApproval(prepared.line, prepared.envelope, approvalHook);
+    return this.handlePreparedClientRequestWithApproval(prepared.line, prepared.envelope, approvalHook, prepared.auditEvents);
   }
 
   private prepareClientLine(
     line: string
-  ): { readonly kind: "result"; readonly result: ProxyFrameResult } | { readonly kind: "request"; readonly line: string; readonly envelope: JsonRpcEnvelope } {
+  ):
+    | { readonly kind: "result"; readonly result: ProxyFrameResult }
+    | { readonly kind: "request"; readonly line: string; readonly envelope: JsonRpcEnvelope; readonly auditEvents: readonly AuditEvent[] } {
     const parsed = parseJsonLine(line, this.maxFrameBytes, this.maxJsonDepth);
     if (!parsed.ok) {
       const decision = denyDecision(parsed.reason, { code: parsed.code });
@@ -142,58 +145,67 @@ export class ProxySession {
       };
     }
 
-    const methodDecision = evaluateEnvelopeMethod(envelope, this.options.policy);
+    const requestSanitized = sanitizeJsonRpcRequestEnvelope(envelope);
+    const requestSanitizeAuditEvents = this.createRequestEnvelopeRedactionAuditEvents("client", requestSanitized.redaction);
+    const methodDecision = evaluateEnvelopeMethod(requestSanitized.envelope, this.options.policy);
     if (methodDecision.action !== "allow") {
       return {
         kind: "result",
-        result: this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied")
+        result: this.withPrependedAuditEvents(
+          requestSanitizeAuditEvents,
+          this.denyEnvelope(requestSanitized.envelope, methodDecision, "MCP method denied by policy", "method-denied")
+        )
       };
     }
 
-    const shapeDenied = this.denyInvalidMethodShape(envelope);
+    const shapeDenied = this.denyInvalidMethodShape(requestSanitized.envelope);
     if (shapeDenied) {
       return {
         kind: "result",
-        result: shapeDenied
+        result: this.withPrependedAuditEvents(requestSanitizeAuditEvents, shapeDenied)
       };
     }
 
     const duplicatePending = this.denyDuplicatePendingRequest(
-      envelope,
+      requestSanitized.envelope,
       this.pendingRequestMethods,
       "client JSON-RPC request id already has a pending upstream response"
     );
     if (duplicatePending) {
       return {
         kind: "result",
-        result: duplicatePending
+        result: this.withPrependedAuditEvents(requestSanitizeAuditEvents, duplicatePending)
       };
     }
 
-    if (envelope.method !== "tools/call") {
-      this.rememberPendingRequest(envelope);
+    const forwardLine = requestSanitized.redaction.applied ? JSON.stringify(requestSanitized.envelope) : line;
+    if (requestSanitized.envelope.method !== "tools/call") {
+      this.rememberPendingRequest(requestSanitized.envelope);
       return {
         kind: "result",
         result: {
-          forwardLine: line,
-          auditEvents: []
+          forwardLine,
+          auditEvents: requestSanitizeAuditEvents
         }
       };
     }
 
-    return { kind: "request", line, envelope };
+    return { kind: "request", line: forwardLine, envelope: requestSanitized.envelope, auditEvents: requestSanitizeAuditEvents };
   }
 
-  private handlePreparedClientRequest(line: string, envelope: JsonRpcEnvelope): ProxyFrameResult {
+  private handlePreparedClientRequest(line: string, envelope: JsonRpcEnvelope, preparedAuditEvents: readonly AuditEvent[] = []): ProxyFrameResult {
     const toolName = readToolCallName(envelope);
     const visibleTool = this.visibleTools.get(toolName);
     if (!visibleTool) {
-      return this.denyEnvelope(
-        envelope,
-        denyDecision("tool was not visible in filtered discovery", { code: "tool.not_visible" }),
-        "MCP tool call denied by policy",
-        "call-decision",
-        toolName || undefined
+      return this.withPrependedAuditEvents(
+        preparedAuditEvents,
+        this.denyEnvelope(
+          envelope,
+          denyDecision("tool was not visible in filtered discovery", { code: "tool.not_visible" }),
+          "MCP tool call denied by policy",
+          "call-decision",
+          toolName || undefined
+        )
       );
     }
 
@@ -209,40 +221,50 @@ export class ProxySession {
       this.rememberPendingRequest(envelope);
       return {
         forwardLine: line,
-        auditEvents: [this.createAudit("call-decision", decision, normalized.toolName)]
+        auditEvents: [...preparedAuditEvents, this.createAudit("call-decision", decision, normalized.toolName)]
       };
     }
 
     if (decision.action === "approval_required") {
-      return this.denyEnvelope(
-        envelope,
-        denyDecision("approval required but no approval hook is available in this runtime path", {
-          code: "policy.approval_hook_missing",
-          ...approvalEvidence(decision)
-        }),
-        "MCP tool call denied by policy",
-        "call-decision",
-        normalized.toolName
+      return this.withPrependedAuditEvents(
+        preparedAuditEvents,
+        this.denyEnvelope(
+          envelope,
+          denyDecision("approval required but no approval hook is available in this runtime path", {
+            code: "policy.approval_hook_missing",
+            ...approvalEvidence(decision)
+          }),
+          "MCP tool call denied by policy",
+          "call-decision",
+          normalized.toolName
+        )
       );
     }
 
-    return this.denyEnvelope(envelope, decision, "MCP tool call denied by policy", "call-decision", normalized.toolName);
+    return this.withPrependedAuditEvents(
+      preparedAuditEvents,
+      this.denyEnvelope(envelope, decision, "MCP tool call denied by policy", "call-decision", normalized.toolName)
+    );
   }
 
   private async handlePreparedClientRequestWithApproval(
     line: string,
     envelope: JsonRpcEnvelope,
-    approvalHook: ApprovalHook
+    approvalHook: ApprovalHook,
+    preparedAuditEvents: readonly AuditEvent[] = []
   ): Promise<ProxyFrameResult> {
     const toolName = readToolCallName(envelope);
     const visibleTool = this.visibleTools.get(toolName);
     if (!visibleTool) {
-      return this.denyEnvelope(
-        envelope,
-        denyDecision("tool was not visible in filtered discovery", { code: "tool.not_visible" }),
-        "MCP tool call denied by policy",
-        "call-decision",
-        toolName || undefined
+      return this.withPrependedAuditEvents(
+        preparedAuditEvents,
+        this.denyEnvelope(
+          envelope,
+          denyDecision("tool was not visible in filtered discovery", { code: "tool.not_visible" }),
+          "MCP tool call denied by policy",
+          "call-decision",
+          toolName || undefined
+        )
       );
     }
 
@@ -258,27 +280,33 @@ export class ProxySession {
       this.rememberPendingRequest(envelope);
       return {
         forwardLine: line,
-        auditEvents: [this.createAudit("call-decision", decision, normalized.toolName)]
+        auditEvents: [...preparedAuditEvents, this.createAudit("call-decision", decision, normalized.toolName)]
       };
     }
 
     if (decision.action !== "approval_required") {
-      return this.denyEnvelope(envelope, decision, "MCP tool call denied by policy", "call-decision", normalized.toolName);
+      return this.withPrependedAuditEvents(
+        preparedAuditEvents,
+        this.denyEnvelope(envelope, decision, "MCP tool call denied by policy", "call-decision", normalized.toolName)
+      );
     }
 
     let approval: ApprovalResult;
     try {
       approval = await approvalHook({ call: normalized, decision });
     } catch {
-      return this.denyEnvelope(
-        envelope,
-        denyDecision("approval hook failed closed", {
-          code: "policy.approval_hook_failed",
-          ...approvalEvidence(decision)
-        }),
-        "MCP tool call denied by policy",
-        "call-decision",
-        normalized.toolName
+      return this.withPrependedAuditEvents(
+        preparedAuditEvents,
+        this.denyEnvelope(
+          envelope,
+          denyDecision("approval hook failed closed", {
+            code: "policy.approval_hook_failed",
+            ...approvalEvidence(decision)
+          }),
+          "MCP tool call denied by policy",
+          "call-decision",
+          normalized.toolName
+        )
       );
     }
 
@@ -286,19 +314,22 @@ export class ProxySession {
       this.rememberPendingRequest(envelope);
       return {
         forwardLine: line,
-        auditEvents: [this.createAudit("call-decision", decision, normalized.toolName)]
+        auditEvents: [...preparedAuditEvents, this.createAudit("call-decision", decision, normalized.toolName)]
       };
     }
 
-    return this.denyEnvelope(
-      envelope,
-      denyDecision(approval.reason || "approval required call rejected by approval hook", {
-        code: "policy.approval_denied",
-        ...approvalEvidence(decision)
-      }),
-      "MCP tool call denied by policy",
-      "call-decision",
-      normalized.toolName
+    return this.withPrependedAuditEvents(
+      preparedAuditEvents,
+      this.denyEnvelope(
+        envelope,
+        denyDecision(approval.reason || "approval required call rejected by approval hook", {
+          code: "policy.approval_denied",
+          ...approvalEvidence(decision)
+        }),
+        "MCP tool call denied by policy",
+        "call-decision",
+        normalized.toolName
+      )
     );
   }
 
@@ -332,10 +363,12 @@ export class ProxySession {
         return duplicatePending;
       }
 
-      this.rememberPendingServerOriginRequest(envelope);
+      const requestSanitized = sanitizeJsonRpcRequestEnvelope(envelope);
+      const requestSanitizeAuditEvents = this.createRequestEnvelopeRedactionAuditEvents("upstream", requestSanitized.redaction);
+      this.rememberPendingServerOriginRequest(requestSanitized.envelope);
       return {
-        forwardLine: line,
-        auditEvents: []
+        forwardLine: requestSanitized.redaction.applied ? JSON.stringify(requestSanitized.envelope) : line,
+        auditEvents: requestSanitizeAuditEvents
       };
     }
 
@@ -571,6 +604,33 @@ export class ProxySession {
       )
     ];
   }
+
+  private createRequestEnvelopeRedactionAuditEvents(direction: "client" | "upstream", redaction: RedactionSummary): readonly AuditEvent[] {
+    if (!redaction.applied) {
+      return [];
+    }
+    return [
+      this.createAudit(
+        "error",
+        denyDecision(`${direction} JSON-RPC request extra fields removed before forwarding`, {
+          code: "jsonrpc.request_extra_fields_redacted"
+        }),
+        undefined,
+        undefined,
+        redaction
+      )
+    ];
+  }
+
+  private withPrependedAuditEvents(auditEvents: readonly AuditEvent[], result: ProxyFrameResult): ProxyFrameResult {
+    if (auditEvents.length === 0) {
+      return result;
+    }
+    return {
+      ...result,
+      auditEvents: [...auditEvents, ...result.auditEvents]
+    };
+  }
 }
 
 export function createProxySession(options: ProxySessionOptions): ProxySession {
@@ -693,6 +753,34 @@ function sanitizeUpstreamError(envelope: JsonRpcEnvelope): { readonly envelope: 
     redaction: {
       applied: true,
       counts
+    }
+  };
+}
+
+function sanitizeJsonRpcRequestEnvelope(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
+  const extraFieldCount = Object.keys(envelope).filter((key) => !jsonRpcRequestEnvelopeKeys.has(key)).length;
+  if (extraFieldCount === 0) {
+    return { envelope, redaction: noRedaction() };
+  }
+
+  const sanitized: Record<string, unknown> = {
+    jsonrpc: "2.0",
+    method: envelope.method
+  };
+  if ("id" in envelope) {
+    sanitized["id"] = envelope.id;
+  }
+  if ("params" in envelope) {
+    sanitized["params"] = envelope.params;
+  }
+
+  return {
+    envelope: sanitized as unknown as JsonRpcEnvelope,
+    redaction: {
+      applied: true,
+      counts: {
+        jsonrpc_request_extra_fields: extraFieldCount
+      }
     }
   };
 }

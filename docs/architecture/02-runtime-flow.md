@@ -31,6 +31,8 @@ Current implemented responsibilities:
 - deny unsupported upstream server-origin methods before response correlation
 - enforce request-vs-notification JSON-RPC id shape for supported MCP methods
 - allow only payload-free server-origin `ping` in the current direction policy
+- rebuild forwarded JSON-RPC request envelopes with only `jsonrpc`, `method`, optional `id`, and
+  optional `params`
 - track `tools/list` request IDs so discovery responses can be filtered
 - require upstream responses to match a pending client request id before forwarding
 - rebuild forwarded JSON-RPC response envelopes with only `jsonrpc`, `id`, and exactly one of
@@ -94,6 +96,8 @@ transports remain future runtime responsibilities.
 - Invalid policy: startup fails with configuration error.
 - Unclassified risky capability: call is denied by default.
 - Unsupported method: request is denied by default and is not passed through.
+- JSON-RPC request envelope with unknown trace, debug, or vendor fields: envelope is rebuilt before
+  forwarding and the extra fields are recorded as redaction.
 - Approval hook rejection: call is denied and is not passed through.
 - Approval hook failure: call fails closed with a redacted denial instead of forwarding or storing
   hook error details.

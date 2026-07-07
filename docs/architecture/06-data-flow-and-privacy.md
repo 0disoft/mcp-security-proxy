@@ -35,6 +35,9 @@ Define how sensitive data moves through MCP Security Proxy and what must never b
   removed before forwarding.
 - Malformed discovery success payloads are not forwarded as-is; they are replaced with an empty
   tool list and a redacted audit event.
+- JSON-RPC request and notification envelopes are allowlisted to `jsonrpc`, `method`, optional
+  `id`, and optional `params`; unknown envelope-level trace, debug, or vendor metadata is removed
+  before forwarding.
 - Upstream JSON-RPC error forwarding is allowlisted to `code` and sanitized `message`; error data,
   stack traces, debug fields, and nested details are removed before forwarding.
 - JSON-RPC response envelopes are allowlisted to `jsonrpc`, `id`, and exactly one of `result` or

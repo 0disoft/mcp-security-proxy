@@ -86,6 +86,9 @@ dropped with a redacted audit event rather than forwarded upstream. Matching cli
 responses are also rebuilt with only the JSON-RPC response envelope fields before forwarding.
 Requests with an `id` that already has a pending response in the same direction are denied before
 forwarding so one request cannot overwrite another request's correlation state.
+Forwarded JSON-RPC requests and notifications are rebuilt with only `jsonrpc`, `method`, optional
+`id`, and optional `params`; unknown request envelope fields such as trace, debug, or vendor
+metadata are removed and recorded as redaction.
 
 ## Discovery Policy
 
