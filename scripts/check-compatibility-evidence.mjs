@@ -13,13 +13,15 @@ const requiredKinds = new Set([
   "cli.json.check-policy",
   "cli.json.inspect-tools",
   "cli.json.eval-call",
-  "library.decision-result"
+  "library.decision-result",
+  "runtime.live-smoke"
 ]);
 const cliCommandByKind = new Map([
   ["cli.json.check-policy", "check-policy"],
   ["cli.json.inspect-tools", "inspect-tools"],
   ["cli.json.eval-call", "eval-call"]
 ]);
+const runtimeCommandByKind = new Map([["runtime.live-smoke", ["node", "scripts/smoke-live-run.mjs"]]]);
 const requiredEvidenceIds = new Set([
   "mcp-discovery-basic",
   "mcp-call-file-read-allowed",
@@ -56,7 +58,8 @@ const requiredEvidenceIds = new Set([
   "library-decision-secret-denied",
   "library-decision-secret-api-key-allowed",
   "library-decision-workflow-no-hook",
-  "library-decision-workflow-approval-hook"
+  "library-decision-workflow-approval-hook",
+  "runtime-live-stdio-smoke"
 ]);
 
 const failures = [];
@@ -125,6 +128,11 @@ async function checkEvidenceEntry(item) {
     seenKinds.add(kind);
   }
 
+  if (kind.startsWith("runtime.")) {
+    checkRuntimeFixture(id, kind, item.command);
+    return;
+  }
+
   if (!path || !existsSync(join(root, path))) {
     failures.push(`${id || manifestPath}: fixture path does not exist: ${path || "<missing>"}`);
     return;
@@ -148,6 +156,17 @@ async function checkEvidenceEntry(item) {
   if (kind === "mcp.call.allowed" || kind === "mcp.call.denied" || kind === "mcp.call.approval-required") {
     checkToolCallFixture(id, path);
   }
+}
+
+function checkRuntimeFixture(id, kind, command) {
+  if (!checkRuntimeCommandShape(id, kind, command)) {
+    return;
+  }
+  execFileSync(process.execPath, command.slice(1), {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
 }
 
 function checkDiscoveryFixture(id, path) {
@@ -221,6 +240,27 @@ function checkCliCommandShape(id, kind, command) {
   }
   if (command[2] !== expectedCommand) {
     failures.push(`${id}: CLI evidence kind ${kind} must run ${expectedCommand}`);
+    return false;
+  }
+  return true;
+}
+
+function checkRuntimeCommandShape(id, kind, command) {
+  if (!Array.isArray(command) || command.length < 2) {
+    failures.push(`${id}: runtime evidence command must invoke a checked runtime script`);
+    return false;
+  }
+  if (command.some((arg) => typeof arg !== "string")) {
+    failures.push(`${id}: runtime evidence command arguments must be strings`);
+    return false;
+  }
+  const expectedCommand = runtimeCommandByKind.get(kind);
+  if (!expectedCommand) {
+    failures.push(`${id}: runtime evidence kind ${kind || "<missing>"} is not mapped to a command`);
+    return false;
+  }
+  if (stableJson(command) !== stableJson(expectedCommand)) {
+    failures.push(`${id}: runtime evidence kind ${kind} must run ${expectedCommand.join(" ")}`);
     return false;
   }
   return true;
@@ -307,6 +347,13 @@ function checkCompatibilityEvidenceValidator() {
   });
   if (!mismatchedCliKindFailures.some((item) => item.includes("must run check-policy"))) {
     failures.push(`compatibility self-test CLI kind mismatch was not rejected: ${mismatchedCliKindFailures.join("; ")}`);
+  }
+
+  const invalidRuntimeCommandFailures = collectCompatibilityFailures(() => {
+    checkRuntimeCommandShape("<compatibility-self-test-runtime-kind-mismatch>", "runtime.live-smoke", ["node", "scripts/not-the-smoke.js"]);
+  });
+  if (!invalidRuntimeCommandFailures.some((item) => item.includes("must run node scripts/smoke-live-run.mjs"))) {
+    failures.push(`compatibility self-test runtime command mismatch was not rejected: ${invalidRuntimeCommandFailures.join("; ")}`);
   }
 }
 

@@ -368,6 +368,14 @@
       "call": "fixtures/mcp/call-workflow-approval.json",
       "profile": "local",
       "approvalHookAvailable": true
+    },
+    {
+      "id": "runtime-live-stdio-smoke",
+      "kind": "runtime.live-smoke",
+      "command": [
+        "node",
+        "scripts/smoke-live-run.mjs"
+      ]
     }
   ]
 }
