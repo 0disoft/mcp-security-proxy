@@ -14,6 +14,10 @@ const tools = [
     description: "Run a shell command."
   },
   {
+    name: "read_secret",
+    description: "Read a secret reference by label."
+  },
+  {
     name: "unknown_tool",
     description: "Do something vaguely useful."
   }

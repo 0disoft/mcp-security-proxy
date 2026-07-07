@@ -7,6 +7,7 @@ const repoRoot = resolve(import.meta.dirname, "..");
 const tempDir = mkdtempSync(join(tmpdir(), "mcp-security-proxy-"));
 const auditLog = join(tempDir, "audit.jsonl");
 const failedAuditLog = join(tempDir, "failed-audit.jsonl");
+const secretAuditLog = join(tempDir, "secret-audit.jsonl");
 
 try {
   const child = spawn(
@@ -124,6 +125,129 @@ try {
   if (!failedAudit.includes("upstream process exited with code 19")) {
     throw new Error(`expected upstream exit audit event, got ${failedAudit}`);
   }
+
+  const secretChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/secret-labels.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      secretAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const secretStdoutChunks = [];
+  const secretStderrChunks = [];
+  const secretOutputLines = [];
+  secretChild.stdout.on("data", (chunk) => secretStdoutChunks.push(chunk));
+  secretChild.stderr.on("data", (chunk) => secretStderrChunks.push(chunk));
+  const waitForSecretTools = waitForJsonLine(secretChild.stdout, (line) => {
+    secretOutputLines.push(line);
+    return line.id === "secret-tools";
+  });
+  secretChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "secret-tools", method: "tools/list" })}\n`);
+  await waitForSecretTools;
+  secretChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "secret-call",
+      method: "tools/call",
+      params: {
+        name: "read_secret",
+        arguments: {
+          ["api" + "Key"]: "RAW_LIVE_SECRET_ARGUMENT_MARKER"
+        }
+      }
+    })}\n`
+  );
+  secretChild.stdin.end();
+  const secretExitCode = await new Promise((resolve, reject) => {
+    secretChild.once("error", reject);
+    secretChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (secretExitCode !== 0) {
+    throw new Error(`expected secret-label live run smoke to exit 0, got ${secretExitCode}: ${Buffer.concat(secretStderrChunks).toString("utf8")}`);
+  }
+  for (const line of Buffer.concat(secretStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line))) {
+    if (!secretOutputLines.some((item) => item.id === line.id)) {
+      secretOutputLines.push(line);
+    }
+  }
+  const secretToolsResult = secretOutputLines.find((line) => line.id === "secret-tools");
+  const secretCallResult = secretOutputLines.find((line) => line.id === "secret-call");
+  if (!secretToolsResult || secretToolsResult.result.tools.length !== 1 || secretToolsResult.result.tools[0].name !== "read_secret") {
+    throw new Error(`unexpected secret filtered tools response: ${JSON.stringify(secretToolsResult)}`);
+  }
+  if (secretCallResult?.error || !secretCallResult?.result) {
+    throw new Error(`unexpected secret call response: ${JSON.stringify(secretCallResult)}`);
+  }
+  const secretAudit = readFileSync(secretAuditLog, "utf8");
+  if (secretAudit.includes("RAW_LIVE_SECRET_ARGUMENT_MARKER")) {
+    throw new Error("raw secret-like live run argument leaked into audit log");
+  }
+  if (!secretAudit.includes('"ruleId":"allow-api-key-secret"')) {
+    throw new Error(`expected secret allow audit event, got ${secretAudit}`);
+  }
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
+}
+
+function waitForJsonLine(stream, predicate) {
+  let buffer = "";
+  return new Promise((resolve, reject) => {
+    const onData = (chunk) => {
+      buffer += chunk.toString("utf8");
+      const parts = buffer.split("\n");
+      buffer = parts.pop() ?? "";
+      for (const part of parts) {
+        if (part.length === 0) {
+          continue;
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(part);
+        } catch (error) {
+          cleanup();
+          reject(error);
+          return;
+        }
+        if (predicate(parsed)) {
+          cleanup();
+          resolve(parsed);
+          return;
+        }
+      }
+    };
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
+    const onEnd = () => {
+      cleanup();
+      reject(new Error("stream ended before expected JSON-RPC line"));
+    };
+    const cleanup = () => {
+      stream.off("data", onData);
+      stream.off("error", onError);
+      stream.off("end", onEnd);
+    };
+    stream.on("data", onData);
+    stream.once("error", onError);
+    stream.once("end", onEnd);
+  });
 }
