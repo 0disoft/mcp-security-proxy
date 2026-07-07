@@ -65,6 +65,8 @@ discovery and tool calls through explicit policy, redaction, and audit events.
 - Support embedding-host approval hooks for approval-required calls. Calls must be forwarded only
   when the hook approves.
 - Deny approval-required calls when no runtime approval hook is available.
+- Deny approval-required calls when an approval hook rejects them, without forwarding or storing
+  the hook's raw rejection reason.
 - Fail closed per call when an approval hook errors, without storing hook error details.
 - Match file paths against allow and deny scopes.
 - Match shell commands against executable and argv allowlists.

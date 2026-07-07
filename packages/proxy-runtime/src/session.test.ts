@@ -2715,7 +2715,7 @@ describe("proxy runtime session", () => {
               {
                 code: "policy.approval_denied",
                 ruleId: "approval-shell",
-                reason: "approval denied by test hook"
+                reason: "approval required call rejected by approval hook"
               }
             ]
           }
@@ -2728,6 +2728,69 @@ describe("proxy runtime session", () => {
       decision: {
         action: "deny",
         evidence: [{ code: "policy.approval_denied", ruleId: "approval-shell" }]
+      }
+    });
+  });
+
+  it("does not forward or audit raw approval hook rejection reasons", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-denied-sensitive-reason",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      () => ({
+        approved: false,
+        reason: "denied because RAW_APPROVAL_DENIAL_REASON_MARKER touched workspace/private/secret.txt"
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).not.toContain("RAW_APPROVAL_DENIAL_REASON_MARKER");
+    expect(result.responseLine).not.toContain("workspace/private/secret.txt");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_APPROVAL_DENIAL_REASON_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("workspace/private/secret.txt");
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "approval-denied-sensitive-reason",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "policy.approval_denied",
+                ruleId: "approval-shell",
+                reason: "approval required call rejected by approval hook"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "run_command",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "policy.approval_denied",
+            ruleId: "approval-shell",
+            reason: "approval required call rejected by approval hook"
+          }
+        ]
       }
     });
   });

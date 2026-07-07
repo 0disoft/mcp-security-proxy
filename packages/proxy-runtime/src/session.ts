@@ -322,7 +322,7 @@ export class ProxySession {
       preparedAuditEvents,
       this.denyEnvelope(
         envelope,
-        denyDecision(approval.reason || "approval required call rejected by approval hook", {
+        denyDecision("approval required call rejected by approval hook", {
           code: "policy.approval_denied",
           ...approvalEvidence(decision)
         }),

@@ -98,7 +98,8 @@ transports remain future runtime responsibilities.
 - Unsupported method: request is denied by default and is not passed through.
 - JSON-RPC request envelope with unknown trace, debug, or vendor fields: envelope is rebuilt before
   forwarding and the extra fields are recorded as redaction.
-- Approval hook rejection: call is denied and is not passed through.
+- Approval hook rejection: call is denied and is not passed through; the hook's raw rejection reason
+  is not forwarded or stored in audit events.
 - Approval hook failure: call fails closed with a redacted denial instead of forwarding or storing
   hook error details.
 - Approval hook unavailable: approval-required call is denied and is not passed through.

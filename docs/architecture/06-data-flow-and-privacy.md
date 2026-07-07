@@ -42,6 +42,8 @@ Define how sensitive data moves through MCP Security Proxy and what must never b
   stack traces, debug fields, and nested details are removed before forwarding.
 - JSON-RPC response envelopes are allowlisted to `jsonrpc`, `id`, and exactly one of `result` or
   `error`; unknown envelope-level trace, debug, or vendor metadata is removed before forwarding.
+- Approval hook rejection reasons are host-owned input and are not forwarded or stored verbatim in
+  proxy responses or audit events.
 - Raw MCP payloads may be inspected for policy facts but must not be stored in audit events.
 - Audit events receive redacted summaries only.
 - Redaction must happen before audit write and before machine-readable CLI output.

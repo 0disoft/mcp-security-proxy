@@ -55,7 +55,8 @@ The current runtime-facing library surface includes a newline-delimited JSON-RPC
 returns forward lines, denial response lines, and redacted audit events. Subprocess lifecycle,
 stdio wiring, and CLI output routing belong to the CLI/runtime bridge, not the core evaluator.
 Approval hooks receive normalized call facts and policy decision evidence, not raw MCP payloads.
-Hosts own the user experience and final approval source.
+Hosts own the user experience and final approval source. Hook rejection reasons are treated as
+host-owned input and are not forwarded or stored verbatim by the proxy runtime.
 
 ## Review Blockers
 
