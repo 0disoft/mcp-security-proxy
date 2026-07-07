@@ -54,4 +54,5 @@ Documentation and examples must treat audit files as local sensitive artifacts, 
 
 The public repository may include synthetic fixtures and redacted audit examples. It must not
 include real user logs, real company policy files, real MCP captures, private exploit corpus data,
-or private credentials.
+or private credentials. `pnpm run artifact-safety` guards public fixtures and release artifact
+references against those boundary violations.

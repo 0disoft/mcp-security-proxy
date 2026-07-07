@@ -20,7 +20,7 @@ Status: Draft
 - Never store raw environment values, tokens, prompts, or full sensitive tool arguments in audit
   events.
 - Default audit write failure to fail-closed unless policy explicitly chooses warn-and-continue.
-- Keep public fixtures synthetic.
+- Keep public fixtures synthetic and covered by `pnpm run artifact-safety`.
 
 ## Matcher Requirements
 
@@ -35,5 +35,6 @@ Status: Draft
 - A change claims OS sandboxing, malware scanning, secret-vault behavior, or socket enforcement.
 - A change passes unsupported methods through without policy.
 - A change logs raw secrets, raw environment values, raw prompts, or raw tool arguments.
+- A change publishes real logs, private captures, generated output, or exploit corpus data.
 - A change broadens path, shell, network, or token access without tests and migration notes.
 - A change weakens validation or hides skipped checks.

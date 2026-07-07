@@ -8,6 +8,7 @@ const requiredValidations = [
   "schema-contract",
   "package-surface",
   "secret-scan",
+  "artifact-safety",
   "compatibility",
   "license-report",
   "release-readiness",

@@ -19,6 +19,7 @@ This document owns stable validation names for this scaffold.
 - schema-contract
 - package-surface
 - secret-scan
+- artifact-safety
 - compatibility
 - license-report
 - release-readiness

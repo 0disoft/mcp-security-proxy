@@ -17,5 +17,5 @@ CI drift, unsafe release, unclear rollback, missing observability, config drift,
 
 ## Validation
 
-- Required validation names: docs, smoke, check
+- Required validation names: docs, artifact-safety, smoke, check
 - Skipped validation must include a reason and remaining risk.
