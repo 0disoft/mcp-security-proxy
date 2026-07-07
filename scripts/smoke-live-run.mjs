@@ -171,6 +171,19 @@ try {
       }
     })}\n`
   );
+  secretChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "secret-denied",
+      method: "tools/call",
+      params: {
+        name: "read_secret",
+        arguments: {
+          token: "RAW_LIVE_DENIED_SECRET_ARGUMENT_MARKER"
+        }
+      }
+    })}\n`
+  );
   secretChild.stdin.end();
   const secretExitCode = await new Promise((resolve, reject) => {
     secretChild.once("error", reject);
@@ -190,18 +203,32 @@ try {
   }
   const secretToolsResult = secretOutputLines.find((line) => line.id === "secret-tools");
   const secretCallResult = secretOutputLines.find((line) => line.id === "secret-call");
+  const secretDeniedResult = secretOutputLines.find((line) => line.id === "secret-denied");
   if (!secretToolsResult || secretToolsResult.result.tools.length !== 1 || secretToolsResult.result.tools[0].name !== "read_secret") {
     throw new Error(`unexpected secret filtered tools response: ${JSON.stringify(secretToolsResult)}`);
   }
   if (secretCallResult?.error || !secretCallResult?.result) {
     throw new Error(`unexpected secret call response: ${JSON.stringify(secretCallResult)}`);
   }
+  if (!secretDeniedResult?.error?.data?.decision || secretDeniedResult.error.data.decision.action !== "deny") {
+    throw new Error(`unexpected denied secret call response: ${JSON.stringify(secretDeniedResult)}`);
+  }
+  const secretOutputText = secretOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (secretOutputText.includes("RAW_LIVE_DENIED_SECRET_ARGUMENT_MARKER")) {
+    throw new Error("raw denied secret-like live run argument leaked into MCP output");
+  }
   const secretAudit = readFileSync(secretAuditLog, "utf8");
   if (secretAudit.includes("RAW_LIVE_SECRET_ARGUMENT_MARKER")) {
     throw new Error("raw secret-like live run argument leaked into audit log");
   }
+  if (secretAudit.includes("RAW_LIVE_DENIED_SECRET_ARGUMENT_MARKER")) {
+    throw new Error("raw denied secret-like live run argument leaked into audit log");
+  }
   if (!secretAudit.includes('"ruleId":"allow-api-key-secret"')) {
     throw new Error(`expected secret allow audit event, got ${secretAudit}`);
+  }
+  if (!secretAudit.includes('"code":"policy.default_deny"')) {
+    throw new Error(`expected secret deny audit event, got ${secretAudit}`);
   }
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
