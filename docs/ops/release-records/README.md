@@ -44,6 +44,8 @@ targets only `local-stdio-mvp`, `externalMcpFixture.status` must remain `exclude
 
 Use `public-release.template.json` as the starting shape. Do not put credentials, tokens, private
 audit logs, private policy files, or raw incident evidence in release records. Release artifact
+`source` paths must be safe repository-relative paths. For current-target release records, artifact
 `source` paths must point at tracked repository files so release recovery does not depend on local,
-untracked state. Each `publicPackages[].artifactName` must be unique and must match an entry in
-`artifacts[].name`.
+untracked state. Historical approved records may keep safe artifact source paths that no longer
+exist at current HEAD. Each `publicPackages[].artifactName` must be unique and must match an entry
+in `artifacts[].name`.

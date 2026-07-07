@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -20,6 +21,11 @@ const mcpSdkDependencyPatterns = [
   /\bmcp-sdk\b/i,
   /\bmodelcontextprotocol\b/i
 ];
+const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: root,
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "pipe"]
+}).trim();
 
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 const formatPath = (path) => relative(root, path).replaceAll("\\", "/");
@@ -112,6 +118,7 @@ const checkPackageSurfaceValidator = () => {
     {
       status: "approved",
       releaseVersion: "0.1.0-alpha.0",
+      targetCommit: currentHead,
       publicPackages: [
         {
           workspacePath: "packages/cli"
@@ -187,11 +194,13 @@ const checkPackageSurfaceValidator = () => {
       {
         status: "approved",
         releaseVersion: "0.1.0-alpha.0",
+        targetCommit: currentHead,
         publicPackages: [{ workspacePath: "packages/cli" }]
       },
       {
         status: "approved",
         releaseVersion: "0.1.0-alpha.1",
+        targetCommit: currentHead,
         publicPackages: [{ workspacePath: "packages/cli" }]
       }
     ]);
@@ -214,6 +223,18 @@ const checkPackageSurfaceValidator = () => {
   ]);
   if (nonApprovedReleaseRecordPackages.size !== 0) {
     failures.push("package-surface self-test non-approved release records unlocked public package posture");
+  }
+
+  const historicalApprovedReleaseRecordPackages = collectReleasePackageVersions([
+    {
+      status: "approved",
+      releaseVersion: "0.1.0-alpha.0",
+      targetCommit: "0000000000000000000000000000000000000000",
+      publicPackages: [{ workspacePath: "packages/cli" }]
+    }
+  ]);
+  if (historicalApprovedReleaseRecordPackages.size !== 0) {
+    failures.push("package-surface self-test historical approved release records unlocked current package posture");
   }
 
   const sdkDependencyFailures = collectPackageSurfaceFailures(() => {
@@ -289,6 +310,9 @@ function collectReleasePackageVersions(records) {
       continue;
     }
     if (record.status !== "approved") {
+      continue;
+    }
+    if (record.targetCommit !== currentHead) {
       continue;
     }
     if (!isNonPlaceholderString(record.releaseVersion) || !Array.isArray(record.publicPackages)) {

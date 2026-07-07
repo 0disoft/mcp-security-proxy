@@ -39,6 +39,7 @@ const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
   encoding: "utf8",
   stdio: ["ignore", "pipe", "pipe"]
 }).trim();
+const historicalReachableCommit = getHistoricalReachableCommit();
 const trackedFiles = new Set(
   execFileSync("git", ["ls-files"], {
     cwd: root,
@@ -165,6 +166,9 @@ function checkReleaseRecordObject(path, record) {
       if (isNonPlaceholder(item.artifactName) && !artifactNames.has(item.artifactName)) {
         failures.push(`${path}: publicPackages[${index}].artifactName must match an artifact name`);
       }
+      if (!usesCurrentWorkspaceState(record)) {
+        continue;
+      }
       const packageManifestPath = `${item.workspacePath}/package.json`;
       if (!existsSync(join(root, packageManifestPath))) {
         failures.push(`${path}: publicPackages[${index}].workspacePath must contain package.json`);
@@ -202,6 +206,9 @@ function checkReleaseRecordObject(path, record) {
       seenArtifactNames.add(item.name);
       if (!isSafeRelativeRepoPath(item?.source)) {
         failures.push(`${path}: artifacts[${index}].source must be a safe repo-relative path`);
+        continue;
+      }
+      if (!usesCurrentWorkspaceState(record)) {
         continue;
       }
       if (!existsSync(join(root, item.source))) {
@@ -242,6 +249,10 @@ function checkTargetCommit(path, record) {
   if (record.status === "approved" && !isReachableCommit(record.targetCommit)) {
     failures.push(`${path}: targetCommit must be reachable from current HEAD for approved releases`);
   }
+}
+
+function usesCurrentWorkspaceState(record) {
+  return record.status !== "approved" || record.targetCommit === currentHead;
 }
 
 function checkReleaseScope(path, releaseScope) {
@@ -420,6 +431,29 @@ function checkReleaseRecordValidator() {
     failures.push(
       `release-readiness self-test approved unreachable targetCommit was not rejected: ${approvedUnreachableTargetCommitFailures.join("; ")}`
     );
+  }
+
+  if (historicalReachableCommit !== currentHead) {
+    const historicalApprovedFailures = collectReleaseRecordFailures("<release-readiness-self-test-historical-approved-record>", {
+      ...validApprovedShapeRecord,
+      targetCommit: historicalReachableCommit,
+      publicPackages: [
+        {
+          ...validApprovedShapeRecord.publicPackages[0],
+          name: "historical-package-name",
+          artifactName: "historical-artifact"
+        }
+      ],
+      artifacts: [
+        {
+          name: "historical-artifact",
+          source: "docs/ops/historical-release-artifact.md"
+        }
+      ]
+    });
+    if (historicalApprovedFailures.length > 0) {
+      failures.push(`release-readiness self-test historical approved record failed: ${historicalApprovedFailures.join("; ")}`);
+    }
   }
 
   const untrackedArtifactFailures = collectReleaseRecordFailures("<release-readiness-self-test-untracked-artifact>", {
@@ -767,6 +801,18 @@ function isReachableCommit(value) {
     return true;
   } catch {
     return false;
+  }
+}
+
+function getHistoricalReachableCommit() {
+  try {
+    return execFileSync("git", ["rev-list", "--max-count=1", "--skip=1", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim() || currentHead;
+  } catch {
+    return currentHead;
   }
 }
 

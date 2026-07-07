@@ -43,6 +43,11 @@ const trackedFiles = execFileSync("git", ["ls-files"], {
   .map((file) => file.replaceAll("\\", "/"));
 
 const trackedSet = new Set(trackedFiles);
+const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: root,
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "pipe"]
+}).trim();
 
 for (const file of trackedFiles) {
   if (file.startsWith("fixtures/")) {
@@ -121,7 +126,11 @@ function checkReleaseRecordObject(path, record) {
 
   for (const [index, item] of artifacts.entries()) {
     checkOptionalArtifactName(item?.name, `${path}: artifacts[${index}].name`);
-    checkOptionalTrackedRepositoryPath(item?.source, `${path}: artifacts[${index}].source`);
+    if (usesCurrentWorkspaceState(record)) {
+      checkOptionalTrackedRepositoryPath(item?.source, `${path}: artifacts[${index}].source`);
+    } else {
+      checkOptionalRepositoryPath(item?.source, `${path}: artifacts[${index}].source`);
+    }
   }
 }
 
@@ -204,6 +213,28 @@ function checkArtifactSafetyValidator() {
     failures.push(`artifact-safety self-test valid release record failed: ${validRecordFailures.join("; ")}`);
   }
 
+  const historicalRecordFailures = collectArtifactSafetyFailures(() => {
+    checkReleaseRecordObject("<artifact-safety-self-test-historical-release-record>", {
+      status: "approved",
+      targetCommit: "0000000000000000000000000000000000000000",
+      publicPackages: [
+        {
+          workspacePath: "packages/cli",
+          artifactName: "historical-artifact"
+        }
+      ],
+      artifacts: [
+        {
+          name: "historical-artifact",
+          source: "docs/ops/historical-release-artifact.md"
+        }
+      ]
+    });
+  });
+  if (historicalRecordFailures.length > 0) {
+    failures.push(`artifact-safety self-test historical release record failed: ${historicalRecordFailures.join("; ")}`);
+  }
+
   const forbiddenTextFixtures = [
     ["private-key-block", `BEGIN ${"PRIVATE"} KEY`],
     ["raw-arguments-field", '{"rawArguments":"synthetic self-test marker"}'],
@@ -276,6 +307,7 @@ function checkArtifactSafetyValidator() {
 
 function createArtifactSafetyReleaseRecordSelfTestFixture() {
   return {
+    status: "proposed",
     publicPackages: [
       {
         workspacePath: "packages/cli",
@@ -289,6 +321,10 @@ function createArtifactSafetyReleaseRecordSelfTestFixture() {
       }
     ]
   };
+}
+
+function usesCurrentWorkspaceState(record) {
+  return record?.status !== "approved" || record?.targetCommit === currentHead;
 }
 
 function collectArtifactSafetyFailures(fn) {

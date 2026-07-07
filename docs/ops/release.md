@@ -58,11 +58,13 @@ exclusions. `pnpm run validation-registry` keeps validation names synchronized a
 release-record templates. `pnpm run ci-contract` checks hosted CI parity with documented local
 validation and runtime versions. `pnpm run package-surface` keeps non-release packages private and
 only allows release-version public package posture for `packages/*` entries named by an approved
-release record. Approved release records must include the executed validation command and `exit 0`
-for every required validation evidence value. Approved release records must also use a tracked
-`docs/ops` rollback procedure and a last-known-good version that is different from the release
-version being approved. The approved target commit must be reachable from the current repository
-HEAD so the release record remains verifiable after later commits.
+release record whose `targetCommit` equals current HEAD. Approved historical records remain
+verifiable when their target commit is reachable, but they do not unlock current package manifests.
+Approved release records must include the executed validation command and `exit 0` for every
+required validation evidence value. Approved release records must also use a tracked `docs/ops`
+rollback procedure and a last-known-good version that is different from the release version being
+approved. The approved target commit must be reachable from the current repository HEAD so the
+release record remains verifiable after later commits.
 
 ## Release Blockers
 
