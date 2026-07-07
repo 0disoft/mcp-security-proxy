@@ -36,6 +36,10 @@ discovery and tool calls through explicit policy, redaction, and audit events.
   request, including the original id type.
 - Filter tool discovery output before the client sees it.
 - Evaluate tool calls before forwarding them.
+- Support embedding-host approval hooks for approval-required calls. Calls must be forwarded only
+  when the hook approves.
+- Deny approval-required calls when no runtime approval hook is available.
+- Fail closed per call when an approval hook errors, without storing hook error details.
 - Match file paths against allow and deny scopes.
 - Match shell commands against executable and argv allowlists.
 - Express network domain allow and deny rules as argument-level intent policy.
@@ -73,6 +77,8 @@ Implemented command names:
 
 The `run` command uses stdout only for MCP protocol messages after startup. Usage errors go to
 stderr, and audit events go to the file selected by `--audit-log`.
+The CLI does not bundle approval UX. Approval hooks are a runtime-library integration point for
+embedding hosts; `eval-call --approval-hook` only simulates hook availability for dry-run review.
 
 ## Library Surface
 

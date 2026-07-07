@@ -46,7 +46,8 @@ The implemented stdio runtime also enforces protocol-boundary hygiene before for
 
 The CLI `run` command owns subprocess IO, shutdown grace, upstream stderr summarization, and JSON
 Lines audit output. The reusable runtime session owns MCP message gating and does not claim process
-or OS isolation.
+or OS isolation. Embedding hosts may provide an approval hook for approval-required tool calls; the
+CLI does not bundle approval UX and rejects approval-hook flags for live runs.
 
 ## Quality Attributes
 

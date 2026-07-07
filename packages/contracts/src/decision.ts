@@ -20,6 +20,8 @@ export type DecisionReasonCode =
   | "discovery.filtered"
   | "policy.profile_not_found"
   | "policy.default_deny"
+  | "policy.approval_denied"
+  | "policy.approval_hook_failed"
   | "policy.approval_hook_missing"
   | "runtime.upstream_exit"
   | "runtime.upstream_stderr";

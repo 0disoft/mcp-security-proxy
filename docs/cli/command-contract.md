@@ -81,6 +81,10 @@ prints the decision without forwarding it.
 proxy starts. `run --help` exits before startup and may print usage text to stdout.
 The upstream command must appear after an explicit `--` separator so CLI flags and upstream argv
 cannot be confused.
+The CLI `run` command does not support `--approval-hook` because it does not bundle host approval
+UX. Approval hooks belong to embedding hosts that call the runtime library. The `eval-call`
+command may still use `--approval-hook` to dry-run how a call would classify when a hook is
+available.
 
 ## Review Blockers
 

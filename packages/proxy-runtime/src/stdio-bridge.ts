@@ -2,7 +2,7 @@ import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
 import type { AuditEvent, PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
 import { createAuditEvent } from "@0disoft/mcp-security-proxy-core";
-import { createProxySession } from "./session.js";
+import { createProxySession, type ApprovalHook } from "./session.js";
 
 export interface UpstreamCommand {
   readonly executable: string;
@@ -26,6 +26,7 @@ export interface StdioProxyOptions {
   readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
   readonly writeAuditEvent: (event: AuditEvent) => void | Promise<void>;
   readonly approvalHookAvailable?: boolean;
+  readonly approveToolCall?: ApprovalHook;
   readonly shutdownGraceMs?: number;
   readonly maxFrameBytes?: number;
   readonly maxJsonDepth?: number;
@@ -55,7 +56,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
   const session = createProxySession({
     policy: options.policy,
     profileId: options.profileId,
-    ...(options.approvalHookAvailable !== undefined ? { approvalHookAvailable: options.approvalHookAvailable } : {}),
+    approvalHookAvailable: Boolean(options.approveToolCall ?? options.approvalHookAvailable),
     ...(options.maxFrameBytes !== undefined ? { maxFrameBytes: options.maxFrameBytes } : {}),
     ...(options.maxJsonDepth !== undefined ? { maxJsonDepth: options.maxJsonDepth } : {})
   });
@@ -78,7 +79,9 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
   const stderrDone = observeUpstreamStderr(upstream.stderr, options.profileId, recordAudit);
 
   const clientDone = consumeLines(clientLines, async (line) => {
-    const result = session.handleClientLine(line);
+    const result = options.approveToolCall
+      ? await session.handleClientLineWithApproval(line, options.approveToolCall)
+      : session.handleClientLine(line);
     await recordAudit(result.auditEvents);
     if (result.responseLine) {
       writeLine(options.clientOutput, result.responseLine);

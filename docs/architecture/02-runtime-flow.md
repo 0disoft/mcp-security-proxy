@@ -34,6 +34,8 @@ Current implemented responsibilities:
 - require upstream responses to match a pending client request id before forwarding
 - classify discovered tools and hide tools without allow or approval coverage
 - evaluate `tools/call` requests using remembered tool capabilities and extracted argument facts
+- call an embedding host approval hook before forwarding approval-required tool calls
+- deny approval-required tool calls when no runtime approval hook is available
 - reject oversized JSON-RPC frames and overly deep parsed JSON messages
 - remove upstream JSON-RPC `error.data` and redact sensitive-looking upstream error messages
 - avoid raw tool arguments in audit events
@@ -69,15 +71,21 @@ transports remain future runtime responsibilities.
 2. Proxy normalizes policy inputs such as path, command, domain, and argument metadata.
 3. Proxy evaluates method policy, deny rules, approval rules, allow rules, then default deny.
 4. If denied, proxy returns an MCP-compatible error and does not forward the call.
-5. If approval is required and no host approval hook exists, proxy denies the call.
-6. If allowed, proxy forwards the call to the upstream server.
-7. Proxy redacts and writes the decision audit event.
+5. If approval is required and a runtime approval hook exists, proxy forwards only after the hook
+   approves.
+6. If approval is required and no runtime approval hook exists, proxy denies the call.
+7. If allowed, proxy forwards the call to the upstream server.
+8. Proxy redacts and writes the decision audit event.
 
 ## Failure Flow
 
 - Invalid policy: startup fails with configuration error.
 - Unclassified risky capability: call is denied by default.
 - Unsupported method: request is denied by default and is not passed through.
+- Approval hook rejection: call is denied and is not passed through.
+- Approval hook failure: call fails closed with a redacted denial instead of forwarding or storing
+  hook error details.
+- Approval hook unavailable: approval-required call is denied and is not passed through.
 - Unmatched upstream response: response is dropped with a redacted audit event.
 - Oversized or overly deep JSON-RPC message: message is denied or dropped before forwarding.
 - Upstream error response with data or sensitive message: error is sanitized before forwarding.

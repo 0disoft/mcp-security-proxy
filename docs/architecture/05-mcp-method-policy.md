@@ -86,8 +86,9 @@ Pending request/response correlation must preserve the JSON-RPC id type. For exa
 ## Call Policy
 
 `tools/call` requests must be normalized into policy facts before evaluation. Denied calls must not
-be forwarded upstream. Approval-required calls must be denied when no host approval hook is
-configured.
+be forwarded upstream. Approval-required calls must be forwarded only after an embedding host
+approval hook approves them. Approval-required calls must be denied when no runtime approval hook is
+configured, and the CLI does not bundle approval UX.
 Call-time evaluation only applies to tools that were visible in filtered discovery for the current
 session. A direct call to a tool that was never discovered, or was hidden by discovery filtering,
 must be denied instead of being allowed by name-based classifier heuristics.

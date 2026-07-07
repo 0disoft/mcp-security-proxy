@@ -35,6 +35,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - `mcp`: protocol adapter types for MCP messages without binding the whole package to one host.
 - `proxy-runtime`: evaluate newline-delimited JSON-RPC messages at the proxy boundary and return
   forward, denial, and audit actions without owning subprocess IO.
+- `approval`: host-owned approval callback types used by the runtime before forwarding
+  approval-required calls.
 
 ## Public Type Principles
 
@@ -50,6 +52,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 The current runtime-facing library surface includes a newline-delimited JSON-RPC session gate that
 returns forward lines, denial response lines, and redacted audit events. Subprocess lifecycle,
 stdio wiring, and CLI output routing belong to the CLI/runtime bridge, not the core evaluator.
+Approval hooks receive normalized call facts and policy decision evidence, not raw MCP payloads.
+Hosts own the user experience and final approval source.
 
 ## Review Blockers
 

@@ -90,8 +90,8 @@ export function runCli(argv: readonly string[], io: CliIo): CliResult {
 
   try {
     if (command === "run") {
-      writeError(io, 6, "live proxy run is not implemented in the dry-run CLI milestone", parsed.flags["json"] === true);
-      return { exitCode: 6 };
+      writeError(io, 2, "run requires async CLI IO; use runCliAsync for live proxy execution", parsed.flags["json"] === true);
+      return { exitCode: 2 };
     }
     if (command === "check-policy") {
       return checkPolicy(parsed.flags, io);
@@ -372,7 +372,6 @@ function commandHelp(command: CommandName): string {
       "  --policy <path>                local policy file",
       "  --profile <name>               policy profile to apply",
       "  --audit-log <path>             JSON Lines audit output file",
-      "  --approval-hook                mark approval hook availability",
       "  --shutdown-grace-ms <0..2147483647>",
       "                                 milliseconds to wait before killing upstream after client input closes",
       "  --max-frame-bytes <1..16777216>",
@@ -519,6 +518,9 @@ async function runProxy(
   const shutdownGraceMs = readOptionalShutdownGraceMsFlag(flags);
   const maxFrameBytes = readOptionalFrameBytesFlag(flags);
   const maxJsonDepth = readOptionalJsonDepthFlag(flags);
+  if (flags["approval-hook"] === true) {
+    throw new CliError(2, "run does not support --approval-hook; approval hooks must be provided by an embedding host");
+  }
   if (auditLogPath === "-") {
     throw new CliError(2, "run requires --audit-log to be a file path; stdout is reserved for MCP messages");
   }
@@ -549,7 +551,6 @@ async function runProxy(
     clientOutput: io.mcpOutput,
     spawnUpstream: io.spawnUpstream,
     writeAuditEvent: (event) => io.appendTextFile(auditLogPath, `${JSON.stringify(event)}\n`),
-    approvalHookAvailable: flags["approval-hook"] === true,
     ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {}),
     ...(maxFrameBytes !== undefined ? { maxFrameBytes } : {}),
     ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {})

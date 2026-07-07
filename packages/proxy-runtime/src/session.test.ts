@@ -1347,6 +1347,199 @@ describe("proxy runtime session", () => {
       }
     });
   });
+
+  it("denies approval-required calls in the sync runtime path without an approval hook", () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local",
+      approvalHookAvailable: true
+    });
+    primeShellDiscovery(session);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-sync",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "approval-sync",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "policy.approval_hook_missing",
+                ruleId: "approval-shell"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "run_command",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "policy.approval_hook_missing", ruleId: "approval-shell" }]
+      }
+    });
+  });
+
+  it("forwards approval-required calls when the runtime approval hook approves them", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+    const line = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "approval-async",
+      method: "tools/call",
+      params: {
+        name: "run_command",
+        arguments: {}
+      }
+    });
+
+    const result = await session.handleClientLineWithApproval(line, async (request) => {
+      expect(request.call).toMatchObject({
+        toolName: "run_command",
+        capabilities: ["shell"],
+        argumentFacts: []
+      });
+      expect(request.decision).toMatchObject({
+        action: "approval_required",
+        evidence: [{ ruleId: "approval-shell" }]
+      });
+      return { approved: true };
+    });
+
+    expect(result.forwardLine).toBe(line);
+    expect(result.responseLine).toBeUndefined();
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "run_command",
+      decision: {
+        action: "approval_required",
+        evidence: [{ ruleId: "approval-shell" }]
+      }
+    });
+  });
+
+  it("denies approval-required calls when the runtime approval hook rejects them", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-denied",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      () => ({ approved: false, reason: "approval denied by test hook" })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "approval-denied",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "policy.approval_denied",
+                ruleId: "approval-shell",
+                reason: "approval denied by test hook"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "run_command",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "policy.approval_denied", ruleId: "approval-shell" }]
+      }
+    });
+  });
+
+  it("fails closed per call when the runtime approval hook throws", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-hook-error",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      () => {
+        throw new Error("RAW_APPROVAL_HOOK_FAILURE_MARKER");
+      }
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_APPROVAL_HOOK_FAILURE_MARKER");
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "approval-hook-error",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "policy.approval_hook_failed",
+                ruleId: "approval-shell",
+                reason: "approval hook failed closed"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "run_command",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "policy.approval_hook_failed", ruleId: "approval-shell" }]
+      }
+    });
+  });
 });
 
 function primeToolDiscovery(session: ReturnType<typeof createProxySession>): void {
@@ -1366,8 +1559,53 @@ function primeToolDiscovery(session: ReturnType<typeof createProxySession>): voi
   );
 }
 
+function primeShellDiscovery(session: ReturnType<typeof createProxySession>): void {
+  session.handleClientLine(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: "shell-tools",
+      method: "tools/list"
+    })
+  );
+  session.handleServerLine(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: "shell-tools",
+      result: {
+        tools: [
+          {
+            name: "run_command",
+            description: "Run a shell command."
+          }
+        ]
+      }
+    })
+  );
+}
+
 function readPolicy(): PolicyDocument {
   return readJsonFixture<PolicyDocument>("fixtures/policies/local-dev.json");
+}
+
+function readApprovalPolicy(): PolicyDocument {
+  const policy = readPolicy();
+  return {
+    ...policy,
+    profiles: policy.profiles.map((profile) =>
+      profile.id === "local"
+        ? {
+            ...profile,
+            rules: [
+              {
+                id: "approval-shell",
+                action: "approval_required",
+                capabilities: ["shell"]
+              }
+            ]
+          }
+        : profile
+    )
+  };
 }
 
 function readJsonFixture<T>(path: string): T {

@@ -20,6 +20,18 @@ export interface ProxySessionOptions {
   readonly maxJsonDepth?: number;
 }
 
+export interface ApprovalRequest {
+  readonly call: NormalizedToolCall;
+  readonly decision: PolicyDecision;
+}
+
+export interface ApprovalResult {
+  readonly approved: boolean;
+  readonly reason?: string;
+}
+
+export type ApprovalHook = (request: ApprovalRequest) => ApprovalResult | Promise<ApprovalResult>;
+
 export interface ProxyFrameResult {
   readonly forwardLine?: string;
   readonly responseLine?: string;
@@ -51,26 +63,53 @@ export class ProxySession {
   }
 
   handleClientLine(line: string): ProxyFrameResult {
+    const prepared = this.prepareClientLine(line);
+    if (prepared.kind === "result") {
+      return prepared.result;
+    }
+    return this.handlePreparedClientRequest(prepared.line, prepared.envelope);
+  }
+
+  async handleClientLineWithApproval(line: string, approvalHook: ApprovalHook): Promise<ProxyFrameResult> {
+    const prepared = this.prepareClientLine(line);
+    if (prepared.kind === "result") {
+      return prepared.result;
+    }
+    return this.handlePreparedClientRequestWithApproval(prepared.line, prepared.envelope, approvalHook);
+  }
+
+  private prepareClientLine(
+    line: string
+  ): { readonly kind: "result"; readonly result: ProxyFrameResult } | { readonly kind: "request"; readonly line: string; readonly envelope: JsonRpcEnvelope } {
     const parsed = parseJsonLine(line, this.maxFrameBytes, this.maxJsonDepth);
     if (!parsed.ok) {
       const decision = denyDecision(parsed.reason, { code: parsed.code });
       return {
-        responseLine: encodeJsonRpcError(null, invalidRequestErrorCode, "invalid MCP JSON-RPC message", decision),
-        auditEvents: [this.createAudit("error", decision)]
+        kind: "result",
+        result: {
+          responseLine: encodeJsonRpcError(null, invalidRequestErrorCode, "invalid MCP JSON-RPC message", decision),
+          auditEvents: [this.createAudit("error", decision)]
+        }
       };
     }
 
     const envelope = parsed.value;
     if (!isJsonRpcRequest(envelope)) {
       return {
-        forwardLine: line,
-        auditEvents: []
+        kind: "result",
+        result: {
+          forwardLine: line,
+          auditEvents: []
+        }
       };
     }
 
     const methodDecision = evaluateEnvelopeMethod(envelope, this.options.policy);
     if (methodDecision.action !== "allow") {
-      return this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied");
+      return {
+        kind: "result",
+        result: this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied")
+      };
     }
 
     if (envelope.id !== undefined) {
@@ -79,11 +118,18 @@ export class ProxySession {
 
     if (envelope.method !== "tools/call") {
       return {
-        forwardLine: line,
-        auditEvents: []
+        kind: "result",
+        result: {
+          forwardLine: line,
+          auditEvents: []
+        }
       };
     }
 
+    return { kind: "request", line, envelope };
+  }
+
+  private handlePreparedClientRequest(line: string, envelope: JsonRpcEnvelope): ProxyFrameResult {
     const toolName = readToolCallName(envelope);
     const visibleTool = this.visibleTools.get(toolName);
     if (!visibleTool) {
@@ -111,7 +157,91 @@ export class ProxySession {
       };
     }
 
+    if (decision.action === "approval_required") {
+      return this.denyEnvelope(
+        envelope,
+        denyDecision("approval required but no approval hook is available in this runtime path", {
+          code: "policy.approval_hook_missing",
+          ...approvalEvidence(decision)
+        }),
+        "MCP tool call denied by policy",
+        "call-decision",
+        normalized.toolName
+      );
+    }
+
     return this.denyEnvelope(envelope, decision, "MCP tool call denied by policy", "call-decision", normalized.toolName);
+  }
+
+  private async handlePreparedClientRequestWithApproval(
+    line: string,
+    envelope: JsonRpcEnvelope,
+    approvalHook: ApprovalHook
+  ): Promise<ProxyFrameResult> {
+    const toolName = readToolCallName(envelope);
+    const visibleTool = this.visibleTools.get(toolName);
+    if (!visibleTool) {
+      return this.denyEnvelope(
+        envelope,
+        denyDecision("tool was not visible in filtered discovery", { code: "tool.not_visible" }),
+        "MCP tool call denied by policy",
+        "call-decision",
+        toolName || undefined
+      );
+    }
+
+    const normalized = normalizeToolCall(envelope, visibleTool);
+    const decision = evaluateToolCall({
+      policy: this.options.policy,
+      profileId: this.options.profileId,
+      call: normalized,
+      approvalHookAvailable: true
+    });
+
+    if (decision.action === "allow") {
+      return {
+        forwardLine: line,
+        auditEvents: [this.createAudit("call-decision", decision, normalized.toolName)]
+      };
+    }
+
+    if (decision.action !== "approval_required") {
+      return this.denyEnvelope(envelope, decision, "MCP tool call denied by policy", "call-decision", normalized.toolName);
+    }
+
+    let approval: ApprovalResult;
+    try {
+      approval = await approvalHook({ call: normalized, decision });
+    } catch {
+      return this.denyEnvelope(
+        envelope,
+        denyDecision("approval hook failed closed", {
+          code: "policy.approval_hook_failed",
+          ...approvalEvidence(decision)
+        }),
+        "MCP tool call denied by policy",
+        "call-decision",
+        normalized.toolName
+      );
+    }
+
+    if (approval.approved) {
+      return {
+        forwardLine: line,
+        auditEvents: [this.createAudit("call-decision", decision, normalized.toolName)]
+      };
+    }
+
+    return this.denyEnvelope(
+      envelope,
+      denyDecision(approval.reason || "approval required call rejected by approval hook", {
+        code: "policy.approval_denied",
+        ...approvalEvidence(decision)
+      }),
+      "MCP tool call denied by policy",
+      "call-decision",
+      normalized.toolName
+    );
   }
 
   handleServerLine(line: string): ProxyFrameResult {
@@ -559,6 +689,18 @@ function denyDecision(reason: string, evidence?: Omit<DecisionEvidence, "reason"
     schemaVersion: "msp.decision.v1",
     action: "deny",
     evidence: [{ ...evidence, reason }]
+  };
+}
+
+function approvalEvidence(decision: PolicyDecision): Omit<DecisionEvidence, "code" | "reason"> {
+  const first = decision.evidence[0];
+  if (!first) {
+    return {};
+  }
+  return {
+    ...(first.ruleId ? { ruleId: first.ruleId } : {}),
+    ...(first.capability ? { capability: first.capability } : {}),
+    ...(first.method ? { method: first.method } : {})
   };
 }
 

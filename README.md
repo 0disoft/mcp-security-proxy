@@ -40,12 +40,13 @@ Implemented foundation:
 - dry-run policy evaluation through `check-policy`, `inspect-tools`, and `eval-call`
 - bounded JSON-RPC frame size and parsed depth guards
 - stable decision evidence codes for audit consumers
+- embeddable runtime approval hook API for approval-required tool calls
 
 Still intentionally narrow:
 
 - only stdio transport is implemented
 - network policy is argument-level intent policy, not OS socket enforcement
-- approval hooks are represented in policy decisions but no host approval UI is bundled
+- CLI `run` does not bundle an approval UI; approval hooks are for embedding hosts
 - public package names, registry distribution, and MCP SDK choice remain UNDECIDED
 
 ## Non-Goals

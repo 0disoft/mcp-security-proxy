@@ -4,6 +4,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import type { AuditEvent, PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
 import { runStdioProxy, type UpstreamProcess } from "./stdio-bridge.js";
+import type { ApprovalHook } from "./session.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
@@ -146,6 +147,142 @@ describe("stdio proxy bridge", () => {
         kind: "method-denied",
         method: "sampling/createMessage",
         decision: expect.objectContaining({ action: "deny" })
+      })
+    );
+  });
+
+  it("forwards approval-required calls only after the embedding approval hook approves them", async () => {
+    const harness = createHarness();
+    let approvalRequests = 0;
+    const resultPromise = runHarness(harness, {
+      policy: readApprovalPolicy(),
+      approveToolCall: async (request) => {
+        approvalRequests += 1;
+        expect(request.call).toMatchObject({
+          toolName: "run_command",
+          capabilities: ["shell"],
+          argumentFacts: []
+        });
+        return { approved: true };
+      }
+    });
+    const toolsListRequest = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "approval-tools",
+      method: "tools/list"
+    });
+    const callRequest = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "approval-call",
+      method: "tools/call",
+      params: {
+        name: "run_command",
+        arguments: {}
+      }
+    });
+
+    harness.clientInput.write(`${toolsListRequest}\n`);
+    await nextTick();
+    harness.upstream.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-tools",
+        result: {
+          tools: [
+            {
+              name: "run_command",
+              description: "Run a shell command."
+            }
+          ]
+        }
+      })}\n`
+    );
+    await nextTick();
+    harness.clientInput.write(`${callRequest}\n`);
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(0);
+    expect(approvalRequests).toBe(1);
+    expect(readLines(harness.upstreamInputCapture)).toEqual([toolsListRequest, callRequest]);
+    expect(readLines(harness.clientOutputCapture)).toEqual([
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-tools",
+        result: {
+          tools: [
+            {
+              name: "run_command",
+              description: "Run a shell command."
+            }
+          ]
+        }
+      })
+    ]);
+    expect(harness.auditEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "call-decision",
+        toolName: "run_command",
+        decision: expect.objectContaining({
+          action: "approval_required",
+          evidence: [expect.objectContaining({ ruleId: "approval-shell" })]
+        })
+      })
+    );
+  });
+
+  it("denies approval-required calls when the embedding approval hook rejects them", async () => {
+    const harness = createHarness();
+    const resultPromise = runHarness(harness, {
+      policy: readApprovalPolicy(),
+      approveToolCall: () => ({ approved: false, reason: "approval denied by bridge test" })
+    });
+
+    harness.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: "approval-tools", method: "tools/list" })}\n`);
+    await nextTick();
+    harness.upstream.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-tools",
+        result: {
+          tools: [{ name: "run_command", description: "Run a shell command." }]
+        }
+      })}\n`
+    );
+    await nextTick();
+    harness.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-call-denied",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      })}\n`
+    );
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(0);
+    expect(readLines(harness.upstreamInputCapture)).toEqual([
+      JSON.stringify({ jsonrpc: "2.0", id: "approval-tools", method: "tools/list" })
+    ]);
+    expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({
+        id: "approval-call-denied",
+        error: expect.objectContaining({
+          data: expect.objectContaining({
+            decision: expect.objectContaining({
+              action: "deny",
+              evidence: [expect.objectContaining({ code: "policy.approval_denied", ruleId: "approval-shell" })]
+            })
+          })
+        })
       })
     );
   });
@@ -299,10 +436,15 @@ describe("stdio proxy bridge", () => {
 
 function runHarness(
   harness: ReturnType<typeof createHarness>,
-  options: { readonly shutdownGraceMs?: number; readonly auditOnFailure?: PolicyDocument["profiles"][number]["audit"]["onFailure"] } = {}
+  options: {
+    readonly shutdownGraceMs?: number;
+    readonly auditOnFailure?: PolicyDocument["profiles"][number]["audit"]["onFailure"];
+    readonly policy?: PolicyDocument;
+    readonly approveToolCall?: ApprovalHook;
+  } = {}
 ): Promise<{ readonly exitCode: number }> {
   return runStdioProxy({
-    policy: readPolicy(options.auditOnFailure),
+    policy: options.policy ?? readPolicy(options.auditOnFailure),
     profileId: "local",
     upstreamCommand: {
       executable: "fixture",
@@ -311,6 +453,7 @@ function runHarness(
     clientInput: harness.clientInput,
     clientOutput: harness.clientOutput,
     spawnUpstream: () => harness.upstream,
+    ...(options.approveToolCall ? { approveToolCall: options.approveToolCall } : {}),
     ...(options.shutdownGraceMs !== undefined ? { shutdownGraceMs: options.shutdownGraceMs } : {}),
     writeAuditEvent: (event) => {
       if (harness.failAuditWrites) {
@@ -383,6 +526,27 @@ function readPolicy(auditOnFailure?: PolicyDocument["profiles"][number]["audit"]
               ...profile.audit,
               onFailure: auditOnFailure
             }
+          }
+        : profile
+    )
+  };
+}
+
+function readApprovalPolicy(): PolicyDocument {
+  const policy = readPolicy();
+  return {
+    ...policy,
+    profiles: policy.profiles.map((profile) =>
+      profile.id === "local"
+        ? {
+            ...profile,
+            rules: [
+              {
+                id: "approval-shell",
+                action: "approval_required",
+                capabilities: ["shell"]
+              }
+            ]
           }
         : profile
     )

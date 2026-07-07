@@ -30,6 +30,7 @@ After the first public package release, semantic versioning covers:
 - audit event schema fields, redaction guarantees, and severity or decision labels
 - decision evidence code values once documented as stable public values
 - CLI-facing library helpers that shape command output or exit behavior
+- approval hook request and result types
 - package entrypoints, documented exports, and published schema assets
 
 The following remain outside semver until explicitly documented as public:
@@ -50,6 +51,7 @@ The following require a major version after the first public release:
 - renaming policy schema fields without backward compatibility
 - changing audit event meaning, redaction guarantees, or required fields
 - removing or reusing an existing documented decision evidence code with a different meaning
+- changing approval hook request or result semantics
 - changing path, command, network, or secret matching behavior in a way that can allow previously
   denied calls or deny previously allowed calls
 - raising the runtime compatibility floor

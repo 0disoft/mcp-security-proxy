@@ -53,11 +53,12 @@ Status: partially implemented.
 - Expose redactor and audit formatter.
 - Add compatibility fixtures for representative MCP clients.
 - Expose stable optional decision evidence codes for audit consumers.
+- Expose an approval hook API for embedding hosts.
 
 ## Milestone 3: Host Integration Hardening
 
 - Add policy dry-run workflows.
-- Add approval hook interface.
+- Add host-specific approval UX integrations.
 - Add transport compatibility plan for HTTP.
 - Add audit export guidance.
 - Add broader MCP client/server compatibility fixtures.

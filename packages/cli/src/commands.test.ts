@@ -27,6 +27,7 @@ describe("dry-run CLI commands", () => {
     expect(output.stdout.join("\n")).toContain("--shutdown-grace-ms <0..2147483647>");
     expect(output.stdout.join("\n")).toContain("--max-frame-bytes <1..16777216>");
     expect(output.stdout.join("\n")).toContain("--max-json-depth <1..256>");
+    expect(output.stdout.join("\n")).not.toContain("--approval-hook");
     expect(output.stdout.join("\n")).not.toContain("not implemented");
     expect(output.stderr).toEqual([]);
   });
@@ -103,14 +104,15 @@ describe("dry-run CLI commands", () => {
     });
   });
 
-  it("keeps live run unavailable during the dry-run milestone", () => {
+  it("keeps live run on the async CLI path only", () => {
     const output = invoke(["run", "--json"]);
 
-    expect(output.exitCode).toBe(6);
+    expect(output.exitCode).toBe(2);
     expect(output.stdoutJson()).toMatchObject({
       ok: false,
       error: {
-        code: 6
+        code: 2,
+        message: "run requires async CLI IO; use runCliAsync for live proxy execution"
       }
     });
   });
@@ -301,6 +303,28 @@ describe("dry-run CLI commands", () => {
     expect(output.stdout).toEqual([]);
     expect(output.mcpOutputLines()).toEqual([]);
     expect(output.stderr).toEqual(["run does not support --json because stdout is reserved for MCP messages"]);
+  });
+
+  it("rejects approval-hook on live run because approval UX belongs to embedding hosts", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "audit.jsonl",
+      "--approval-hook",
+      "--",
+      "fixture-server"
+    ]);
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(2);
+    expect(output.stdout).toEqual([]);
+    expect(output.mcpOutputLines()).toEqual([]);
+    expect(output.stderr).toEqual(["run does not support --approval-hook; approval hooks must be provided by an embedding host"]);
+    expect(output.spawned).toBe(false);
   });
 
   it("requires an explicit separator before the upstream command", async () => {
