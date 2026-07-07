@@ -9,6 +9,8 @@ const requiredValidations = [
   "secret-scan",
   "compatibility",
   "license-report",
+  "release-readiness",
+  "performance-smoke",
   "contract",
   "test",
   "smoke",

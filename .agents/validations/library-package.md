@@ -21,6 +21,7 @@ This document owns stable validation names for this scaffold.
 - compatibility
 - license-report
 - release-readiness
+- performance-smoke
 - check
 
 ## Required Final Report

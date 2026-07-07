@@ -16,5 +16,5 @@ Latency regression, oversized payloads, excess queries, missing cache policy, bu
 
 ## Validation
 
-- Required validation names: test, smoke, check
+- Required validation names: test, performance-smoke, smoke, check
 - Skipped validation must include a reason and remaining risk.

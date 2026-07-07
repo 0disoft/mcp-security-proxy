@@ -23,6 +23,8 @@
     "secret-scan": "UNRECORDED",
     "compatibility": "UNRECORDED",
     "license-report": "UNRECORDED",
+    "release-readiness": "UNRECORDED",
+    "performance-smoke": "UNRECORDED",
     "contract": "UNRECORDED",
     "test": "UNRECORDED",
     "smoke": "UNRECORDED",
