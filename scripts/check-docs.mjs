@@ -3,8 +3,11 @@ import { join } from "node:path";
 
 const requiredFiles = [
   "AGENTS.md",
+  "CONTRIBUTING.md",
+  "DEVELOPMENT.md",
   "LICENSE",
   "SECURITY.md",
+  "diagrams/README.md",
   "docs/product/02-spec.md",
   "docs/architecture/04-policy-model.md",
   "docs/architecture/05-mcp-method-policy.md",
