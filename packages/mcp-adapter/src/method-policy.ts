@@ -8,7 +8,7 @@ export function evaluateEnvelopeMethod(envelope: unknown, policy: PolicyDocument
     return {
       schemaVersion: "msp.decision.v1",
       action: "deny",
-      evidence: [{ reason: "JSON-RPC request method missing or invalid" }]
+      evidence: [{ code: "jsonrpc.invalid", reason: "JSON-RPC request method missing or invalid" }]
     };
   }
 
