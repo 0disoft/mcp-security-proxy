@@ -384,6 +384,14 @@
       "policy": "fixtures/policies/approval-shell.json",
       "profile": "local",
       "scenario": "approval-timeout"
+    },
+    {
+      "id": "runtime-server-origin-ping-invalid-response",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-server-origin-ping-invalid-response.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "server-origin-ping-invalid-response"
     }
   ]
 }

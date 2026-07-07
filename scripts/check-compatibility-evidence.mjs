@@ -61,7 +61,8 @@ const requiredEvidenceIds = new Set([
   "library-decision-workflow-no-hook",
   "library-decision-workflow-approval-hook",
   "runtime-live-stdio-smoke",
-  "runtime-approval-timeout"
+  "runtime-approval-timeout",
+  "runtime-server-origin-ping-invalid-response"
 ]);
 
 const failures = [];
@@ -298,12 +299,47 @@ async function checkRuntimeSessionFixture(id, path, item) {
     failures.push(`${id}: runtime session evidence must include policy, profile, and scenario`);
     return;
   }
-  if (item.scenario !== "approval-timeout") {
+  const supportedScenarios = new Set(["approval-timeout", "server-origin-ping-invalid-response"]);
+  if (!supportedScenarios.has(item.scenario)) {
     failures.push(`${id}: unsupported runtime session scenario ${item.scenario}`);
     return;
   }
 
   const { createProxySession } = await import("../packages/proxy-runtime/dist/index.js");
+  if (item.scenario === "server-origin-ping-invalid-response") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const serverRequest = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-server-origin-ping",
+        method: "ping"
+      })
+    );
+    const invalidClientResponse = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-server-origin-ping",
+        result: {
+          marker: "RAW_INVALID_SERVER_ORIGIN_PING_RESPONSE_MARKER"
+        }
+      })
+    );
+    const actual = {
+      serverRequestForwarded: serverRequest.forwardLine
+        ? parseJsonText(serverRequest.forwardLine, `${id}: serverRequest.forwardLine`)
+        : undefined,
+      serverRequestAuditEvents: serverRequest.auditEvents,
+      invalidClientResponseForwarded: invalidClientResponse.forwardLine !== undefined,
+      invalidClientResponseAuditEvents: invalidClientResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
   const session = createProxySession({
     policy: readJson(item.policy),
     profileId: item.profile,
@@ -444,6 +480,23 @@ async function checkCompatibilityEvidenceValidator() {
   if (!unsupportedRuntimeSessionFailures.some((item) => item.includes("unsupported runtime session scenario not-supported"))) {
     failures.push(
       `compatibility self-test unsupported runtime session scenario was not rejected: ${unsupportedRuntimeSessionFailures.join("; ")}`
+    );
+  }
+
+  const invalidPingResponseDriftFailures = await collectCompatibilityFailuresAsync(async () => {
+    await checkRuntimeSessionFixture(
+      "<compatibility-self-test-runtime-session-invalid-ping-response-drift>",
+      "fixtures/compatibility/runtime-approval-timeout.json",
+      {
+        policy: "fixtures/policies/local-dev.json",
+        profile: "local",
+        scenario: "server-origin-ping-invalid-response"
+      }
+    );
+  });
+  if (!invalidPingResponseDriftFailures.some((item) => item.includes("fixture drifted from current implementation"))) {
+    failures.push(
+      `compatibility self-test invalid ping response fixture drift was not rejected: ${invalidPingResponseDriftFailures.join("; ")}`
     );
   }
 }
