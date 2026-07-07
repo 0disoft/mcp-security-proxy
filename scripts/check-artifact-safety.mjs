@@ -101,6 +101,7 @@ function checkCompatibilityManifest(path) {
 }
 
 function checkReleaseRecord(path) {
+  checkTextMarkers(path, `${path}: release record`);
   const record = readJson(path);
   const publicPackages = Array.isArray(record.publicPackages) ? record.publicPackages : [];
   const artifacts = Array.isArray(record.artifacts) ? record.artifacts : [];
