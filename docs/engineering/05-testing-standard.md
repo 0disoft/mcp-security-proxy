@@ -16,7 +16,8 @@ Status: Draft
 - Property tests for path normalization, URL/domain parsing, command argv matching, and redaction
   detectors.
 - Integration tests with a fake stdio MCP server.
-- Contract tests for CLI JSON output, exit codes, policy schema, audit schema, and migration notes.
+- Contract tests for CLI JSON output, exit codes, policy schema, decision schema, audit schema, and
+  migration notes.
 - Regression tests for every confirmed bypass.
 - Cross-platform tests for Windows, macOS, and Linux path behavior before claiming support.
 - Docs tests for user-facing command examples after commands exist.

@@ -47,6 +47,9 @@ No released implementation exists yet. Until the first public release, breaking 
 changes must still update the source-of-truth docs so early adopters do not build against stale
 policy, audit, CLI, or API contracts.
 
+- Current draft schema note: decision evidence may include a stable `code` field. The
+  `decision.v1.schema.json` asset accepts the same code values exported by the contracts package.
+
 ## Migration Principles
 
 - Do not make a previously denied tool call become allowed without an explicit migration note.

@@ -16,6 +16,7 @@ This document owns stable validation names for this scaffold.
 - migration-check
 - smoke
 - docs
+- schema-contract
 - package-surface
 - secret-scan
 - compatibility

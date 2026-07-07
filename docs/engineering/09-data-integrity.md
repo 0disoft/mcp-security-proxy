@@ -17,6 +17,8 @@ versioning, and contract drift.
 ## Integrity Rules
 
 - Policy schema, decision schema, and audit schema must be versioned before public release.
+- Schema constants and JSON Schema assets must stay synchronized through `pnpm run
+  schema-contract`.
 - Evaluator decisions must include rule evidence.
 - Discovery filtering must preserve upstream tool identity for visible tools and must not invent
   tools.
@@ -29,6 +31,7 @@ versioning, and contract drift.
 
 - A decision lacks rule evidence.
 - A schema changes without migration notes.
+- `pnpm run schema-contract` fails.
 - A redacted audit event cannot be traced to a policy decision.
 - A change weakens validation or hides skipped checks.
 - A change lacks failure, recovery, security, performance, or test evidence where relevant.

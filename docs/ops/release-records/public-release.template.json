@@ -19,6 +19,7 @@
   ],
   "validation": {
     "docs": "UNRECORDED",
+    "schema-contract": "UNRECORDED",
     "package-surface": "UNRECORDED",
     "secret-scan": "UNRECORDED",
     "compatibility": "UNRECORDED",

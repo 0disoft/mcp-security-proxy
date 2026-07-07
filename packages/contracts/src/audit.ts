@@ -1,9 +1,10 @@
 import type { PolicyDecision } from "./decision.js";
 
 export const AUDIT_EVENT_SCHEMA_VERSION = "msp.audit-event.v1" as const;
+export const AUDIT_EVENT_KINDS = ["method-denied", "discovery-filtered", "call-decision", "error"] as const;
 
 export type AuditEventSchemaVersion = typeof AUDIT_EVENT_SCHEMA_VERSION;
-export type AuditEventKind = "method-denied" | "discovery-filtered" | "call-decision" | "error";
+export type AuditEventKind = (typeof AUDIT_EVENT_KINDS)[number];
 
 export interface RedactionSummary {
   readonly applied: boolean;

@@ -5,6 +5,7 @@ const root = process.cwd();
 const recordsDir = join(root, "docs", "ops", "release-records");
 const requiredValidations = [
   "docs",
+  "schema-contract",
   "package-surface",
   "secret-scan",
   "compatibility",

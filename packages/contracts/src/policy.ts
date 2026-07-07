@@ -1,5 +1,21 @@
 export const POLICY_SCHEMA_VERSION = "msp.policy.v1" as const;
 
+export const POLICY_ACTIONS = ["allow", "deny", "approval_required"] as const;
+export const CAPABILITIES = [
+  "file-read",
+  "file-write",
+  "shell",
+  "network",
+  "secret",
+  "database",
+  "browser",
+  "workflow",
+  "unknown"
+] as const;
+export const AUDIT_DESTINATIONS = ["file", "stdout"] as const;
+export const AUDIT_FAILURE_ACTIONS = ["fail_closed", "warn_and_continue"] as const;
+export const REDACTION_DETECTOR_KINDS = ["secret_like", "environment_value", "path", "prompt"] as const;
+
 export const MVP_ALLOWED_METHODS = [
   "initialize",
   "notifications/initialized",
@@ -10,19 +26,10 @@ export const MVP_ALLOWED_METHODS = [
 
 export type PolicySchemaVersion = typeof POLICY_SCHEMA_VERSION;
 export type MvpAllowedMethod = (typeof MVP_ALLOWED_METHODS)[number];
-export type PolicyAction = "allow" | "deny" | "approval_required";
+export type PolicyAction = (typeof POLICY_ACTIONS)[number];
 export type DefaultAction = "deny";
 
-export type Capability =
-  | "file-read"
-  | "file-write"
-  | "shell"
-  | "network"
-  | "secret"
-  | "database"
-  | "browser"
-  | "workflow"
-  | "unknown";
+export type Capability = (typeof CAPABILITIES)[number];
 
 export interface MethodPolicy {
   readonly allowedMethods: readonly string[];
@@ -56,16 +63,16 @@ export interface PolicyRule {
 }
 
 export interface AuditPolicy {
-  readonly destination: "file" | "stdout";
+  readonly destination: (typeof AUDIT_DESTINATIONS)[number];
   readonly path?: string;
-  readonly onFailure: "fail_closed" | "warn_and_continue";
+  readonly onFailure: (typeof AUDIT_FAILURE_ACTIONS)[number];
   readonly includeRawArguments: false;
   readonly includeFullPaths: boolean;
 }
 
 export interface RedactionDetector {
   readonly id: string;
-  readonly kind: "secret_like" | "environment_value" | "path" | "prompt";
+  readonly kind: (typeof REDACTION_DETECTOR_KINDS)[number];
   readonly replacement: string;
 }
 
