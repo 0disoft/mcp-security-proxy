@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 
@@ -24,6 +25,16 @@ const requiredValidations = [
 ];
 const requiredReleaseScopeDecisions = ["mcpSdkDependency", "httpTransport", "hostApprovalUx"];
 const releaseScopeStatuses = new Set(["included", "excluded"]);
+const trackedFiles = new Set(
+  execFileSync("git", ["ls-files"], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  })
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((file) => file.replaceAll("\\", "/"))
+);
 
 const failures = [];
 
@@ -194,6 +205,8 @@ function checkReleaseScope(path, releaseScope) {
       failures.push(`${path}: releaseScope.${name}.evidence must be a safe repo-relative path`);
     } else if (!existsSync(join(root, item.evidence))) {
       failures.push(`${path}: releaseScope.${name}.evidence must exist`);
+    } else if (!trackedFiles.has(item.evidence)) {
+      failures.push(`${path}: releaseScope.${name}.evidence must be tracked`);
     }
   }
 }
@@ -285,12 +298,17 @@ function checkReleaseRecordValidator() {
       hostApprovalUx: {
         ...validRecord.releaseScope.hostApprovalUx,
         evidence: "docs/architecture/missing-host-approval-decision.md"
+      },
+      httpTransport: {
+        ...validRecord.releaseScope.httpTransport,
+        evidence: "node_modules"
       }
     }
   });
   if (
     !invalidScopeEvidenceFailures.some((item) => item.includes("releaseScope.mcpSdkDependency.evidence must be a safe repo-relative path")) ||
-    !invalidScopeEvidenceFailures.some((item) => item.includes("releaseScope.hostApprovalUx.evidence must exist"))
+    !invalidScopeEvidenceFailures.some((item) => item.includes("releaseScope.hostApprovalUx.evidence must exist")) ||
+    !invalidScopeEvidenceFailures.some((item) => item.includes("releaseScope.httpTransport.evidence must be tracked"))
   ) {
     failures.push(`release-readiness self-test invalid scope evidence fixture was not rejected: ${invalidScopeEvidenceFailures.join("; ")}`);
   }
