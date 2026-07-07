@@ -80,6 +80,15 @@ const checkDependencyDecisionGuards = (manifest, file) => {
   }
 };
 
+const checkRootRuntimeDependencies = (manifest, file) => {
+  for (const group of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+    const dependencies = manifest[group] ?? {};
+    for (const name of Object.keys(dependencies)) {
+      failures.push(`${file}: ${group}.${name} must not be declared at the root workspace before release readiness records external runtime dependencies`);
+    }
+  }
+};
+
 const checkMcpSdkDependency = (name, file, group) => {
   if (mcpSdkDependencyPatterns.some((pattern) => pattern.test(name))) {
     failures.push(`${file}: ${group}.${name} must wait for an ADR or release-readiness record because MCP SDK choices are UNDECIDED`);
@@ -100,6 +109,20 @@ const checkPackageSurfaceValidator = () => {
   if (!sdkDependencyFailures.some((item) => item.includes("MCP SDK choices are UNDECIDED"))) {
     failures.push(`package-surface self-test MCP SDK dependency was not rejected: ${sdkDependencyFailures.join("; ")}`);
   }
+
+  const rootRuntimeDependencyFailures = collectPackageSurfaceFailures(() => {
+    checkRootRuntimeDependencies(
+      {
+        dependencies: {
+          "left-pad": "^1.3.0"
+        }
+      },
+      "<package-surface-self-test-root-runtime-dependency>"
+    );
+  });
+  if (!rootRuntimeDependencyFailures.some((item) => item.includes("must not be declared at the root workspace"))) {
+    failures.push(`package-surface self-test root runtime dependency was not rejected: ${rootRuntimeDependencyFailures.join("; ")}`);
+  }
 };
 
 const collectPackageSurfaceFailures = (fn) => {
@@ -114,6 +137,7 @@ checkCommonManifest(rootManifest, rootManifestPath);
 assertEqual(rootManifest.name === "mcp-security-proxy-workspace", "package.json: workspace package name changed unexpectedly");
 assertEqual(rootManifest.version === "0.0.0", "package.json: workspace version must stay 0.0.0 before public release");
 checkDependencyDecisionGuards(rootManifest, "package.json");
+checkRootRuntimeDependencies(rootManifest, "package.json");
 
 const packagesDir = join(root, "packages");
 assertEqual(existsSync(packagesDir), "packages/: workspace packages directory is missing");

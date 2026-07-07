@@ -38,6 +38,8 @@ Until release readiness records public package names and artifacts:
   aligned with the exported entrypoint;
 - the CLI package must keep the `mcp-security-proxy` bin pointing at `./dist/main.js` and the
   matching `src/main.ts` source entrypoint;
+- the root workspace must not declare runtime, peer, or optional dependencies until release
+  readiness records external runtime dependencies;
 - runtime package dependencies must stay within this pnpm workspace and use `workspace:*` until
   release readiness records external runtime dependencies.
 
