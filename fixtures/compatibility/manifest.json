@@ -376,6 +376,14 @@
         "node",
         "scripts/smoke-live-run.mjs"
       ]
+    },
+    {
+      "id": "runtime-approval-timeout",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-approval-timeout.json",
+      "policy": "fixtures/policies/approval-shell.json",
+      "profile": "local",
+      "scenario": "approval-timeout"
     }
   ]
 }

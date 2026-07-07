@@ -14,7 +14,8 @@ const requiredKinds = new Set([
   "cli.json.inspect-tools",
   "cli.json.eval-call",
   "library.decision-result",
-  "runtime.live-smoke"
+  "runtime.live-smoke",
+  "runtime.session-result"
 ]);
 const cliCommandByKind = new Map([
   ["cli.json.check-policy", "check-policy"],
@@ -59,7 +60,8 @@ const requiredEvidenceIds = new Set([
   "library-decision-secret-api-key-allowed",
   "library-decision-workflow-no-hook",
   "library-decision-workflow-approval-hook",
-  "runtime-live-stdio-smoke"
+  "runtime-live-stdio-smoke",
+  "runtime-approval-timeout"
 ]);
 
 const failures = [];
@@ -128,7 +130,7 @@ async function checkEvidenceEntry(item) {
     seenKinds.add(kind);
   }
 
-  if (kind.startsWith("runtime.")) {
+  if (kind === "runtime.live-smoke") {
     checkRuntimeFixture(id, kind, item.command);
     return;
   }
@@ -149,6 +151,9 @@ async function checkEvidenceEntry(item) {
   }
   if (kind === "library.decision-result") {
     await checkLibraryDecisionFixture(id, path, item);
+  }
+  if (kind === "runtime.session-result") {
+    await checkRuntimeSessionFixture(id, path, item);
   }
   if (kind === "mcp.discovery") {
     checkDiscoveryFixture(id, path);
@@ -284,6 +289,59 @@ async function checkLibraryDecisionFixture(id, path, item) {
     call,
     ...(item.approvalHookAvailable !== undefined ? { approvalHookAvailable: item.approvalHookAvailable } : {})
   });
+  const expected = readJson(path);
+  assertJsonEqual(id, actual, expected);
+}
+
+async function checkRuntimeSessionFixture(id, path, item) {
+  if (typeof item.policy !== "string" || typeof item.profile !== "string" || typeof item.scenario !== "string") {
+    failures.push(`${id}: runtime session evidence must include policy, profile, and scenario`);
+    return;
+  }
+  if (item.scenario !== "approval-timeout") {
+    failures.push(`${id}: unsupported runtime session scenario ${item.scenario}`);
+    return;
+  }
+
+  const { createProxySession } = await import("../packages/proxy-runtime/dist/index.js");
+  const session = createProxySession({
+    policy: readJson(item.policy),
+    profileId: item.profile,
+    approvalTimeoutMs: 1
+  });
+  session.handleClientLine(JSON.stringify({ jsonrpc: "2.0", id: "approval-timeout-tools", method: "tools/list" }));
+  session.handleServerLine(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: "approval-timeout-tools",
+      result: {
+        tools: [
+          {
+            name: "run_command",
+            description: "Run a shell command."
+          }
+        ]
+      }
+    })
+  );
+
+  const result = await session.handleClientLineWithApproval(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: "approval-timeout-call",
+      method: "tools/call",
+      params: {
+        name: "run_command",
+        arguments: {}
+      }
+    }),
+    () => new Promise(() => undefined)
+  );
+  const actual = {
+    forwarded: result.forwardLine !== undefined,
+    response: result.responseLine ? parseJsonText(result.responseLine, `${id}: responseLine`) : undefined,
+    auditEvents: result.auditEvents
+  };
   const expected = readJson(path);
   assertJsonEqual(id, actual, expected);
 }

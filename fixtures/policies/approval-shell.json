@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "msp.policy.v1",
+  "defaultAction": "deny",
+  "methodPolicy": {
+    "allowedMethods": ["tools/list", "tools/call"],
+    "denyUnsupported": true
+  },
+  "profiles": [
+    {
+      "id": "local",
+      "defaultAction": "deny",
+      "rules": [
+        {
+          "id": "approval-shell",
+          "action": "approval_required",
+          "capabilities": ["shell"]
+        }
+      ],
+      "audit": {
+        "destination": "stdout",
+        "onFailure": "fail_closed",
+        "includeRawArguments": false,
+        "includeFullPaths": false
+      }
+    }
+  ],
+  "redaction": {
+    "detectors": []
+  }
+}
