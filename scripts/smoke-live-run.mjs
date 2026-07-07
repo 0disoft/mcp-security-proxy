@@ -643,7 +643,8 @@ try {
       "--",
       process.execPath,
       "scripts/fixture-mcp-server.mjs",
-      "--require-initialized"
+      "--require-initialized",
+      "--reject-request-extra-fields"
     ],
     {
       cwd: repoRoot,
@@ -666,12 +667,32 @@ try {
         clientInfo: {
           name: "smoke"
         }
+      },
+      trace: {
+        marker: "RAW_CLIENT_REQUEST_EXTRA_FIELD_MARKER_INITIALIZE"
       }
     })}\n`
   );
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "tools-before-initialized", method: "tools/list" })}\n`);
-  child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
-  child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "tools", method: "tools/list" })}\n`);
+  child.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+      trace: {
+        marker: "RAW_CLIENT_REQUEST_EXTRA_FIELD_MARKER_INITIALIZED"
+      }
+    })}\n`
+  );
+  child.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "tools",
+      method: "tools/list",
+      trace: {
+        marker: "RAW_CLIENT_REQUEST_EXTRA_FIELD_MARKER_TOOLS"
+      }
+    })}\n`
+  );
   child.stdin.write(
     `${JSON.stringify({
       jsonrpc: "2.0",
@@ -694,6 +715,10 @@ try {
 
   if (exitCode !== 0) {
     throw new Error(`expected live run smoke to exit 0, got ${exitCode}: ${Buffer.concat(stderrChunks).toString("utf8")}`);
+  }
+  const stderrText = Buffer.concat(stderrChunks).toString("utf8");
+  if (stderrText.includes("RAW_REQUEST_EXTRA_FIELD_MARKER")) {
+    throw new Error("client request extra fields reached upstream fixture stderr");
   }
 
   const outputLines = Buffer.concat(stdoutChunks)
@@ -722,6 +747,10 @@ try {
   if (!deniedResult?.error?.data?.decision || deniedResult.error.data.decision.action !== "deny") {
     throw new Error(`unexpected denied call response: ${JSON.stringify(deniedResult)}`);
   }
+  const outputText = outputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (outputText.includes("RAW_CLIENT_REQUEST_EXTRA_FIELD_MARKER") || outputText.includes("RAW_REQUEST_EXTRA_FIELD_MARKER")) {
+    throw new Error("client request extra field marker leaked into MCP output");
+  }
 
   const auditLines = readFileSync(auditLog, "utf8")
     .split("\n")
@@ -732,6 +761,9 @@ try {
   const auditText = auditLines.join("\n");
   if (auditText.includes("RAW_STDERR_MARKER")) {
     throw new Error("raw upstream stderr leaked into audit log");
+  }
+  if (auditText.includes("RAW_CLIENT_REQUEST_EXTRA_FIELD_MARKER") || auditText.includes("RAW_REQUEST_EXTRA_FIELD_MARKER")) {
+    throw new Error("client request extra field marker leaked into audit log");
   }
   if (!auditText.includes('"stderr_line":2')) {
     throw new Error(`expected redacted stderr summary audit event, got ${auditText}`);

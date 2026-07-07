@@ -13,8 +13,10 @@ const duplicateToolsList = process.argv.includes("--duplicate-tools-list");
 const replaceToolsList = process.argv.includes("--replace-tools-list");
 const tooDeepToolsList = process.argv.includes("--too-deep-tools-list");
 const requireInitialized = process.argv.includes("--require-initialized");
+const rejectRequestExtraFields = process.argv.includes("--reject-request-extra-fields");
 const serverPingId = "live-server-origin-ping";
 const serverPingWithParamsId = "live-server-origin-ping-with-params";
+const requestEnvelopeKeys = new Set(["jsonrpc", "id", "method", "params"]);
 
 const tools = [
   {
@@ -45,6 +47,23 @@ let initialized = false;
 
 for await (const line of lines) {
   const message = JSON.parse(line);
+  if (rejectRequestExtraFields && typeof message.method === "string" && hasRequestExtraFields(message)) {
+    process.stderr.write("RAW_REQUEST_EXTRA_FIELD_MARKER diagnostic line\n");
+    if (message.id !== undefined) {
+      process.stdout.write(
+        `${JSON.stringify({
+          jsonrpc: "2.0",
+          id: message.id,
+          error: {
+            code: -32098,
+            message: "RAW_REQUEST_EXTRA_FIELD_MARKER reached fixture server"
+          }
+        })}\n`
+      );
+    }
+    continue;
+  }
+
   if (message.method === "initialize") {
     process.stdout.write(
       `${JSON.stringify({
@@ -248,4 +267,8 @@ for await (const line of lines) {
     }
     process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { content: [] } })}\n`);
   }
+}
+
+function hasRequestExtraFields(message) {
+  return Object.keys(message).some((key) => !requestEnvelopeKeys.has(key));
 }
