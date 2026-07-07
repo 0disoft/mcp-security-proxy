@@ -34,7 +34,7 @@ UNDECIDED. Before publishing any public artifact, a release record must name:
 - the release artifact list;
 - the package version to publish;
 - the exact validation output for `docs`, `schema-contract`, `package-surface`, `secret-scan`,
-  `artifact-safety`, `validation-registry`, `compatibility`, `license-report`,
+  `artifact-safety`, `validation-registry`, `ci-contract`, `compatibility`, `license-report`,
   `release-readiness`, `performance-smoke`, `contract`, `test`, `smoke`, and `check`;
 - the rollback path for a bad package or CLI release.
 
@@ -45,7 +45,8 @@ release-readiness` validates release records and enforces the private-package po
 exists. `pnpm run artifact-safety` checks public fixtures and release artifact references for
 private, real-log, generated-output, capture, and exploit-corpus paths. `pnpm run
 validation-registry` keeps validation names synchronized across `VALIDATION.md`, agent validation
-profiles, runner scripts, release-readiness requirements, and release-record templates.
+profiles, runner scripts, release-readiness requirements, and release-record templates. `pnpm run
+ci-contract` checks hosted CI parity with documented local validation and runtime versions.
 
 ## Release Blockers
 
@@ -55,6 +56,7 @@ profiles, runner scripts, release-readiness requirements, and release-record tem
 - Raw secret-like values in audit examples or public fixtures.
 - `pnpm run artifact-safety` fails.
 - `pnpm run validation-registry` fails.
+- `pnpm run ci-contract` fails.
 - Compatibility claims without fixture-backed evidence.
 - `pnpm run license-report` fails after dependencies exist.
 - Release artifact includes real logs, real policies, private captures, or exploit corpus data.
@@ -67,7 +69,7 @@ profiles, runner scripts, release-readiness requirements, and release-record tem
 ## Validation
 
 - Required validation names: docs, schema-contract, package-surface, secret-scan, artifact-safety,
-  validation-registry, compatibility, license-report, release-readiness, performance-smoke,
+  validation-registry, ci-contract, compatibility, license-report, release-readiness, performance-smoke,
   contract, test, smoke, check when commands exist.
 - Release blocker status: blocked for public npm release until package naming, artifact naming,
   publish credentials ownership, and rollback records exist.

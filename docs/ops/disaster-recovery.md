@@ -28,14 +28,14 @@ or multi-region service to fail over.
 2. Restore the last known-good commit or package.
 3. Preserve redacted evidence only.
 4. Run `pnpm run check`, `git diff --check`, package-surface validation, artifact-safety
-   validation, validation-registry validation, release-readiness validation, and the relevant smoke
-   scenario.
+   validation, validation-registry validation, ci-contract validation, release-readiness validation,
+   and the relevant smoke scenario.
 5. Publish migration or remediation notes before resuming release work.
 
 ## Validation
 
 - Required validation names: docs, package-surface, artifact-safety, validation-registry,
-  release-readiness, smoke, check.
+  ci-contract, release-readiness, smoke, check.
 - Release blocker status: public release is blocked when recovery cannot be proven from tracked
   source and documented validation.
 - Remaining operational risk: no automated package deprecation, advisory publication, or artifact

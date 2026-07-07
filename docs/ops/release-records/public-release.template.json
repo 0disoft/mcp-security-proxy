@@ -24,6 +24,7 @@
     "secret-scan": "UNRECORDED",
     "artifact-safety": "UNRECORDED",
     "validation-registry": "UNRECORDED",
+    "ci-contract": "UNRECORDED",
     "compatibility": "UNRECORDED",
     "license-report": "UNRECORDED",
     "release-readiness": "UNRECORDED",

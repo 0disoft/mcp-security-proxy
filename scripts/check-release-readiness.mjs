@@ -10,6 +10,7 @@ const requiredValidations = [
   "secret-scan",
   "artifact-safety",
   "validation-registry",
+  "ci-contract",
   "compatibility",
   "license-report",
   "release-readiness",

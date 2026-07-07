@@ -21,6 +21,7 @@ This document owns stable validation names for this scaffold.
 - secret-scan
 - artifact-safety
 - validation-registry
+- ci-contract
 - compatibility
 - license-report
 - release-readiness

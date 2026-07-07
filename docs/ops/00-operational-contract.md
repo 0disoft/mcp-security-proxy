@@ -43,7 +43,7 @@ Current critical journeys:
 ## Validation
 
 - Required validation names: docs, package-surface, secret-scan, artifact-safety,
-  validation-registry, contract, test, smoke, check.
+  validation-registry, ci-contract, contract, test, smoke, check.
 - Release blocker status: public release is blocked when local `check`, audit redaction, stdout
   separation, or package-surface validation fails.
 - Remaining operational risk: no hosted health endpoint, metrics, dashboards, or alerting exists;
