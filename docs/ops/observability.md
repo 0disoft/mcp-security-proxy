@@ -30,7 +30,8 @@ Cover logs, metrics, traces, dashboards, alerts, health checks, sampling, retent
   evidence.
 - Audit JSONL can be shipped by external log collectors, but this repository does not own a SIEM
   integration.
-- Audit retention is operator-owned until a later operations ADR defines defaults.
+- Audit retention, backup, deletion, and sharing are operator-owned in the current local stdio
+  architecture.
 
 ## Release Observability Gate
 
@@ -45,6 +46,7 @@ Before public release, validation evidence must include:
 ## Validation
 
 - Required validation names: docs, smoke, check.
-- Release blocker status: blocked for public release until audit retention ownership is documented.
+- Release blocker status: public release is blocked if audit retention ownership is omitted or
+  described as repository-managed storage.
 - Remaining operational risk: no metrics, traces, dashboards, alerts, or built-in health endpoint
   exist yet; this is acceptable for local stdio MVP but not for hosted or HTTP transports.
