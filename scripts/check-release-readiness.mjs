@@ -9,6 +9,7 @@ const requiredValidations = [
   "package-surface",
   "secret-scan",
   "artifact-safety",
+  "repository-hygiene",
   "validation-registry",
   "ci-contract",
   "compatibility",

@@ -30,7 +30,8 @@ Status: Draft
 
 ## Validation
 
-- Required validation names: docs, secret-scan, artifact-safety, smoke, check when commands exist.
+- Required validation names: docs, secret-scan, artifact-safety, repository-hygiene, smoke, check
+  when commands exist.
 - Release blocker status: any tracked secret or raw audit leak blocks release.
 - Remaining operational risk: secret scanning covers tracked text files and common token shapes; it
   is not a replacement for provider-side token revocation or full artifact scanning.
