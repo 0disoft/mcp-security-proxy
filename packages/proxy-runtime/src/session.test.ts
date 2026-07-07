@@ -253,6 +253,137 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("removes upstream JSON-RPC error data before forwarding", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "error-with-data",
+        error: {
+          code: -32000,
+          message: "upstream failure",
+          data: {
+            marker: "RAW_ERROR_DATA_MARKER",
+            path: "workspace/private/secret.txt"
+          }
+        }
+      })
+    );
+
+    const forwarded = JSON.parse(result.forwardLine ?? "{}") as {
+      readonly error?: { readonly code?: number; readonly message?: string; readonly data?: unknown };
+    };
+    expect(forwarded).toMatchObject({
+      jsonrpc: "2.0",
+      id: "error-with-data",
+      error: {
+        code: -32000,
+        message: "upstream failure"
+      }
+    });
+    expect(forwarded.error?.data).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_ERROR_DATA_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("workspace/private/secret.txt");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ reason: "upstream JSON-RPC error data removed before forwarding" }]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_error_data: 1
+        }
+      }
+    });
+  });
+
+  it("removes error data from failed tool discovery responses and clears visible tools", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-error",
+        method: "tools/list"
+      })
+    );
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-error",
+        error: {
+          code: -32001,
+          message: "tool discovery failed",
+          data: {
+            marker: "RAW_DISCOVERY_ERROR_DATA_MARKER"
+          }
+        }
+      })
+    );
+
+    const forwarded = JSON.parse(result.forwardLine ?? "{}") as {
+      readonly error?: { readonly code?: number; readonly message?: string; readonly data?: unknown };
+    };
+    expect(forwarded).toMatchObject({
+      id: "tools-error",
+      error: {
+        code: -32001,
+        message: "tool discovery failed"
+      }
+    });
+    expect(forwarded.error?.data).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_DISCOVERY_ERROR_DATA_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_error_data: 1
+        }
+      }
+    });
+
+    const call = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-after-discovery-error",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+
+    expect(call.forwardLine).toBeUndefined();
+    expect(JSON.parse(call.responseLine ?? "{}")).toMatchObject({
+      id: "call-after-discovery-error",
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "tool was not visible in filtered discovery" }]
+          }
+        }
+      }
+    });
+  });
+
   it("rejects client requests that include response fields", () => {
     const session = createProxySession({
       policy: readPolicy(),

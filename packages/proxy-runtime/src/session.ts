@@ -125,15 +125,29 @@ export class ProxySession {
       };
     }
 
-    const requestMethod = this.takePendingMethod(envelope);
+    const sanitized = stripUpstreamErrorData(envelope);
+    const sanitizeAuditEvents = sanitized.redacted
+      ? [
+          this.createAudit(
+            "error",
+            denyDecision("upstream JSON-RPC error data removed before forwarding"),
+            undefined,
+            undefined,
+            { applied: true, counts: { jsonrpc_error_data: 1 } }
+          )
+        ]
+      : [];
+    const responseLine = sanitized.redacted ? JSON.stringify(sanitized.envelope) : line;
+
+    const requestMethod = this.takePendingMethod(sanitized.envelope);
     if (requestMethod !== "tools/list") {
       return {
-        forwardLine: line,
-        auditEvents: []
+        forwardLine: responseLine,
+        auditEvents: sanitizeAuditEvents
       };
     }
 
-    const result = filterToolListResult(envelope, this.options.policy, this.options.profileId);
+    const result = filterToolListResult(sanitized.envelope, this.options.policy, this.options.profileId);
     this.visibleTools.clear();
     for (const tool of result.visibleTools) {
       this.visibleTools.set(tool.name, tool);
@@ -143,8 +157,11 @@ export class ProxySession {
       forwardLine: JSON.stringify(result.envelope),
       auditEvents:
         result.filteredCount > 0
-          ? [this.createAudit("discovery-filtered", denyDecision(`${result.filteredCount} tool(s) hidden by discovery policy`))]
-          : []
+          ? [
+              ...sanitizeAuditEvents,
+              this.createAudit("discovery-filtered", denyDecision(`${result.filteredCount} tool(s) hidden by discovery policy`))
+            ]
+          : sanitizeAuditEvents
     };
   }
 
@@ -178,12 +195,18 @@ export class ProxySession {
     };
   }
 
-  private createAudit(kind: AuditEvent["kind"], decision: PolicyDecision, toolName?: string, method?: string): AuditEvent {
+  private createAudit(
+    kind: AuditEvent["kind"],
+    decision: PolicyDecision,
+    toolName?: string,
+    method?: string,
+    redaction: RedactionSummary = noRedaction()
+  ): AuditEvent {
     return createAuditEvent({
       kind,
       profileId: this.options.profileId,
       decision,
-      redaction: noRedaction(),
+      redaction,
       ...(toolName ? { toolName } : {}),
       ...(method ? { method } : {})
     });
@@ -239,6 +262,21 @@ function isJsonRpcId(value: unknown): value is string | number | null {
 
 function isJsonRpcErrorObject(value: unknown): boolean {
   return isRecord(value) && typeof value["code"] === "number" && typeof value["message"] === "string";
+}
+
+function stripUpstreamErrorData(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redacted: boolean } {
+  if (!isRecord(envelope.error) || !("data" in envelope.error)) {
+    return { envelope, redacted: false };
+  }
+
+  const errorWithoutData = Object.fromEntries(Object.entries(envelope.error).filter(([key]) => key !== "data"));
+  return {
+    envelope: {
+      ...envelope,
+      error: errorWithoutData
+    },
+    redacted: true
+  };
 }
 
 function readToolCallName(envelope: JsonRpcEnvelope): string {

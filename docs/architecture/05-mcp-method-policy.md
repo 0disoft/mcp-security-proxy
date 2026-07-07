@@ -60,6 +60,9 @@ only JSON-RPC 2.0 objects whose `id`, when present, is a string, number, or `nul
 `error`. Response envelopes must include an `id` and exactly one of `result` or `error`; an `error`
 member must be an object with numeric `code` and string `message` fields. Invalid client messages
 return `-32600`; invalid upstream server messages are dropped with a redacted audit event.
+Valid upstream error responses are forwarded with `code` and `message`, but any upstream
+`error.data` member is removed before forwarding and recorded as a redaction event. Proxy-generated
+errors may include the proxy's own redacted decision data.
 
 ## Discovery Policy
 
