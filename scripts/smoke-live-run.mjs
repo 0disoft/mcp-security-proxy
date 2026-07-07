@@ -644,7 +644,8 @@ try {
       process.execPath,
       "scripts/fixture-mcp-server.mjs",
       "--require-initialized",
-      "--reject-request-extra-fields"
+      "--reject-request-extra-fields",
+      "--response-extra-fields"
     ],
     {
       cwd: repoRoot,
@@ -748,8 +749,12 @@ try {
     throw new Error(`unexpected denied call response: ${JSON.stringify(deniedResult)}`);
   }
   const outputText = outputLines.map((line) => JSON.stringify(line)).join("\n");
-  if (outputText.includes("RAW_CLIENT_REQUEST_EXTRA_FIELD_MARKER") || outputText.includes("RAW_REQUEST_EXTRA_FIELD_MARKER")) {
-    throw new Error("client request extra field marker leaked into MCP output");
+  if (
+    outputText.includes("RAW_CLIENT_REQUEST_EXTRA_FIELD_MARKER") ||
+    outputText.includes("RAW_REQUEST_EXTRA_FIELD_MARKER") ||
+    outputText.includes("RAW_RESPONSE_EXTRA_FIELD_MARKER")
+  ) {
+    throw new Error("JSON-RPC envelope extra field marker leaked into MCP output");
   }
 
   const auditLines = readFileSync(auditLog, "utf8")
@@ -762,11 +767,18 @@ try {
   if (auditText.includes("RAW_STDERR_MARKER")) {
     throw new Error("raw upstream stderr leaked into audit log");
   }
-  if (auditText.includes("RAW_CLIENT_REQUEST_EXTRA_FIELD_MARKER") || auditText.includes("RAW_REQUEST_EXTRA_FIELD_MARKER")) {
-    throw new Error("client request extra field marker leaked into audit log");
+  if (
+    auditText.includes("RAW_CLIENT_REQUEST_EXTRA_FIELD_MARKER") ||
+    auditText.includes("RAW_REQUEST_EXTRA_FIELD_MARKER") ||
+    auditText.includes("RAW_RESPONSE_EXTRA_FIELD_MARKER")
+  ) {
+    throw new Error("JSON-RPC envelope extra field marker leaked into audit log");
   }
   if (!auditText.includes('"stderr_line":2')) {
     throw new Error(`expected redacted stderr summary audit event, got ${auditText}`);
+  }
+  if (!auditText.includes('"jsonrpc_response_extra_fields":1')) {
+    throw new Error(`expected response extra-field redaction audit events, got ${auditText}`);
   }
 
   const upstreamErrorChild = spawn(

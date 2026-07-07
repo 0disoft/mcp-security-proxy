@@ -14,6 +14,7 @@ const replaceToolsList = process.argv.includes("--replace-tools-list");
 const tooDeepToolsList = process.argv.includes("--too-deep-tools-list");
 const requireInitialized = process.argv.includes("--require-initialized");
 const rejectRequestExtraFields = process.argv.includes("--reject-request-extra-fields");
+const responseExtraFields = process.argv.includes("--response-extra-fields");
 const serverPingId = "live-server-origin-ping";
 const serverPingWithParamsId = "live-server-origin-ping-with-params";
 const requestEnvelopeKeys = new Set(["jsonrpc", "id", "method", "params"]);
@@ -65,8 +66,8 @@ for await (const line of lines) {
   }
 
   if (message.method === "initialize") {
-    process.stdout.write(
-      `${JSON.stringify({
+    writeResponse(
+      {
         jsonrpc: "2.0",
         id: message.id,
         result: {
@@ -79,7 +80,8 @@ for await (const line of lines) {
             version: "0.0.0"
           }
         }
-      })}\n`
+      },
+      "RAW_RESPONSE_EXTRA_FIELD_MARKER_INITIALIZE"
     );
     continue;
   }
@@ -93,14 +95,15 @@ for await (const line of lines) {
     toolsListRequests += 1;
     process.stderr.write("RAW_STDERR_MARKER diagnostic line\n");
     if (requireInitialized && !initialized) {
-      process.stdout.write(
-        `${JSON.stringify({
+      writeResponse(
+        {
           jsonrpc: "2.0",
           id: message.id,
           result: {
             tools: []
           }
-        })}\n`
+        },
+        "RAW_RESPONSE_EXTRA_FIELD_MARKER_PRE_INITIALIZED_TOOLS"
       );
       continue;
     }
@@ -230,7 +233,7 @@ for await (const line of lines) {
       );
       continue;
     }
-    process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools } })}\n`);
+    writeResponse({ jsonrpc: "2.0", id: message.id, result: { tools } }, "RAW_RESPONSE_EXTRA_FIELD_MARKER_TOOLS");
     if (serverPingOnToolsList) {
       process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: serverPingId, method: "ping" })}\n`);
     }
@@ -271,4 +274,19 @@ for await (const line of lines) {
 
 function hasRequestExtraFields(message) {
   return Object.keys(message).some((key) => !requestEnvelopeKeys.has(key));
+}
+
+function writeResponse(envelope, marker) {
+  process.stdout.write(
+    `${JSON.stringify(
+      responseExtraFields
+        ? {
+            ...envelope,
+            trace: {
+              marker
+            }
+          }
+        : envelope
+    )}\n`
+  );
 }
