@@ -274,7 +274,48 @@ function checkCliCommandShape(id, kind, command) {
     failures.push(`${id}: CLI evidence kind ${kind} must run ${expectedCommand}`);
     return false;
   }
+  checkCliCommandPathArguments(id, expectedCommand, command);
   return true;
+}
+
+function checkCliCommandPathArguments(id, expectedCommand, command) {
+  const values = cliOptionValues(command);
+  const requiredOptionsByCommand = new Map([
+    ["check-policy", ["--policy"]],
+    ["inspect-tools", ["--policy", "--input"]],
+    ["eval-call", ["--policy", "--input"]]
+  ]);
+  for (const option of requiredOptionsByCommand.get(expectedCommand) ?? []) {
+    if (!values.has(option)) {
+      failures.push(`${id}: CLI evidence command must include ${option}`);
+    }
+  }
+
+  for (const option of ["--policy", "--input"]) {
+    const value = values.get(option);
+    if (value === undefined) {
+      continue;
+    }
+    checkEvidenceReference(id, `command ${option}`, value);
+  }
+}
+
+function cliOptionValues(command) {
+  const values = new Map();
+  for (let index = 3; index < command.length; index += 1) {
+    const arg = command[index];
+    if (arg !== "--policy" && arg !== "--input") {
+      continue;
+    }
+    const value = command[index + 1];
+    if (typeof value === "string" && !value.startsWith("--")) {
+      values.set(arg, value);
+      index += 1;
+    } else {
+      values.set(arg, undefined);
+    }
+  }
+  return values;
 }
 
 function checkRuntimeCommandShape(id, kind, command) {
@@ -574,6 +615,41 @@ async function checkCompatibilityEvidenceValidator() {
   });
   if (!invalidCliCommandFailures.some((item) => item.includes("must invoke node packages/cli/dist/main.js"))) {
     failures.push(`compatibility self-test invalid CLI command was not rejected: ${invalidCliCommandFailures.join("; ")}`);
+  }
+
+  const missingCliInputFailures = collectCompatibilityFailures(() => {
+    checkCliCommandShape("<compatibility-self-test-missing-cli-input>", "cli.json.eval-call", [
+      "node",
+      "packages/cli/dist/main.js",
+      "eval-call",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--json"
+    ]);
+  });
+  if (!missingCliInputFailures.some((item) => item.includes("CLI evidence command must include --input"))) {
+    failures.push(`compatibility self-test missing CLI input was not rejected: ${missingCliInputFailures.join("; ")}`);
+  }
+
+  const unsafeCliCommandPathFailures = collectCompatibilityFailures(() => {
+    checkCliCommandShape("<compatibility-self-test-unsafe-cli-command-path>", "cli.json.eval-call", [
+      "node",
+      "packages/cli/dist/main.js",
+      "eval-call",
+      "--policy",
+      "../fixtures/policies/local-dev.json",
+      "--input",
+      "fixtures/mcp/local-only-call.json",
+      "--json"
+    ]);
+  });
+  if (
+    !unsafeCliCommandPathFailures.some((item) => item.includes("evidence command --policy must be a safe repo-relative POSIX path")) ||
+    !unsafeCliCommandPathFailures.some((item) => item.includes("evidence command --input must reference a tracked file"))
+  ) {
+    failures.push(
+      `compatibility self-test unsafe CLI command path was not rejected: ${unsafeCliCommandPathFailures.join("; ")}`
+    );
   }
 
   const mismatchedCliKindFailures = collectCompatibilityFailures(() => {

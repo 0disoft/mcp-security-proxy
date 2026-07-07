@@ -63,9 +63,9 @@ The current evidence registry is `fixtures/compatibility/manifest.json`. Its `ta
 CLI, library, and runtime session fixtures against the current implementation, and runs registered
 runtime smoke evidence commands. Decision fixtures and audit-event fixtures must include stable
 machine-readable decision evidence `code` values; the compatibility check rejects fixture evidence
-that relies only on human-readable `reason` text. Manifest `path`, `policy`, and `call` references
-must be safe repository-relative tracked files so local-only fixtures cannot satisfy compatibility
-evidence.
+that relies only on human-readable `reason` text. Manifest `path`, `policy`, and `call` references,
+plus CLI evidence command `--policy` and `--input` paths, must be safe repository-relative tracked
+files so local-only fixtures cannot satisfy compatibility evidence.
 Approval-required library fixtures may explicitly record `approvalHookAvailable` in the manifest so
 hook-present and hook-missing decisions are both checked.
 
