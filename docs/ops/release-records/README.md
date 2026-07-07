@@ -11,8 +11,8 @@ versioned as `0.0.0`. Proposed or blocked records do not unlock public package p
 approved release record may do that. Proposed or blocked records may name a future release version,
 but package manifests must remain at `0.0.0` until approval. Approved records must not use
 `0.0.0` as the release version. If `targetCommit` is recorded, it must be a full 40-character Git
-commit SHA. Approved records must record `targetCommit`, and that value must match the current
-repository HEAD being validated for release.
+commit SHA. Approved records must record `targetCommit`, and that value must be reachable from the
+current repository HEAD so historical approved records remain verifiable after later commits.
 
 Release records must include validation evidence for: `docs`, `schema-contract`,
 `migration-check`, `package-surface`, `secret-scan`, `artifact-safety`, `repository-hygiene`,

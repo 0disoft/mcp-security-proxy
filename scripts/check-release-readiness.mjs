@@ -239,8 +239,8 @@ function checkTargetCommit(path, record) {
     failures.push(`${path}: targetCommit must be a full 40-character Git commit SHA`);
     return;
   }
-  if (record.status === "approved" && record.targetCommit !== currentHead) {
-    failures.push(`${path}: targetCommit must match current HEAD for approved releases`);
+  if (record.status === "approved" && !isReachableCommit(record.targetCommit)) {
+    failures.push(`${path}: targetCommit must be reachable from current HEAD for approved releases`);
   }
 }
 
@@ -412,13 +412,13 @@ function checkReleaseRecordValidator() {
     failures.push(`release-readiness self-test invalid targetCommit was not rejected: ${invalidTargetCommitFailures.join("; ")}`);
   }
 
-  const approvedStaleTargetCommitFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-stale-target-commit>", {
+  const approvedUnreachableTargetCommitFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-unreachable-target-commit>", {
     ...validApprovedShapeRecord,
     targetCommit: "0000000000000000000000000000000000000000"
   });
-  if (!approvedStaleTargetCommitFailures.some((item) => item.includes("targetCommit must match current HEAD"))) {
+  if (!approvedUnreachableTargetCommitFailures.some((item) => item.includes("targetCommit must be reachable from current HEAD"))) {
     failures.push(
-      `release-readiness self-test approved stale targetCommit was not rejected: ${approvedStaleTargetCommitFailures.join("; ")}`
+      `release-readiness self-test approved unreachable targetCommit was not rejected: ${approvedUnreachableTargetCommitFailures.join("; ")}`
     );
   }
 
@@ -755,6 +755,19 @@ function isReleaseScopeEvidencePath(value) {
 
 function isFullCommitSha(value) {
   return typeof value === "string" && /^[a-f0-9]{40}$/i.test(value);
+}
+
+function isReachableCommit(value) {
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", value, currentHead], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "ignore", "ignore"]
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function escapeRegExp(value) {

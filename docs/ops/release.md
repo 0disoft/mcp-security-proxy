@@ -61,7 +61,8 @@ only allows release-version public package posture for `packages/*` entries name
 release record. Approved release records must include the executed validation command and `exit 0`
 for every required validation evidence value. Approved release records must also use a tracked
 `docs/ops` rollback procedure and a last-known-good version that is different from the release
-version being approved.
+version being approved. The approved target commit must be reachable from the current repository
+HEAD so the release record remains verifiable after later commits.
 
 ## Release Blockers
 
