@@ -12,6 +12,7 @@ const auditWarnPath = join(tempDir, "audit-warn-directory");
 const malformedDiscoveryAuditLog = join(tempDir, "malformed-discovery-audit.jsonl");
 const noisyDiscoveryAuditLog = join(tempDir, "noisy-discovery-audit.jsonl");
 const duplicateDiscoveryAuditLog = join(tempDir, "duplicate-discovery-audit.jsonl");
+const replacedDiscoveryAuditLog = join(tempDir, "replaced-discovery-audit.jsonl");
 const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
@@ -403,6 +404,109 @@ try {
   }
   if (!duplicateDiscoveryAudit.includes('"code":"discovery.filtered"')) {
     throw new Error(`expected duplicate discovery filtered audit event, got ${duplicateDiscoveryAudit}`);
+  }
+
+  const replacedDiscoveryChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      replacedDiscoveryAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--replace-tools-list"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const replacedDiscoveryStdoutChunks = [];
+  const replacedDiscoveryStderrChunks = [];
+  const replacedDiscoveryOutputLines = [];
+  replacedDiscoveryChild.stdout.on("data", (chunk) => replacedDiscoveryStdoutChunks.push(chunk));
+  replacedDiscoveryChild.stderr.on("data", (chunk) => replacedDiscoveryStderrChunks.push(chunk));
+  const waitForInitialReplacementTools = waitForJsonLine(replacedDiscoveryChild.stdout, (line) => {
+    replacedDiscoveryOutputLines.push(line);
+    return line.id === "replace-tools-initial";
+  });
+  replacedDiscoveryChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "replace-tools-initial", method: "tools/list" })}\n`);
+  await waitForInitialReplacementTools;
+  const waitForRefreshedReplacementTools = waitForJsonLine(replacedDiscoveryChild.stdout, (line) => {
+    replacedDiscoveryOutputLines.push(line);
+    return line.id === "replace-tools-refreshed";
+  });
+  replacedDiscoveryChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "replace-tools-refreshed", method: "tools/list" })}\n`);
+  await waitForRefreshedReplacementTools;
+  replacedDiscoveryChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "replace-call-after-hidden",
+      method: "tools/call",
+      params: {
+        name: "read_file",
+        arguments: {
+          path: "workspace/public/readme.md"
+        }
+      }
+    })}\n`
+  );
+  replacedDiscoveryChild.stdin.end();
+  const replacedDiscoveryExitCode = await new Promise((resolve, reject) => {
+    replacedDiscoveryChild.once("error", reject);
+    replacedDiscoveryChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (replacedDiscoveryExitCode !== 0) {
+    throw new Error(
+      `expected replaced discovery live run smoke to exit 0, got ${replacedDiscoveryExitCode}: ${Buffer.concat(replacedDiscoveryStderrChunks).toString("utf8")}`
+    );
+  }
+  for (const line of Buffer.concat(replacedDiscoveryStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line))) {
+    if (!replacedDiscoveryOutputLines.some((item) => item.id === line.id)) {
+      replacedDiscoveryOutputLines.push(line);
+    }
+  }
+  const initialReplacementToolsResult = replacedDiscoveryOutputLines.find((line) => line.id === "replace-tools-initial");
+  const refreshedReplacementToolsResult = replacedDiscoveryOutputLines.find((line) => line.id === "replace-tools-refreshed");
+  const replacedDiscoveryCallResult = replacedDiscoveryOutputLines.find((line) => line.id === "replace-call-after-hidden");
+  if (
+    !initialReplacementToolsResult ||
+    initialReplacementToolsResult.result.tools.length !== 1 ||
+    initialReplacementToolsResult.result.tools[0].name !== "read_file"
+  ) {
+    throw new Error(`unexpected initial replacement discovery response: ${JSON.stringify(initialReplacementToolsResult)}`);
+  }
+  if (!refreshedReplacementToolsResult || refreshedReplacementToolsResult.result.tools.length !== 0) {
+    throw new Error(`unexpected refreshed replacement discovery response: ${JSON.stringify(refreshedReplacementToolsResult)}`);
+  }
+  if (
+    !replacedDiscoveryCallResult?.error?.data?.decision ||
+    replacedDiscoveryCallResult.error.data.decision.action !== "deny" ||
+    !JSON.stringify(replacedDiscoveryCallResult.error.data.decision.evidence).includes("tool was not visible in filtered discovery")
+  ) {
+    throw new Error(`expected replaced discovery to deny stale visible tool call: ${JSON.stringify(replacedDiscoveryCallResult)}`);
+  }
+  const replacedDiscoveryOutputText = replacedDiscoveryOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (replacedDiscoveryOutputText.includes("RAW_REPLACED_DISCOVERY_HIDDEN_TOOL_MARKER")) {
+    throw new Error("raw replaced discovery marker leaked into client output");
+  }
+  const replacedDiscoveryAudit = readFileSync(replacedDiscoveryAuditLog, "utf8");
+  if (replacedDiscoveryAudit.includes("RAW_REPLACED_DISCOVERY_HIDDEN_TOOL_MARKER") || replacedDiscoveryAudit.includes("RAW_STDERR_MARKER")) {
+    throw new Error("raw replaced discovery or stderr marker leaked into audit log");
+  }
+  if (!replacedDiscoveryAudit.includes('"code":"discovery.filtered"') || !replacedDiscoveryAudit.includes('"code":"tool.not_visible"')) {
+    throw new Error(`expected replaced discovery filter and deny audit events, got ${replacedDiscoveryAudit}`);
   }
 
   const child = spawn(

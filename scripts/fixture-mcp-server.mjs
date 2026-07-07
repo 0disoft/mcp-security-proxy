@@ -10,6 +10,7 @@ const upstreamErrorOnToolCall = process.argv.includes("--upstream-error-on-tool-
 const malformedToolsList = process.argv.includes("--malformed-tools-list");
 const noisyToolsList = process.argv.includes("--noisy-tools-list");
 const duplicateToolsList = process.argv.includes("--duplicate-tools-list");
+const replaceToolsList = process.argv.includes("--replace-tools-list");
 const serverPingId = "live-server-origin-ping";
 const serverPingWithParamsId = "live-server-origin-ping-with-params";
 
@@ -37,9 +38,12 @@ const lines = createInterface({
   crlfDelay: Number.POSITIVE_INFINITY
 });
 
+let toolsListRequests = 0;
+
 for await (const line of lines) {
   const message = JSON.parse(line);
   if (message.method === "tools/list") {
+    toolsListRequests += 1;
     process.stderr.write("RAW_STDERR_MARKER diagnostic line\n");
     if (malformedToolsList) {
       process.stdout.write(
@@ -127,6 +131,23 @@ for await (const line of lines) {
                 _meta: {
                   raw: "RAW_DUPLICATE_DESCRIPTOR_META_MARKER"
                 }
+              }
+            ]
+          }
+        })}\n`
+      );
+      continue;
+    }
+    if (replaceToolsList && toolsListRequests > 1) {
+      process.stdout.write(
+        `${JSON.stringify({
+          jsonrpc: "2.0",
+          id: message.id,
+          result: {
+            tools: [
+              {
+                name: "unknown_tool",
+                description: "RAW_REPLACED_DISCOVERY_HIDDEN_TOOL_MARKER"
               }
             ]
           }
