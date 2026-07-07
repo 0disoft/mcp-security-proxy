@@ -656,6 +656,18 @@ try {
   child.stdout.on("data", (chunk) => stdoutChunks.push(chunk));
   child.stderr.on("data", (chunk) => stderrChunks.push(chunk));
 
+  child.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "initialize",
+      method: "initialize",
+      params: {
+        clientInfo: {
+          name: "smoke"
+        }
+      }
+    })}\n`
+  );
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "tools", method: "tools/list" })}\n`);
   child.stdin.write(
     `${JSON.stringify({
@@ -687,8 +699,16 @@ try {
     .filter((line) => line.length > 0)
     .map((line) => JSON.parse(line));
 
+  const initializeResult = outputLines.find((line) => line.id === "initialize");
   const toolsResult = outputLines.find((line) => line.id === "tools");
   const deniedResult = outputLines.find((line) => line.id === "denied");
+  if (
+    !initializeResult ||
+    initializeResult.result?.protocolVersion !== "fixture-protocol-version" ||
+    initializeResult.result?.serverInfo?.name !== "fixture-mcp-server"
+  ) {
+    throw new Error(`unexpected initialize response: ${JSON.stringify(initializeResult)}`);
+  }
   if (!toolsResult || toolsResult.result.tools.length !== 1 || toolsResult.result.tools[0].name !== "read_file") {
     throw new Error(`unexpected filtered tools response: ${JSON.stringify(toolsResult)}`);
   }

@@ -43,6 +43,26 @@ let toolsListRequests = 0;
 
 for await (const line of lines) {
   const message = JSON.parse(line);
+  if (message.method === "initialize") {
+    process.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: message.id,
+        result: {
+          protocolVersion: "fixture-protocol-version",
+          capabilities: {
+            tools: {}
+          },
+          serverInfo: {
+            name: "fixture-mcp-server",
+            version: "0.0.0"
+          }
+        }
+      })}\n`
+    );
+    continue;
+  }
+
   if (message.method === "tools/list") {
     toolsListRequests += 1;
     process.stderr.write("RAW_STDERR_MARKER diagnostic line\n");
