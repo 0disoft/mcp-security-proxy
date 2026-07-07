@@ -9,6 +9,7 @@ const auditLog = join(tempDir, "audit.jsonl");
 const auditFailurePath = join(tempDir, "audit-directory");
 const auditWarnPolicyPath = join(tempDir, "audit-warn-and-continue-policy.json");
 const auditWarnPath = join(tempDir, "audit-warn-directory");
+const malformedDiscoveryAuditLog = join(tempDir, "malformed-discovery-audit.jsonl");
 const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
@@ -154,6 +155,71 @@ try {
   const auditWarnOutputText = auditWarnOutputLines.map((line) => JSON.stringify(line)).join("\n");
   if (auditWarnOutputText.includes("workspace/private/secret.txt")) {
     throw new Error("raw denied path leaked into audit warn-and-continue MCP output");
+  }
+
+  const malformedDiscoveryChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      malformedDiscoveryAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--malformed-tools-list"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const malformedDiscoveryStdoutChunks = [];
+  const malformedDiscoveryStderrChunks = [];
+  malformedDiscoveryChild.stdout.on("data", (chunk) => malformedDiscoveryStdoutChunks.push(chunk));
+  malformedDiscoveryChild.stderr.on("data", (chunk) => malformedDiscoveryStderrChunks.push(chunk));
+  malformedDiscoveryChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "malformed-tools", method: "tools/list" })}\n`);
+  malformedDiscoveryChild.stdin.end();
+  const malformedDiscoveryExitCode = await new Promise((resolve, reject) => {
+    malformedDiscoveryChild.once("error", reject);
+    malformedDiscoveryChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (malformedDiscoveryExitCode !== 0) {
+    throw new Error(
+      `expected malformed discovery live run smoke to exit 0, got ${malformedDiscoveryExitCode}: ${Buffer.concat(malformedDiscoveryStderrChunks).toString("utf8")}`
+    );
+  }
+  const malformedDiscoveryOutputLines = Buffer.concat(malformedDiscoveryStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
+  const malformedDiscoveryToolsResult = malformedDiscoveryOutputLines.find((line) => line.id === "malformed-tools");
+  if (!malformedDiscoveryToolsResult || !Array.isArray(malformedDiscoveryToolsResult.result?.tools) || malformedDiscoveryToolsResult.result.tools.length !== 0) {
+    throw new Error(`unexpected malformed discovery sanitized response: ${JSON.stringify(malformedDiscoveryToolsResult)}`);
+  }
+  const malformedDiscoveryOutputText = malformedDiscoveryOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (
+    malformedDiscoveryOutputText.includes("RAW_MALFORMED_DISCOVERY_MARKER") ||
+    malformedDiscoveryOutputText.includes("RAW_MALFORMED_DISCOVERY_DEBUG_MARKER")
+  ) {
+    throw new Error("raw malformed discovery marker leaked into client output");
+  }
+  const malformedDiscoveryAudit = readFileSync(malformedDiscoveryAuditLog, "utf8");
+  if (
+    malformedDiscoveryAudit.includes("RAW_MALFORMED_DISCOVERY_MARKER") ||
+    malformedDiscoveryAudit.includes("RAW_MALFORMED_DISCOVERY_DEBUG_MARKER") ||
+    malformedDiscoveryAudit.includes("RAW_STDERR_MARKER")
+  ) {
+    throw new Error("raw malformed discovery or stderr marker leaked into audit log");
+  }
+  if (!malformedDiscoveryAudit.includes('"code":"discovery.filtered"')) {
+    throw new Error(`expected malformed discovery filtered audit event, got ${malformedDiscoveryAudit}`);
   }
 
   const child = spawn(

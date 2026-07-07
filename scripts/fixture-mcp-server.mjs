@@ -7,6 +7,7 @@ if (process.argv.includes("--exit-nonzero")) {
 const serverPingOnToolsList = process.argv.includes("--server-ping-on-tools-list");
 const serverPingWithParamsOnToolsList = process.argv.includes("--server-ping-with-params-on-tools-list");
 const upstreamErrorOnToolCall = process.argv.includes("--upstream-error-on-tool-call");
+const malformedToolsList = process.argv.includes("--malformed-tools-list");
 const serverPingId = "live-server-origin-ping";
 const serverPingWithParamsId = "live-server-origin-ping-with-params";
 
@@ -38,6 +39,21 @@ for await (const line of lines) {
   const message = JSON.parse(line);
   if (message.method === "tools/list") {
     process.stderr.write("RAW_STDERR_MARKER diagnostic line\n");
+    if (malformedToolsList) {
+      process.stdout.write(
+        `${JSON.stringify({
+          jsonrpc: "2.0",
+          id: message.id,
+          result: {
+            tools: "RAW_MALFORMED_DISCOVERY_MARKER",
+            debug: {
+              raw: "RAW_MALFORMED_DISCOVERY_DEBUG_MARKER"
+            }
+          }
+        })}\n`
+      );
+      continue;
+    }
     process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools } })}\n`);
     if (serverPingOnToolsList) {
       process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: serverPingId, method: "ping" })}\n`);
