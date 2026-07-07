@@ -196,11 +196,24 @@ function checkArtifactSafetyValidator() {
     failures.push(`artifact-safety self-test valid release record failed: ${validRecordFailures.join("; ")}`);
   }
 
-  const forbiddenTextFailures = collectArtifactSafetyFailures(() => {
-    checkTextContentMarkers('{"rawPrompt":"synthetic self-test marker"}', "<artifact-safety-self-test-forbidden-text>");
-  });
-  if (!forbiddenTextFailures.some((item) => item.includes("forbidden marker raw-prompt-field"))) {
-    failures.push(`artifact-safety self-test forbidden text marker was not rejected: ${forbiddenTextFailures.join("; ")}`);
+  const forbiddenTextFixtures = [
+    ["private-key-block", `BEGIN ${"PRIVATE"} KEY`],
+    ["raw-arguments-field", '{"rawArguments":"synthetic self-test marker"}'],
+    ["raw-prompt-field", '{"rawPrompt":"synthetic self-test marker"}'],
+    ["full-prompt-field", '{"fullPrompt":"synthetic self-test marker"}'],
+    ["environment-value-field", '{"environmentValue":"synthetic self-test marker"}'],
+    ["private-capture-marker", "private mcp capture"],
+    ["real-log-marker", "real user log"],
+    ["exploit-corpus-marker", "exploit corpus"],
+    ["raw-incident-evidence-marker", "raw incident evidence"]
+  ];
+  for (const [name, sample] of forbiddenTextFixtures) {
+    const forbiddenTextFailures = collectArtifactSafetyFailures(() => {
+      checkTextContentMarkers(sample, `<artifact-safety-self-test-forbidden-text-${name}>`);
+    });
+    if (!forbiddenTextFailures.some((item) => item.includes(`forbidden marker ${name}`))) {
+      failures.push(`artifact-safety self-test forbidden text marker ${name} was not rejected: ${forbiddenTextFailures.join("; ")}`);
+    }
   }
 
   const unsafeRecordFailures = collectArtifactSafetyFailures(() => {
