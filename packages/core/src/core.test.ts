@@ -9,6 +9,7 @@ import {
   validatePolicyDocument
 } from "@0disoft/mcp-security-proxy-contracts";
 import { createAuditEvent } from "./audit.js";
+import { classifyToolDescriptor } from "./classifier.js";
 import { evaluateToolCall } from "./evaluator.js";
 import { evaluateMcpMethod } from "./method-policy.js";
 import { redactText } from "./redactor.js";
@@ -129,6 +130,25 @@ describe("MCP Security Proxy core", () => {
 
     expect(decision.action).toBe("deny");
     expect(decision.evidence[0]?.reason).toBe("unknown capability denied by default");
+  });
+
+  it("classifies secret-like tool descriptors without treating api alone as a secret", () => {
+    const secretTool = classifyToolDescriptor({
+      name: "read_secret",
+      description: "Read a secret reference by label."
+    });
+    const apiCatalogTool = classifyToolDescriptor({
+      name: "list_api_catalog",
+      description: "List API endpoints for documentation."
+    });
+
+    expect(secretTool.descriptor.capabilities).toContain("secret");
+    expect(secretTool.evidence).toContainEqual({
+      capability: "secret",
+      source: "name",
+      reason: "tool text mentions secret-like material"
+    });
+    expect(apiCatalogTool.descriptor.capabilities).not.toContain("secret");
   });
 
   it("redacts secret-like text before audit event creation", () => {

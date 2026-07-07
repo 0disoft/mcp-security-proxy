@@ -52,6 +52,7 @@ export function classifyToolDescriptor(input: ToolDescriptorInput): {
 function inferCapabilities(input: ToolDescriptorInput): readonly ClassifierEvidence[] {
   const haystack = `${input.name} ${input.description ?? ""}`.toLowerCase();
   const evidence: ClassifierEvidence[] = [];
+  const secretSource = secretKeywordSource(input);
 
   if (haystack.includes("file") || haystack.includes("path")) {
     evidence.push({ capability: "file-read", source: "name", reason: "tool text mentions file or path" });
@@ -65,8 +66,26 @@ function inferCapabilities(input: ToolDescriptorInput): readonly ClassifierEvide
   if (haystack.includes("http") || haystack.includes("url") || haystack.includes("network")) {
     evidence.push({ capability: "network", source: "description", reason: "tool text mentions network access" });
   }
+  if (secretSource) {
+    evidence.push({ capability: "secret", source: secretSource, reason: "tool text mentions secret-like material" });
+  }
 
   return evidence;
+}
+
+function secretKeywordSource(input: ToolDescriptorInput): ClassifierEvidence["source"] | undefined {
+  if (containsSecretKeyword(input.name)) {
+    return "name";
+  }
+  if (input.description && containsSecretKeyword(input.description)) {
+    return "description";
+  }
+  return undefined;
+}
+
+function containsSecretKeyword(value: string): boolean {
+  const normalized = value.toLowerCase().replace(/[_-]+/gu, " ");
+  return /\b(?:secret|token|password|credentials?|api\s*key|apikey)\b/u.test(normalized);
 }
 
 function uniqueCapabilities(capabilities: readonly Capability[]): readonly Capability[] {

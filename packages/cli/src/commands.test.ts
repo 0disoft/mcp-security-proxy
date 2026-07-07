@@ -72,11 +72,16 @@ describe("dry-run CLI commands", () => {
       ok: true,
       command: "inspect-tools"
     });
-    expect(json.tools).toHaveLength(3);
+    expect(json.tools).toHaveLength(4);
     expect(json.tools[0]).toMatchObject({
       name: "read_file",
       capabilities: ["file-read"],
       policyCovered: true
+    });
+    expect(json.tools[2]).toMatchObject({
+      name: "read_secret",
+      capabilities: ["secret"],
+      policyCovered: false
     });
   });
 

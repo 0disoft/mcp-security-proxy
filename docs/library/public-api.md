@@ -49,6 +49,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Redaction summaries must count replacements without exposing original values.
 - Policy errors must be value-based and testable.
 - Tool descriptors must preserve upstream identity without inventing tools.
+- Secret-like descriptor names or descriptions may infer the `secret` capability, but the
+  classifier must not treat `api` alone as secret-bearing material.
 - Core policy exports should remain independent from filesystem, subprocess, network, and SDK IO.
 
 The current runtime-facing library surface includes a newline-delimited JSON-RPC session gate that

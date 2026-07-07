@@ -33,6 +33,20 @@
       "policyCovered": true
     },
     {
+      "name": "read_secret",
+      "capabilities": [
+        "secret"
+      ],
+      "evidence": [
+        {
+          "capability": "secret",
+          "source": "name",
+          "reason": "tool text mentions secret-like material"
+        }
+      ],
+      "policyCovered": false
+    },
+    {
       "name": "unknown_tool",
       "capabilities": [
         "unknown"
