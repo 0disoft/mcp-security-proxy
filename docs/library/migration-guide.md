@@ -47,8 +47,11 @@ No released implementation exists yet. Until the first public release, breaking 
 changes must still update the source-of-truth docs so early adopters do not build against stale
 policy, audit, CLI, or API contracts.
 
-- Current draft schema note: decision evidence may include a stable `code` field. The
+- Current draft schema versions: `msp.policy.v1`, `msp.decision.v1`, and `msp.audit-event.v1`.
+- Current draft decision note: decision evidence may include a stable `code` field. The
   `decision.v1.schema.json` asset accepts the same code values exported by the contracts package.
+- `pnpm run migration-check` verifies that current schema versions and migration-note blockers stay
+  represented here before release validation passes.
 
 ## Migration Principles
 

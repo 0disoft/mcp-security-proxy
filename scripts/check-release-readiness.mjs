@@ -6,6 +6,7 @@ const recordsDir = join(root, "docs", "ops", "release-records");
 const requiredValidations = [
   "docs",
   "schema-contract",
+  "migration-check",
   "package-surface",
   "secret-scan",
   "artifact-safety",

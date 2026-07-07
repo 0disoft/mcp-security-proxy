@@ -27,6 +27,7 @@ pnpm run check
 - contract checks for contracts and core
 - documentation contract check
 - schema contract checks
+- migration-note checks
 - package surface, tracked-file secret scans, public artifact safety checks, repository hygiene
   checks, validation registry checks, CI contract checks, compatibility evidence checks, dependency
   license report checks, release-readiness preflight checks, and performance smoke checks
@@ -48,8 +49,8 @@ version, read-only permissions, pinned actions, local check command, and diff hy
 
 ## Validation
 
-- Required validation names: typecheck, test, contract, docs, schema-contract, package-surface,
-  secret-scan, artifact-safety, repository-hygiene, validation-registry, ci-contract,
+- Required validation names: typecheck, test, contract, docs, schema-contract, migration-check,
+  package-surface, secret-scan, artifact-safety, repository-hygiene, validation-registry, ci-contract,
   compatibility, license-report, release-readiness, performance-smoke, check.
 - Release blocker status: public behavior changes are blocked when local `check` or hosted CI fails.
 - Remaining operational risk: hosted CI covers one Ubuntu runner; future OS-specific proxy behavior

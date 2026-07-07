@@ -10,9 +10,9 @@ passes, and the release record captures the exact validation evidence required b
 versioned as `0.0.0`.
 
 Release records must include validation evidence for: `docs`, `schema-contract`,
-`package-surface`, `secret-scan`, `artifact-safety`, `repository-hygiene`, `validation-registry`,
-`ci-contract`, `compatibility`, `license-report`, `release-readiness`, `performance-smoke`,
-`contract`, `test`, `smoke`, and `check`.
+`migration-check`, `package-surface`, `secret-scan`, `artifact-safety`, `repository-hygiene`,
+`validation-registry`, `ci-contract`, `compatibility`, `license-report`, `release-readiness`,
+`performance-smoke`, `contract`, `test`, `smoke`, and `check`.
 
 Use `public-release.template.json` as the starting shape. Do not put credentials, tokens, private
 audit logs, private policy files, or raw incident evidence in release records.

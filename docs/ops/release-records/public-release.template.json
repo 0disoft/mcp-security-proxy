@@ -20,6 +20,7 @@
   "validation": {
     "docs": "UNRECORDED",
     "schema-contract": "UNRECORDED",
+    "migration-check": "UNRECORDED",
     "package-surface": "UNRECORDED",
     "secret-scan": "UNRECORDED",
     "artifact-safety": "UNRECORDED",
