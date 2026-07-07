@@ -46,6 +46,9 @@ GitHub Actions runs `.github/workflows/ci.yml` on `main` pushes and pull request
 
 `pnpm run ci-contract` keeps this workflow aligned with the documented Node.js version, pnpm
 version, read-only permissions, pinned actions, local check command, and diff hygiene command.
+Tracked GitHub Actions workflows must not publish packages, create releases, request write
+permissions, request `id-token: write`, or reference registry publish tokens until release
+automation is explicitly approved.
 
 ## Validation
 

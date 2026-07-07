@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -9,6 +10,7 @@ const failures = [];
 const manifest = readJson("package.json");
 const workflow = readText(workflowPath);
 const ciDoc = readText(ciDocPath);
+const trackedWorkflowFiles = listTrackedWorkflowFiles();
 
 const packageManager = parsePackageManager(manifest.packageManager);
 const engineFloor = parseNodeEngineFloor(manifest.engines?.node);
@@ -42,11 +44,22 @@ assertPinnedAction(workflowPath, workflow, "actions/setup-node");
 assertContains(workflow, "pnpm install --frozen-lockfile", `${workflowPath}: frozen lockfile install`);
 assertContains(workflow, "pnpm run check", `${workflowPath}: repository check command`);
 assertContains(workflow, "git diff --check", `${workflowPath}: diff hygiene command`);
+assertNoPublishWorkflowSurfaces(trackedWorkflowFiles);
 
 assertContains(ciDoc, `installs Node.js ${workflowNodeVersion}`, `${ciDocPath}: documented Node.js version`);
 assertContains(ciDoc, `enables pnpm ${packageManager.version}`, `${ciDocPath}: documented pnpm version`);
 assertContains(ciDoc, "runs `pnpm run check`", `${ciDocPath}: documented check command`);
 assertContains(ciDoc, "runs `git diff --check`", `${ciDocPath}: documented diff hygiene command`);
+assertContains(
+  ciDoc,
+  "Tracked GitHub Actions workflows must not publish packages",
+  `${ciDocPath}: documented no-publish workflow guard`
+);
+assertContains(
+  ciDoc,
+  "explicitly approved",
+  `${ciDocPath}: documented release automation approval guard`
+);
 
 checkCiContractValidator();
 
@@ -139,6 +152,55 @@ function readText(path) {
   return readFileSync(join(root, path), "utf8");
 }
 
+function listTrackedWorkflowFiles() {
+  return execFileSync("git", ["ls-files", ".github/workflows"], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  })
+    .split(/\r?\n/)
+    .filter((file) => /\.(?:ya?ml)$/i.test(file));
+}
+
+function assertNoPublishWorkflowSurfaces(workflowFiles, reader = readText) {
+  for (const file of workflowFiles) {
+    const text = reader(file);
+    const checks = [
+      {
+        pattern: /\b(?:npm|pnpm)\s+publish\b|\byarn\s+npm\s+publish\b/i,
+        reason: "package publish command"
+      },
+      {
+        pattern: /\bgh\s+release\s+create\b|\b(?:softprops\/action-gh-release|actions\/create-release)@/i,
+        reason: "GitHub release creation"
+      },
+      {
+        pattern: /^\s*(?:contents|packages|actions|deployments):\s*write\s*$/im,
+        reason: "write workflow permission"
+      },
+      {
+        pattern: /^\s*id-token:\s*write\s*$/im,
+        reason: "OIDC publish permission"
+      },
+      {
+        pattern: /\b(?:NODE_AUTH_TOKEN|NPM_TOKEN|NPM_CONFIG_\/\/REGISTRY\.NPMJS\.ORG\/:_AUTHTOKEN)\b/i,
+        reason: "registry publish token"
+      },
+      {
+        pattern: /\$\{\{\s*secrets\.(?:NODE_AUTH_TOKEN|NPM_TOKEN|NPM_PUBLISH_TOKEN|NPM_CONFIG_[^}]*AUTHTOKEN)\s*}}/i,
+        reason: "registry publish secret"
+      }
+    ];
+    for (const check of checks) {
+      if (check.pattern.test(text)) {
+        failures.push(
+          `${file}: ${check.reason} is blocked until release automation and publish ownership are approved`
+        );
+      }
+    }
+  }
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -194,10 +256,39 @@ function checkCiContractValidator() {
   if (!missingActionFailures.some((item) => item.includes("missing actions/checkout step"))) {
     failures.push(`ci-contract self-test missing action was not rejected: ${missingActionFailures.join("; ")}`);
   }
+
+  const publishWorkflowFailures = collectCiContractFailures(() => {
+    const workflowFiles = ["<ci-contract-self-test-publish-workflow>.yml"];
+    assertNoPublishWorkflowSurfaces(workflowFiles, readTextForPublishWorkflowSelfTest);
+  });
+  if (
+    !publishWorkflowFailures.some((item) => item.includes("package publish command")) ||
+    !publishWorkflowFailures.some((item) => item.includes("write workflow permission")) ||
+    !publishWorkflowFailures.some((item) => item.includes("OIDC publish permission")) ||
+    !publishWorkflowFailures.some((item) => item.includes("registry publish token")) ||
+    !publishWorkflowFailures.some((item) => item.includes("GitHub release creation"))
+  ) {
+    failures.push(`ci-contract self-test publish workflow was not rejected: ${publishWorkflowFailures.join("; ")}`);
+  }
 }
 
 function collectCiContractFailures(fn) {
   const before = failures.length;
   fn();
   return failures.splice(before);
+}
+
+function readTextForPublishWorkflowSelfTest() {
+  return `
+permissions:
+  contents: write
+  id-token: write
+jobs:
+  publish:
+    steps:
+      - run: pnpm publish
+      - run: gh release create v0.1.0
+        env:
+          NODE_AUTH_TOKEN: \${{ secrets.NPM_TOKEN }}
+`;
 }
