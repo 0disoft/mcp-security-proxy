@@ -20,7 +20,7 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 - Machine-readable output contract: completion output must not expose policy contents, captured
   tool arguments, environment values, or audit payloads.
 - Config precedence and default behavior: docs/cli/configuration.md
-- Runtime compatibility floor: UNDECIDED.
+- Runtime compatibility floor: Node.js `>=24.0.0` for the current private CLI package.
 
 ## Completion Scope
 

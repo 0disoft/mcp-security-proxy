@@ -19,8 +19,10 @@ This repository type owns public API surface, package compatibility, semantic ve
   evaluation, redaction, and audit event formatting.
 - Semantic versioning policy: public types and decision semantics are semver-covered once the first
   package release is cut.
-- Runtime and platform compatibility: UNDECIDED.
-- Package artifact and export surface: must be documented before implementation release.
+- Runtime and platform compatibility: TypeScript, pnpm, and Node.js `>=24.0.0` for the current
+  private workspace packages.
+- Package artifact and export surface: private workspace package exports are documented in
+  docs/library/package-surface.md; public registry artifacts remain a release-readiness decision.
 - Deprecation and migration policy: breaking policy schema or audit schema changes require migration
   notes.
 

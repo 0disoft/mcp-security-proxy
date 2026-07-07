@@ -4,16 +4,45 @@ Status: Draft
 
 ## Operational Contract
 
-Provide a short actionable decision tree with triggers, procedure, database rollback policy, validation, owners, and forward-fix criteria.
+Rollback is currently package, commit, and local configuration rollback. There is no project-owned
+database, migration stream, hosted deployment, or remote control plane to roll back.
 
 ## Owners
 
-- Primary owner: UNASSIGNED
+- Primary owner: 0disoft
 - Backup owner: UNASSIGNED
-- Escalation path: UNDECIDED
+- Escalation path: repository issues for non-sensitive rollback defects; SECURITY.md for rollback
+  failures that expose sensitive data
+
+## Decision Tree
+
+- If a policy file causes over-broad access, stop the proxy and restore the last known-good local
+  policy file.
+- If a CLI/library release causes policy bypass, audit leakage, protocol corruption, or startup
+  failure, stop distributing that version and pin consumers to the last known-good commit or
+  package.
+- If a public fixture or doc leaks sensitive material, remove the artifact, rotate affected secrets
+  at their source, and add a regression check before redistributing.
+- If upstream MCP server behavior changes, prefer a compatibility fix or policy update over
+  broadening passthrough.
+
+## Procedure
+
+1. Stop the affected proxy process or package distribution path.
+2. Capture redacted reproduction evidence.
+3. Restore the last known-good policy file, commit, or package version.
+4. Run `pnpm run check`, `git diff --check`, and the relevant smoke scenario.
+5. Document the forward fix and any migration notes.
+
+## Database Rollback Policy
+
+No project-owned database exists. Local audit logs are append-only operator-owned evidence; do not
+rewrite them as part of rollback unless the operator is removing sensitive local data under their
+own retention policy.
 
 ## Validation
 
-- Required validation names: VALIDATION.md
-- Release blocker status: UNDECIDED
-- Remaining operational risk: UNDECIDED
+- Required validation names: docs, smoke, check.
+- Release blocker status: public release is blocked when rollback path, validation output, or
+  package pinning guidance is missing.
+- Remaining operational risk: no automated package unpublish/deprecate workflow exists yet.

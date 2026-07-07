@@ -46,12 +46,12 @@ over full raw values.
 
 ## Retention
 
-Retention defaults are implementation-specific and currently UNDECIDED. Until they are decided,
-documentation and examples must treat audit files as local sensitive artifacts, not shareable logs.
+The project does not currently own retention infrastructure. Audit files are local
+operator-selected artifacts, and operators own retention, backup, deletion, and sharing decisions.
+Documentation and examples must treat audit files as local sensitive artifacts, not shareable logs.
 
 ## Public Repository Boundary
 
 The public repository may include synthetic fixtures and redacted audit examples. It must not
 include real user logs, real company policy files, real MCP captures, private exploit corpus data,
 or private credentials.
-
