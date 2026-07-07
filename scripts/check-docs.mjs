@@ -16,6 +16,7 @@ const requiredFiles = [
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
   "docs/cli/output-and-exit-codes.md",
+  "docs/ops/observability.md",
   "docs/ops/release-records/README.md",
   "docs/ops/release-records/public-release.template.json",
   "packages/contracts/schemas/policy.v1.schema.json",
@@ -53,7 +54,8 @@ for (const file of requiredFiles) {
 const cliContractFailures = [
   ...checkCliCommandDocs(),
   ...checkCliExitCodeDocs(),
-  ...checkOpsOwnerDocs()
+  ...checkOpsOwnerDocs(),
+  ...checkAuditExportDocs()
 ];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
@@ -169,6 +171,27 @@ function checkOpsOwnerDocs() {
     const text = readFileSync(join(root, path), "utf8");
     if (text.includes("Backup owner: UNASSIGNED")) {
       failures.push(`${path}: backup owner must name a responsible boundary`);
+    }
+  }
+  return failures;
+}
+
+function checkAuditExportDocs() {
+  const failures = [];
+  const path = "docs/ops/observability.md";
+  const text = readFileSync(join(root, path), "utf8");
+  for (const phrase of [
+    "msp.audit-event.v1",
+    "Export allowlist:",
+    "decision.evidence[].code",
+    "redaction.counts",
+    "raw secrets, environment values, prompt contents, full tool",
+    "raw upstream stderr lines",
+    "Live `run` must fail closed when audit writes fail",
+    "collector transforms do not add raw request payloads or environment snapshots"
+  ]) {
+    if (!text.includes(phrase)) {
+      failures.push(`${path}: missing audit export guidance phrase: ${phrase}`);
     }
   }
   return failures;

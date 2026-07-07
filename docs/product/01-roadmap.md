@@ -68,7 +68,9 @@ results.
   evidence.
 - Add host-specific approval UX integrations.
 - Add transport compatibility plan for HTTP.
-- Add audit export guidance.
+- Add audit export guidance. Current local stdio guidance covers JSONL export shape, exported
+  field allowlist, forbidden raw data, operator-owned retention, and audit-write fail-closed
+  behavior.
 - Add broader MCP client/server compatibility fixtures.
   Current evidence covers the local stdio MVP fixture corpus; broader real client/server fixtures
   still require selected host targets.
