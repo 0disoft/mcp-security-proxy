@@ -7,6 +7,7 @@ if (process.argv.includes("--exit-nonzero")) {
 const serverPingOnToolsList = process.argv.includes("--server-ping-on-tools-list");
 const serverPingWithParamsOnToolsList = process.argv.includes("--server-ping-with-params-on-tools-list");
 const upstreamErrorOnToolCall = process.argv.includes("--upstream-error-on-tool-call");
+const invalidResponseOnToolCall = process.argv.includes("--invalid-response-on-tool-call");
 const malformedToolsList = process.argv.includes("--malformed-tools-list");
 const noisyToolsList = process.argv.includes("--noisy-tools-list");
 const duplicateToolsList = process.argv.includes("--duplicate-tools-list");
@@ -263,6 +264,22 @@ for await (const line of lines) {
   }
 
   if (message.method === "tools/call") {
+    if (invalidResponseOnToolCall) {
+      process.stdout.write(
+        `${JSON.stringify({
+          jsonrpc: "2.0",
+          id: message.id,
+          result: {
+            marker: "RAW_INVALID_RESPONSE_RESULT_MARKER"
+          },
+          error: {
+            code: -32097,
+            message: "RAW_INVALID_RESPONSE_ERROR_MARKER"
+          }
+        })}\n`
+      );
+      continue;
+    }
     if (upstreamErrorOnToolCall) {
       process.stdout.write(
         `${JSON.stringify({

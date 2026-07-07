@@ -16,6 +16,7 @@ const noisyDiscoveryAuditLog = join(tempDir, "noisy-discovery-audit.jsonl");
 const duplicateDiscoveryAuditLog = join(tempDir, "duplicate-discovery-audit.jsonl");
 const replacedDiscoveryAuditLog = join(tempDir, "replaced-discovery-audit.jsonl");
 const unmatchedResponseAuditLog = join(tempDir, "unmatched-response-audit.jsonl");
+const invalidResponseAuditLog = join(tempDir, "invalid-response-audit.jsonl");
 const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
@@ -694,6 +695,99 @@ try {
   }
   if (!unmatchedResponseAudit.includes('"code":"jsonrpc.unmatched_response"')) {
     throw new Error(`expected unmatched upstream response audit event, got ${unmatchedResponseAudit}`);
+  }
+
+  const invalidResponseChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      invalidResponseAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--invalid-response-on-tool-call"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const invalidResponseStdoutChunks = [];
+  const invalidResponseStderrChunks = [];
+  const invalidResponseOutputLines = [];
+  invalidResponseChild.stdout.on("data", (chunk) => invalidResponseStdoutChunks.push(chunk));
+  invalidResponseChild.stderr.on("data", (chunk) => invalidResponseStderrChunks.push(chunk));
+  const waitForInvalidResponseTools = waitForJsonLine(invalidResponseChild.stdout, (line) => {
+    invalidResponseOutputLines.push(line);
+    return line.id === "invalid-response-tools";
+  });
+  invalidResponseChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "invalid-response-tools", method: "tools/list" })}\n`);
+  await waitForInvalidResponseTools;
+  invalidResponseChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "invalid-response-call",
+      method: "tools/call",
+      params: {
+        name: "read_file",
+        arguments: {
+          path: "workspace/public/readme.md"
+        }
+      }
+    })}\n`
+  );
+  invalidResponseChild.stdin.end();
+  const invalidResponseExitCode = await new Promise((resolve, reject) => {
+    invalidResponseChild.once("error", reject);
+    invalidResponseChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (invalidResponseExitCode !== 0) {
+    throw new Error(
+      `expected invalid response live run smoke to exit 0, got ${invalidResponseExitCode}: ${Buffer.concat(invalidResponseStderrChunks).toString("utf8")}`
+    );
+  }
+  for (const line of Buffer.concat(invalidResponseStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line))) {
+    if (!invalidResponseOutputLines.some((item) => item.id === line.id)) {
+      invalidResponseOutputLines.push(line);
+    }
+  }
+  const invalidResponseToolsResult = invalidResponseOutputLines.find((line) => line.id === "invalid-response-tools");
+  const invalidResponseCallResult = invalidResponseOutputLines.find((line) => line.id === "invalid-response-call");
+  if (
+    !invalidResponseToolsResult ||
+    invalidResponseToolsResult.result.tools.length !== 1 ||
+    invalidResponseToolsResult.result.tools[0].name !== "read_file"
+  ) {
+    throw new Error(`unexpected invalid-response filtered tools response: ${JSON.stringify(invalidResponseToolsResult)}`);
+  }
+  if (invalidResponseCallResult) {
+    throw new Error(`invalid upstream response leaked to client stdout: ${JSON.stringify(invalidResponseCallResult)}`);
+  }
+  const invalidResponseOutputText = invalidResponseOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (invalidResponseOutputText.includes("RAW_INVALID_RESPONSE_RESULT_MARKER") || invalidResponseOutputText.includes("RAW_INVALID_RESPONSE_ERROR_MARKER")) {
+    throw new Error("raw invalid upstream response marker leaked into client output");
+  }
+  const invalidResponseAudit = readFileSync(invalidResponseAuditLog, "utf8");
+  if (
+    invalidResponseAudit.includes("RAW_INVALID_RESPONSE_RESULT_MARKER") ||
+    invalidResponseAudit.includes("RAW_INVALID_RESPONSE_ERROR_MARKER") ||
+    invalidResponseAudit.includes("RAW_STDERR_MARKER")
+  ) {
+    throw new Error("raw invalid upstream response or stderr marker leaked into audit log");
+  }
+  if (!invalidResponseAudit.includes('"code":"jsonrpc.invalid"')) {
+    throw new Error(`expected invalid upstream response audit event, got ${invalidResponseAudit}`);
   }
 
   const child = spawn(
