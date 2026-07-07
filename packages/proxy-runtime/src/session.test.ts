@@ -551,6 +551,121 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("removes non-standard upstream JSON-RPC response envelope fields before forwarding success responses", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "success-with-envelope-extra",
+        method: "ping"
+      })
+    );
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "success-with-envelope-extra",
+        result: {},
+        trace: "RAW_RESPONSE_ENVELOPE_TRACE_MARKER",
+        debug: {
+          marker: "RAW_RESPONSE_ENVELOPE_DEBUG_MARKER"
+        }
+      })
+    );
+
+    expect(JSON.parse(result.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      id: "success-with-envelope-extra",
+      result: {}
+    });
+    expect(result.responseLine).toBeUndefined();
+    expect(result.forwardLine).not.toContain("RAW_RESPONSE_ENVELOPE_TRACE_MARKER");
+    expect(result.forwardLine).not.toContain("RAW_RESPONSE_ENVELOPE_DEBUG_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_RESPONSE_ENVELOPE_TRACE_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_RESPONSE_ENVELOPE_DEBUG_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "jsonrpc.response_extra_fields_redacted",
+            reason: "upstream JSON-RPC response extra fields removed before forwarding"
+          }
+        ]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_response_extra_fields: 2
+        }
+      }
+    });
+  });
+
+  it("removes non-standard upstream JSON-RPC response envelope fields before forwarding error responses", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "error-with-envelope-extra",
+        method: "ping"
+      })
+    );
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "error-with-envelope-extra",
+        error: {
+          code: -32000,
+          message: "upstream failure"
+        },
+        trace: {
+          marker: "RAW_ERROR_RESPONSE_ENVELOPE_TRACE_MARKER"
+        }
+      })
+    );
+
+    expect(JSON.parse(result.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      id: "error-with-envelope-extra",
+      error: {
+        code: -32000,
+        message: "upstream failure"
+      }
+    });
+    expect(result.responseLine).toBeUndefined();
+    expect(result.forwardLine).not.toContain("RAW_ERROR_RESPONSE_ENVELOPE_TRACE_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_ERROR_RESPONSE_ENVELOPE_TRACE_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "jsonrpc.response_extra_fields_redacted",
+            reason: "upstream JSON-RPC response extra fields removed before forwarding"
+          }
+        ]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_response_extra_fields: 1
+        }
+      }
+    });
+  });
+
   it("forwards benign upstream JSON-RPC error messages unchanged", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -1181,6 +1296,57 @@ describe("proxy runtime session", () => {
     expect(result.forwardLine).toBe(responseLine);
     expect(result.responseLine).toBeUndefined();
     expect(result.auditEvents).toHaveLength(0);
+  });
+
+  it("removes non-standard client JSON-RPC response envelope fields before forwarding server-origin ping responses", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    const pingLine = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "server-ping-envelope-extra",
+      method: "ping"
+    });
+
+    expect(session.handleServerLine(pingLine).forwardLine).toBe(pingLine);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "server-ping-envelope-extra",
+        result: {},
+        trace: "RAW_CLIENT_RESPONSE_ENVELOPE_TRACE_MARKER"
+      })
+    );
+
+    expect(JSON.parse(result.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      id: "server-ping-envelope-extra",
+      result: {}
+    });
+    expect(result.responseLine).toBeUndefined();
+    expect(result.forwardLine).not.toContain("RAW_CLIENT_RESPONSE_ENVELOPE_TRACE_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_CLIENT_RESPONSE_ENVELOPE_TRACE_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "jsonrpc.response_extra_fields_redacted",
+            reason: "client JSON-RPC response extra fields removed before forwarding"
+          }
+        ]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_response_extra_fields: 1
+        }
+      }
+    });
   });
 
   it("drops client ping responses that carry payload data", () => {

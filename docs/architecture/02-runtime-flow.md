@@ -33,6 +33,8 @@ Current implemented responsibilities:
 - allow only payload-free server-origin `ping` in the current direction policy
 - track `tools/list` request IDs so discovery responses can be filtered
 - require upstream responses to match a pending client request id before forwarding
+- rebuild forwarded JSON-RPC response envelopes with only `jsonrpc`, `id`, and exactly one of
+  `result` or `error`
 - classify discovered tools and hide tools without allow or approval coverage
 - rebuild visible discovery descriptors with only the MVP-forwarded descriptor fields
 - evaluate `tools/call` requests using remembered tool capabilities and extracted argument facts
@@ -100,6 +102,8 @@ transports remain future runtime responsibilities.
 - Oversized or overly deep JSON-RPC message: message is denied or dropped before forwarding.
 - Upstream error response with data, non-standard fields, or sensitive message: error is sanitized
   before forwarding.
+- JSON-RPC response envelope with unknown trace, debug, or vendor fields: envelope is rebuilt
+  before forwarding and the extra fields are recorded as redaction.
 - Malformed tool discovery result: visible tool state is cleared and an empty tool list is
   forwarded without the malformed raw payload.
 - Audit write failure: fail closed by default; policy may explicitly choose warn-and-continue.

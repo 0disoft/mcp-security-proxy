@@ -7,6 +7,7 @@ export const DECISION_REASON_CODES = [
   "jsonrpc.frame_too_large",
   "jsonrpc.too_deep",
   "jsonrpc.unmatched_response",
+  "jsonrpc.response_extra_fields_redacted",
   "jsonrpc.upstream_error_data_redacted",
   "jsonrpc.upstream_error_message_redacted",
   "jsonrpc.upstream_error_redacted",

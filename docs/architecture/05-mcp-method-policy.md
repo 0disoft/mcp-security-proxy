@@ -74,12 +74,16 @@ errors may include the proxy's own redacted decision data.
 Valid upstream responses are forwarded only when their JSON-RPC `id` exactly matches a pending
 client request, including the original id type. Responses that do not match a pending request are
 dropped with a redacted audit event instead of being treated as unsolicited server messages.
+Matched upstream responses are rebuilt before forwarding with only `jsonrpc`, `id`, and exactly one
+of `result` or `error`; unknown response envelope fields such as trace, debug, or vendor metadata
+are removed and recorded as redaction.
 Client responses are forwarded upstream only when their JSON-RPC `id` exactly matches a pending
 upstream server-origin request that the proxy already forwarded to the client. A client response
 without a matching server-origin request is dropped with a redacted audit event.
 Because server-origin `ping` is liveness-only, the matching client response must be an empty
 `result` object. Client `ping` responses with non-empty `result` data or an `error` object are
-dropped with a redacted audit event rather than forwarded upstream.
+dropped with a redacted audit event rather than forwarded upstream. Matching client `ping`
+responses are also rebuilt with only the JSON-RPC response envelope fields before forwarding.
 Requests with an `id` that already has a pending response in the same direction are denied before
 forwarding so one request cannot overwrite another request's correlation state.
 

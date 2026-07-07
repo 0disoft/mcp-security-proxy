@@ -54,6 +54,7 @@ const redactedUpstreamErrorMessage = "upstream error message redacted";
 const defaultMaxFrameBytes = 1_048_576;
 const defaultMaxJsonDepth = 64;
 const discoveryMetadataRedactionKeys = new Set(["default", "example", "examples", "$comment", "_meta"]);
+const jsonRpcResponseEnvelopeKeys = new Set(["jsonrpc", "id", "result", "error"]);
 
 export class ProxySession {
   private readonly pendingRequestMethods = new Map<string, string>();
@@ -131,11 +132,12 @@ export class ProxySession {
         };
       }
 
+      const sanitized = sanitizeJsonRpcResponseEnvelope(envelope);
       return {
         kind: "result",
         result: {
-          forwardLine: line,
-          auditEvents: []
+          forwardLine: sanitized.redaction.applied ? JSON.stringify(sanitized.envelope) : line,
+          auditEvents: this.createResponseEnvelopeRedactionAuditEvents("client", sanitized.redaction)
         }
       };
     }
@@ -337,19 +339,17 @@ export class ProxySession {
       };
     }
 
-    const sanitized = sanitizeUpstreamError(envelope);
-    const sanitizeAuditEvents = sanitized.redaction.applied
-      ? [
-          this.createAudit(
-            "error",
-            denyDecision(upstreamErrorRedactionReason(sanitized.redaction), { code: upstreamErrorRedactionCode(sanitized.redaction) }),
-            undefined,
-            undefined,
-            sanitized.redaction
-          )
-        ]
-      : [];
-    const responseLine = sanitized.redaction.applied ? JSON.stringify(sanitized.envelope) : line;
+    const errorSanitized = sanitizeUpstreamError(envelope);
+    const envelopeSanitized = sanitizeJsonRpcResponseEnvelope(errorSanitized.envelope);
+    const sanitized = {
+      envelope: envelopeSanitized.envelope,
+      redactionApplied: errorSanitized.redaction.applied || envelopeSanitized.redaction.applied
+    };
+    const sanitizeAuditEvents = [
+      ...this.createUpstreamErrorRedactionAuditEvents(errorSanitized.redaction),
+      ...this.createResponseEnvelopeRedactionAuditEvents("upstream", envelopeSanitized.redaction)
+    ];
+    const responseLine = sanitized.redactionApplied ? JSON.stringify(sanitized.envelope) : line;
 
     const requestMethod = this.takePendingMethod(sanitized.envelope);
     if (!requestMethod) {
@@ -539,6 +539,38 @@ export class ProxySession {
     }
     return events;
   }
+
+  private createUpstreamErrorRedactionAuditEvents(redaction: RedactionSummary): readonly AuditEvent[] {
+    if (!redaction.applied) {
+      return [];
+    }
+    return [
+      this.createAudit(
+        "error",
+        denyDecision(upstreamErrorRedactionReason(redaction), { code: upstreamErrorRedactionCode(redaction) }),
+        undefined,
+        undefined,
+        redaction
+      )
+    ];
+  }
+
+  private createResponseEnvelopeRedactionAuditEvents(direction: "client" | "upstream", redaction: RedactionSummary): readonly AuditEvent[] {
+    if (!redaction.applied) {
+      return [];
+    }
+    return [
+      this.createAudit(
+        "error",
+        denyDecision(`${direction} JSON-RPC response extra fields removed before forwarding`, {
+          code: "jsonrpc.response_extra_fields_redacted"
+        }),
+        undefined,
+        undefined,
+        redaction
+      )
+    ];
+  }
 }
 
 export function createProxySession(options: ProxySessionOptions): ProxySession {
@@ -661,6 +693,33 @@ function sanitizeUpstreamError(envelope: JsonRpcEnvelope): { readonly envelope: 
     redaction: {
       applied: true,
       counts
+    }
+  };
+}
+
+function sanitizeJsonRpcResponseEnvelope(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
+  const extraFieldCount = Object.keys(envelope).filter((key) => !jsonRpcResponseEnvelopeKeys.has(key)).length;
+  if (extraFieldCount === 0) {
+    return { envelope, redaction: noRedaction() };
+  }
+
+  const sanitized: Record<string, unknown> = {
+    jsonrpc: "2.0",
+    id: envelope.id
+  };
+  if ("result" in envelope) {
+    sanitized["result"] = envelope.result;
+  } else {
+    sanitized["error"] = envelope.error;
+  }
+
+  return {
+    envelope: sanitized as unknown as JsonRpcEnvelope,
+    redaction: {
+      applied: true,
+      counts: {
+        jsonrpc_response_extra_fields: extraFieldCount
+      }
     }
   };
 }

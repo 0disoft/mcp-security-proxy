@@ -37,6 +37,8 @@ Define how sensitive data moves through MCP Security Proxy and what must never b
   tool list and a redacted audit event.
 - Upstream JSON-RPC error forwarding is allowlisted to `code` and sanitized `message`; error data,
   stack traces, debug fields, and nested details are removed before forwarding.
+- JSON-RPC response envelopes are allowlisted to `jsonrpc`, `id`, and exactly one of `result` or
+  `error`; unknown envelope-level trace, debug, or vendor metadata is removed before forwarding.
 - Raw MCP payloads may be inspected for policy facts but must not be stored in audit events.
 - Audit events receive redacted summaries only.
 - Redaction must happen before audit write and before machine-readable CLI output.

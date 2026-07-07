@@ -40,6 +40,9 @@ discovery and tool calls through explicit policy, redaction, and audit events.
   server-origin request that the proxy forwarded to the client.
 - Forward client responses to server-origin `ping` only when the response is an empty `result`
   object.
+- Forward JSON-RPC responses across the proxy boundary only after rebuilding the response envelope
+  with `jsonrpc`, `id`, and exactly one of `result` or `error`; unknown response envelope fields are
+  removed before forwarding.
 - Filter tool discovery output before the client sees it.
 - Forward only sanitized `tools/list` success result fields: `tools` and optional string
   `nextCursor`.
