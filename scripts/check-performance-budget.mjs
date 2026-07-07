@@ -71,6 +71,8 @@ for (const check of checks) {
   console.log(`${check.name}: ${check.elapsedMs.toFixed(2)} ms for ${check.iterations} iterations`);
 }
 
+checkPerformanceBudgetValidator();
+
 function measure(name, iterations, maxTotalMs, fn) {
   for (let index = 0; index < Math.min(iterations, 10); index += 1) {
     fn();
@@ -87,4 +89,36 @@ function measure(name, iterations, maxTotalMs, fn) {
   }
 
   return { name, iterations, elapsedMs };
+}
+
+function checkPerformanceBudgetValidator() {
+  const validCheck = measure("<performance-self-test-valid>", 1, 1000, () => undefined);
+  if (validCheck.name !== "<performance-self-test-valid>" || validCheck.iterations !== 1 || validCheck.elapsedMs < 0) {
+    throw new Error("performance smoke self-test valid measure returned an invalid result");
+  }
+
+  const functionFailure = collectPerformanceFailure(() => {
+    measure("<performance-self-test-function-failure>", 1, 1000, () => {
+      throw new Error("synthetic function failure");
+    });
+  });
+  if (!functionFailure.includes("synthetic function failure")) {
+    throw new Error(`performance smoke self-test function failure was not propagated: ${functionFailure || "<none>"}`);
+  }
+
+  const budgetFailure = collectPerformanceFailure(() => {
+    measure("<performance-self-test-budget-failure>", 1, -1, () => undefined);
+  });
+  if (!budgetFailure.includes("<performance-self-test-budget-failure> exceeded -1 ms")) {
+    throw new Error(`performance smoke self-test budget failure was not rejected: ${budgetFailure || "<none>"}`);
+  }
+}
+
+function collectPerformanceFailure(fn) {
+  try {
+    fn();
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return "";
 }
