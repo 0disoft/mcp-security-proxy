@@ -13,6 +13,7 @@ const requiredFiles = [
   "docs/architecture/05-mcp-method-policy.md",
   "docs/architecture/06-data-flow-and-privacy.md",
   "docs/architecture/07-http-transport-plan.md",
+  "docs/architecture/08-host-approval-ux-plan.md",
   "docs/adr/0001-initial-architecture-boundaries.md",
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
@@ -57,7 +58,8 @@ const cliContractFailures = [
   ...checkCliExitCodeDocs(),
   ...checkOpsOwnerDocs(),
   ...checkAuditExportDocs(),
-  ...checkHttpTransportPlanDocs()
+  ...checkHttpTransportPlanDocs(),
+  ...checkHostApprovalUxPlanDocs()
 ];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
@@ -215,6 +217,27 @@ function checkHttpTransportPlanDocs() {
   ]) {
     if (!text.includes(phrase)) {
       failures.push(`${path}: missing HTTP transport plan phrase: ${phrase}`);
+    }
+  }
+  return failures;
+}
+
+function checkHostApprovalUxPlanDocs() {
+  const failures = [];
+  const path = "docs/architecture/08-host-approval-ux-plan.md";
+  const text = readFileSync(join(root, path), "utf8");
+  for (const phrase of [
+    "Approval UX is host-owned",
+    "does not approve any bundled approval UI",
+    "approval-required calls are not forwarded until the host hook returns an explicit approval",
+    "deny, timeout, close, dismiss, and navigation-away states must all resolve to deny",
+    "Persistent or remembered approvals are not part of the current runtime contract",
+    "raw rejection reason redaction",
+    "compatibility fixtures are registered in `fixtures/compatibility/manifest.json`",
+    "The CLI `run` command intentionally does not bundle approval UX"
+  ]) {
+    if (!text.includes(phrase)) {
+      failures.push(`${path}: missing host approval UX plan phrase: ${phrase}`);
     }
   }
   return failures;

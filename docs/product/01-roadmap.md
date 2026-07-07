@@ -66,7 +66,9 @@ results.
 - Add policy dry-run workflows. Current local workflows cover policy validation, discovery
   inspection, allowed call evaluation, and denied call evaluation through fixture-backed CLI JSON
   evidence.
-- Add host-specific approval UX integrations.
+- Add host-specific approval UX integrations. Current planning records the host-owned UX boundary,
+  runtime invariants, minimum user-facing context, failure modes, compatibility evidence, and
+  release gates.
 - Add transport compatibility plan for HTTP. Current planning records the non-implementation
   boundary, stdio invariants that HTTP must preserve, HTTP-specific risks, required ADR decisions,
   fixture evidence, and release gates.
