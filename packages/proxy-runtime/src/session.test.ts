@@ -1323,9 +1323,15 @@ describe("proxy runtime session", () => {
         jsonrpc: "2.0",
         id: "tools-sanitize",
         result: {
+          nextCursor: "page-2",
+          debug: "RAW_RESULT_TOP_LEVEL_DEBUG_MARKER",
+          _meta: {
+            debug: "RAW_RESULT_TOP_LEVEL_META_MARKER"
+          },
           tools: [
             {
               name: "read_file",
+              title: "Read File",
               description: "Read a file from a caller-provided path.",
               inputSchema: {
                 type: "object",
@@ -1375,11 +1381,12 @@ describe("proxy runtime session", () => {
     );
 
     const forwarded = JSON.parse(inbound.forwardLine ?? "{}") as {
-      readonly result?: { readonly tools?: readonly Record<string, unknown>[] };
+      readonly result?: { readonly tools?: readonly Record<string, unknown>[]; readonly nextCursor?: string };
     };
     expect(forwarded.result?.tools).toEqual([
       {
         name: "read_file",
+        title: "Read File",
         description: "Read a file from a caller-provided path.",
         inputSchema: {
           type: "object",
@@ -1402,6 +1409,9 @@ describe("proxy runtime session", () => {
         }
       }
     ]);
+    expect(forwarded.result?.nextCursor).toBe("page-2");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_RESULT_TOP_LEVEL_DEBUG_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_RESULT_TOP_LEVEL_META_MARKER");
     expect(JSON.stringify(forwarded)).not.toContain("RAW_VISIBLE_DESCRIPTOR_META_MARKER");
     expect(JSON.stringify(forwarded)).not.toContain("RAW_VISIBLE_DESCRIPTOR_DEBUG_MARKER");
     expect(JSON.stringify(forwarded)).not.toContain("RAW_HIDDEN_DESCRIPTOR_DEBUG_MARKER");
@@ -1413,6 +1423,7 @@ describe("proxy runtime session", () => {
     expect(JSON.stringify(forwarded)).not.toContain("RAW_ANNOTATION_EXAMPLES_MARKER");
     expect(JSON.stringify(forwarded)).not.toContain("RAW_ANNOTATION_META_MARKER");
     expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_VISIBLE_DESCRIPTOR_META_MARKER");
+    expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_RESULT_TOP_LEVEL_DEBUG_MARKER");
     expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_HIDDEN_DESCRIPTOR_DEBUG_MARKER");
     expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_SCHEMA_DEFAULT_MARKER");
     expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_ANNOTATION_META_MARKER");

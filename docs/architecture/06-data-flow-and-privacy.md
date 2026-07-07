@@ -28,8 +28,9 @@ Define how sensitive data moves through MCP Security Proxy and what must never b
 - Policy data is trusted configuration but may be misconfigured.
 - Upstream MCP servers are untrusted.
 - Tool descriptors are hints, not security proof.
-- Tool discovery forwarding is allowlisted at the descriptor field boundary. Unknown top-level
-  descriptor metadata, including `_meta`, is not retained in forwarded discovery responses.
+- Tool discovery forwarding is allowlisted at the result and descriptor field boundaries. Unknown
+  result metadata and unknown top-level descriptor metadata, including `_meta`, are not retained in
+  forwarded discovery responses.
   Nested schema and annotation metadata keys that commonly carry example or debug values are also
   removed before forwarding.
 - Malformed discovery success payloads are not forwarded as-is; they are replaced with an empty

@@ -40,6 +40,7 @@ export interface ProxyFrameResult {
 
 interface ToolMetadata {
   readonly name: string;
+  readonly title?: string;
   readonly description?: string;
   readonly capabilities: readonly Capability[];
 }
@@ -712,12 +713,14 @@ function filterToolListResult(
       continue;
     }
     const description = typeof item["description"] === "string" ? item["description"] : undefined;
+    const title = typeof item["title"] === "string" ? item["title"] : undefined;
     const classified = classifyToolDescriptor({
       name: item["name"],
       ...(description ? { description } : {})
     }).descriptor;
     const metadata: ToolMetadata = {
       name: classified.name,
+      ...(title ? { title } : {}),
       ...(classified.description ? { description: classified.description } : {}),
       capabilities: classified.capabilities
     };
@@ -731,10 +734,7 @@ function filterToolListResult(
   return {
     envelope: {
       ...envelope,
-      result: {
-        ...result,
-        tools: filteredTools
-      }
+      result: sanitizeToolListResult(result, filteredTools)
     },
     visibleTools,
     filteredCount: tools.length - filteredTools.length,
@@ -750,12 +750,25 @@ function sanitizeVisibleToolDescriptor(item: Readonly<Record<string, unknown>>, 
   if (metadata.description) {
     descriptor["description"] = metadata.description;
   }
+  if (metadata.title) {
+    descriptor["title"] = metadata.title;
+  }
 
   copyRecordField(item, descriptor, "inputSchema");
   copyRecordField(item, descriptor, "outputSchema");
   copyRecordField(item, descriptor, "annotations");
 
   return descriptor;
+}
+
+function sanitizeToolListResult(result: Readonly<Record<string, unknown>>, tools: readonly unknown[]): Readonly<Record<string, unknown>> {
+  const sanitized: Record<string, unknown> = {
+    tools
+  };
+  if (typeof result["nextCursor"] === "string") {
+    sanitized["nextCursor"] = result["nextCursor"];
+  }
+  return sanitized;
 }
 
 function copyRecordField(source: Readonly<Record<string, unknown>>, target: Record<string, unknown>, field: string): void {

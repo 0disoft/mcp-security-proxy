@@ -63,12 +63,14 @@ transports remain future runtime responsibilities.
 1. Upstream server returns tool descriptors.
 2. Proxy classifies tool capabilities from explicit policy, tool name, and description.
 3. Proxy applies discovery filtering rules.
-4. Proxy rebuilds each visible descriptor with only `name`, optional `description`,
+4. Proxy rebuilds each visible descriptor with only `name`, optional `title`, optional `description`,
    object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`,
    while removing nested `default`, `example`, `examples`, `$comment`, and `_meta` metadata.
-5. Malformed discovery success results are normalized to an empty `tools` array.
-6. Client receives only sanitized tools allowed for discovery.
-7. Proxy records a redacted discovery audit event.
+5. Proxy rebuilds the `tools/list` success result with only `tools` and optional string
+   `nextCursor`.
+6. Malformed discovery success results are normalized to an empty `tools` array.
+7. Client receives only sanitized tools allowed for discovery.
+8. Proxy records a redacted discovery audit event.
 
 ## Tool Call Flow
 
