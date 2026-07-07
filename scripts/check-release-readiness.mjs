@@ -190,6 +190,10 @@ function checkReleaseScope(path, releaseScope) {
     }
     if (!isNonPlaceholder(item.evidence)) {
       failures.push(`${path}: releaseScope.${name}.evidence must be recorded`);
+    } else if (!isSafeRelativeRepoPath(item.evidence)) {
+      failures.push(`${path}: releaseScope.${name}.evidence must be a safe repo-relative path`);
+    } else if (!existsSync(join(root, item.evidence))) {
+      failures.push(`${path}: releaseScope.${name}.evidence must exist`);
     }
   }
 }
@@ -268,6 +272,27 @@ function checkReleaseRecordValidator() {
     !missingScopeFailures.some((item) => item.includes("releaseScope.httpTransport.evidence must be recorded"))
   ) {
     failures.push(`release-readiness self-test missing scope fixture was not rejected: ${missingScopeFailures.join("; ")}`);
+  }
+
+  const invalidScopeEvidenceFailures = collectReleaseRecordFailures("<release-readiness-self-test-invalid-scope-evidence>", {
+    ...validRecord,
+    releaseScope: {
+      ...validRecord.releaseScope,
+      mcpSdkDependency: {
+        ...validRecord.releaseScope.mcpSdkDependency,
+        evidence: "../private/sdk-decision.md"
+      },
+      hostApprovalUx: {
+        ...validRecord.releaseScope.hostApprovalUx,
+        evidence: "docs/architecture/missing-host-approval-decision.md"
+      }
+    }
+  });
+  if (
+    !invalidScopeEvidenceFailures.some((item) => item.includes("releaseScope.mcpSdkDependency.evidence must be a safe repo-relative path")) ||
+    !invalidScopeEvidenceFailures.some((item) => item.includes("releaseScope.hostApprovalUx.evidence must exist"))
+  ) {
+    failures.push(`release-readiness self-test invalid scope evidence fixture was not rejected: ${invalidScopeEvidenceFailures.join("; ")}`);
   }
 }
 
