@@ -46,6 +46,9 @@ and policy hooks are documented.
 `tools/list` responses are not trusted as proof of safety. Tool descriptors may be incomplete,
 misleading, or stale. Discovery filtering may hide tools from the host, but call-time evaluation is
 still required because the upstream server and tool arguments remain untrusted.
+Each filtered `tools/list` response replaces the current session's visible tool set. A tool that was
+visible in an earlier discovery response must not remain callable after a later filtered discovery
+response hides or omits it.
 
 ## Call Policy
 

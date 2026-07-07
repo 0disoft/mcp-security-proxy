@@ -121,6 +121,7 @@ export class ProxySession {
     }
 
     const result = filterToolListResult(envelope, this.options.policy, this.options.profileId);
+    this.visibleTools.clear();
     for (const tool of result.visibleTools) {
       this.visibleTools.set(tool.name, tool);
     }

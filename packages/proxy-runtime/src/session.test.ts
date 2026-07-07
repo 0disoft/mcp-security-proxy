@@ -194,6 +194,70 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("replaces visible tool state on each filtered discovery response", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-2",
+        method: "tools/list"
+      })
+    );
+    const refreshed = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-2",
+        result: {
+          tools: [
+            {
+              name: "unknown_tool",
+              description: "Do something vaguely useful."
+            }
+          ]
+        }
+      })
+    );
+
+    expect(JSON.parse(refreshed.forwardLine ?? "{}")).toMatchObject({
+      id: "tools-2",
+      result: {
+        tools: []
+      }
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 5,
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      id: 5,
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "tool was not visible in filtered discovery" }]
+          }
+        }
+      }
+    });
+  });
+
   it("forwards allowed tool calls after policy evaluation", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -203,7 +267,7 @@ describe("proxy runtime session", () => {
 
     const line = JSON.stringify({
       jsonrpc: "2.0",
-      id: 5,
+      id: 6,
       method: "tools/call",
       params: {
         name: "read_file",
