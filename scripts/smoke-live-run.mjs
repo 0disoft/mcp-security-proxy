@@ -669,6 +669,7 @@ try {
       }
     })}\n`
   );
+  child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "tools-before-initialized", method: "tools/list" })}\n`);
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "tools", method: "tools/list" })}\n`);
   child.stdin.write(
@@ -702,6 +703,7 @@ try {
     .map((line) => JSON.parse(line));
 
   const initializeResult = outputLines.find((line) => line.id === "initialize");
+  const preInitializedToolsResult = outputLines.find((line) => line.id === "tools-before-initialized");
   const toolsResult = outputLines.find((line) => line.id === "tools");
   const deniedResult = outputLines.find((line) => line.id === "denied");
   if (
@@ -710,6 +712,9 @@ try {
     initializeResult.result?.serverInfo?.name !== "fixture-mcp-server"
   ) {
     throw new Error(`unexpected initialize response: ${JSON.stringify(initializeResult)}`);
+  }
+  if (!preInitializedToolsResult || preInitializedToolsResult.result?.tools?.length !== 0) {
+    throw new Error(`expected tools/list before initialized notification to be empty: ${JSON.stringify(preInitializedToolsResult)}`);
   }
   if (!toolsResult || toolsResult.result.tools.length !== 1 || toolsResult.result.tools[0].name !== "read_file") {
     throw new Error(`unexpected filtered tools response: ${JSON.stringify(toolsResult)}`);
@@ -728,7 +733,7 @@ try {
   if (auditText.includes("RAW_STDERR_MARKER")) {
     throw new Error("raw upstream stderr leaked into audit log");
   }
-  if (!auditText.includes('"stderr_line":1')) {
+  if (!auditText.includes('"stderr_line":2')) {
     throw new Error(`expected redacted stderr summary audit event, got ${auditText}`);
   }
 
