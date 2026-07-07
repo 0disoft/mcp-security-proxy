@@ -19,6 +19,7 @@ const unmatchedResponseAuditLog = join(tempDir, "unmatched-response-audit.jsonl"
 const invalidResponseAuditLog = join(tempDir, "invalid-response-audit.jsonl");
 const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
+const invalidPingResponseAuditLog = join(tempDir, "invalid-ping-response-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
 const failedAuditLog = join(tempDir, "failed-audit.jsonl");
 const secretAuditLog = join(tempDir, "secret-audit.jsonl");
@@ -1109,6 +1110,96 @@ try {
   }
   if (!pingAudit.includes('"stderr_line":2')) {
     throw new Error(`expected server-origin ping ack stderr summary audit event, got ${pingAudit}`);
+  }
+
+  const invalidPingResponseChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      invalidPingResponseAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--server-ping-on-tools-list"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const invalidPingResponseStdoutChunks = [];
+  const invalidPingResponseStderrChunks = [];
+  const invalidPingResponseOutputLines = [];
+  invalidPingResponseChild.stdout.on("data", (chunk) => invalidPingResponseStdoutChunks.push(chunk));
+  invalidPingResponseChild.stderr.on("data", (chunk) => invalidPingResponseStderrChunks.push(chunk));
+  const waitForInvalidPingResponseRequest = waitForJsonLine(invalidPingResponseChild.stdout, (line) => {
+    invalidPingResponseOutputLines.push(line);
+    return line.id === "live-server-origin-ping";
+  });
+  invalidPingResponseChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "invalid-ping-response-tools", method: "tools/list" })}\n`);
+  await waitForInvalidPingResponseRequest;
+  invalidPingResponseChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "live-server-origin-ping",
+      result: {
+        marker: "RAW_CLIENT_PING_RESPONSE_MARKER"
+      }
+    })}\n`
+  );
+  invalidPingResponseChild.stdin.end();
+  const invalidPingResponseExitCode = await new Promise((resolve, reject) => {
+    invalidPingResponseChild.once("error", reject);
+    invalidPingResponseChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (invalidPingResponseExitCode !== 0) {
+    throw new Error(
+      `expected invalid server-origin ping response live run smoke to exit 0, got ${invalidPingResponseExitCode}: ${Buffer.concat(
+        invalidPingResponseStderrChunks
+      ).toString("utf8")}`
+    );
+  }
+  for (const line of Buffer.concat(invalidPingResponseStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line))) {
+    if (!invalidPingResponseOutputLines.some((item) => item.id === line.id)) {
+      invalidPingResponseOutputLines.push(line);
+    }
+  }
+  const invalidPingResponseToolsResult = invalidPingResponseOutputLines.find((line) => line.id === "invalid-ping-response-tools");
+  const invalidPingResponseRequest = invalidPingResponseOutputLines.find((line) => line.id === "live-server-origin-ping");
+  if (
+    !invalidPingResponseToolsResult ||
+    invalidPingResponseToolsResult.result.tools.length !== 1 ||
+    invalidPingResponseToolsResult.result.tools[0].name !== "read_file"
+  ) {
+    throw new Error(`unexpected invalid-ping-response filtered tools response: ${JSON.stringify(invalidPingResponseToolsResult)}`);
+  }
+  if (invalidPingResponseRequest?.method !== "ping" || "params" in invalidPingResponseRequest) {
+    throw new Error(`unexpected invalid-ping-response forwarded server-origin ping request: ${JSON.stringify(invalidPingResponseRequest)}`);
+  }
+  const invalidPingResponseOutputText = invalidPingResponseOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (invalidPingResponseOutputText.includes("RAW_CLIENT_PING_RESPONSE_MARKER")) {
+    throw new Error("raw invalid client ping response marker leaked into client output");
+  }
+  const invalidPingResponseAudit = readFileSync(invalidPingResponseAuditLog, "utf8");
+  if (invalidPingResponseAudit.includes("RAW_CLIENT_PING_RESPONSE_MARKER") || invalidPingResponseAudit.includes("RAW_BAD_PING_RESPONSE_FORWARD_MARKER")) {
+    throw new Error("raw invalid client ping response or upstream forward marker leaked into audit log");
+  }
+  if (!invalidPingResponseAudit.includes('"code":"jsonrpc.invalid"') || !invalidPingResponseAudit.includes('"method":"ping"')) {
+    throw new Error(`expected invalid client ping response audit event, got ${invalidPingResponseAudit}`);
+  }
+  if (!invalidPingResponseAudit.includes('"stderr_line":1') || invalidPingResponseAudit.includes('"stderr_line":2')) {
+    throw new Error(`expected no upstream receipt of invalid client ping response, got ${invalidPingResponseAudit}`);
   }
 
   const deniedPingChild = spawn(

@@ -263,6 +263,11 @@ for await (const line of lines) {
     continue;
   }
 
+  if (message.id === serverPingId && message.result?.marker === "RAW_CLIENT_PING_RESPONSE_MARKER") {
+    process.stderr.write("RAW_BAD_PING_RESPONSE_FORWARD_MARKER diagnostic line\n");
+    continue;
+  }
+
   if (message.method === "tools/call") {
     if (invalidResponseOnToolCall) {
       process.stdout.write(
