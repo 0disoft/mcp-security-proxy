@@ -29,6 +29,9 @@ A policy contains:
 The default action must be deny. Unknown capabilities, unsupported MCP methods, ambiguous matcher
 inputs, and missing approval hooks must resolve to deny unless a future ADR records a narrower
 exception.
+Secret-like argument keys are reduced to label-only facts, such as `token` or `api-key`, without
+retaining the raw value. A call that contains a secret fact must declare the `secret` capability
+before any allow rule can match.
 Policy validation must reject ambiguous configuration before runtime use. This includes duplicate
 profile ids, duplicate rule ids within a profile, duplicate method allowlist entries, empty
 selector arrays, empty path/network matchers, unsupported rule method entries, invalid redaction

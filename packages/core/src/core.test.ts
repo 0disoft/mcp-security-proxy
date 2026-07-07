@@ -132,6 +132,28 @@ describe("MCP Security Proxy core", () => {
     expect(decision.evidence[0]?.reason).toBe("unknown capability denied by default");
   });
 
+  it("denies secret argument facts unless the tool explicitly declares secret capability", () => {
+    const decision = evaluateToolCall({
+      policy: readFixture<PolicyDocument>("fixtures/policies/local-dev.json"),
+      profileId: "local",
+      call: {
+        method: "tools/call",
+        toolName: "read_file",
+        capabilities: ["file-read"],
+        argumentFacts: [
+          { kind: "path", value: "workspace/public/readme.md" },
+          { kind: "secret", label: "api-key" }
+        ]
+      }
+    });
+
+    expect(decision.action).toBe("deny");
+    expect(decision.evidence[0]).toMatchObject({
+      capability: "secret",
+      reason: "secret-sensitive argument requires explicit secret capability"
+    });
+  });
+
   it("classifies secret-like tool descriptors without treating api alone as a secret", () => {
     const secretTool = classifyToolDescriptor({
       name: "read_secret",

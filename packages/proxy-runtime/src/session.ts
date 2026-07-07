@@ -903,9 +903,33 @@ function collectArgumentFacts(value: unknown, facts: NormalizedToolCall["argumen
     facts.push({ kind: "command", executable, argv });
   }
 
-  for (const entry of Object.values(value)) {
+  for (const [key, entry] of Object.entries(value)) {
+    const secretLabel = secretLabelForKey(key);
+    if (secretLabel) {
+      facts.push({ kind: "secret", label: secretLabel });
+    }
     collectArgumentFacts(entry, facts);
   }
+}
+
+function secretLabelForKey(key: string): string | undefined {
+  const normalized = key.toLowerCase().replace(/[_-]+/gu, " ");
+  if (/\bapi\s*key\b|\bapikey\b/u.test(normalized)) {
+    return "api-key";
+  }
+  if (/\btoken\b/u.test(normalized)) {
+    return "token";
+  }
+  if (/\bpassword\b/u.test(normalized)) {
+    return "password";
+  }
+  if (/\bcredentials?\b/u.test(normalized)) {
+    return "credential";
+  }
+  if (/\bsecret\b/u.test(normalized)) {
+    return "secret";
+  }
+  return undefined;
 }
 
 function filterToolListResult(

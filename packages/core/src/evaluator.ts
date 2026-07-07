@@ -33,6 +33,10 @@ export function evaluateToolCall(options: EvaluateToolCallOptions): PolicyDecisi
     return deny(blockingIssue.reason, capabilityForFactKind(blockingIssue.kind));
   }
 
+  if (hasFactKind(options.call.argumentFacts, "secret") && !options.call.capabilities.includes("secret")) {
+    return deny("secret-sensitive argument requires explicit secret capability", "secret");
+  }
+
   if (options.call.capabilities.includes("unknown")) {
     return deny("unknown capability denied by default", "unknown");
   }

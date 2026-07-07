@@ -2204,6 +2204,49 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("denies tool calls with secret-like argument keys before forwarding raw values", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "secret-argument",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md",
+            token: "RAW_SECRET_ARGUMENT_MARKER"
+          }
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).not.toContain("RAW_SECRET_ARGUMENT_MARKER");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_SECRET_ARGUMENT_MARKER");
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      id: "secret-argument",
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                capability: "secret",
+                reason: "secret-sensitive argument requires explicit secret capability"
+              }
+            ]
+          }
+        }
+      }
+    });
+  });
+
   it("does not treat denied tool calls as pending upstream requests", () => {
     const session = createProxySession({
       policy: readPolicy(),
