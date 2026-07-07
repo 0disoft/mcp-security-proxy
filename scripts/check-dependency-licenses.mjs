@@ -24,25 +24,14 @@ if (!existsSync(pnpmStore)) {
 
 const licenseCounts = new Map();
 for (const item of [...packages.values()].sort((left, right) => left.key.localeCompare(right.key))) {
-  const license = normalizeLicense(item.manifest.license ?? item.manifest.licenses);
-  if (!license) {
-    failures.push(`${item.key}: missing license metadata`);
-    continue;
-  }
-  if (deniedLicensePattern.test(license)) {
-    failures.push(`${item.key}: denied license ${license}`);
-    continue;
-  }
-  if (!licenseAllowedOrReviewed(license)) {
-    failures.push(`${item.key}: license requires review before release: ${license}`);
-    continue;
-  }
-  licenseCounts.set(license, (licenseCounts.get(license) ?? 0) + 1);
+  checkPackageLicense(item, licenseCounts);
 }
 
 if (packages.size === 0) {
   failures.push("no external dependency manifests found under node_modules/.pnpm");
 }
+
+checkDependencyLicenseValidator();
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -97,6 +86,74 @@ function collectPackage(packageDir) {
     key: `${manifest.name}@${manifest.version}`,
     manifest
   });
+}
+
+function checkPackageLicense(item, counts = undefined) {
+  const license = normalizeLicense(item.manifest.license ?? item.manifest.licenses);
+  if (!license) {
+    failures.push(`${item.key}: missing license metadata`);
+    return;
+  }
+  if (deniedLicensePattern.test(license)) {
+    failures.push(`${item.key}: denied license ${license}`);
+    return;
+  }
+  if (!licenseAllowedOrReviewed(license)) {
+    failures.push(`${item.key}: license requires review before release: ${license}`);
+    return;
+  }
+  counts?.set(license, (counts.get(license) ?? 0) + 1);
+}
+
+function checkDependencyLicenseValidator() {
+  const validFailures = collectDependencyLicenseFailures(() => {
+    const counts = new Map();
+    checkPackageLicense({ key: "<license-self-test-valid>", manifest: { license: "MIT OR Apache-2.0" } }, counts);
+    if (counts.get("MIT OR Apache-2.0") !== 1) {
+      failures.push("license-report self-test valid license was not counted");
+    }
+  });
+  if (validFailures.length > 0) {
+    failures.push(`license-report self-test valid license failed: ${validFailures.join("; ")}`);
+  }
+
+  const reviewedFailures = collectDependencyLicenseFailures(() => {
+    const counts = new Map();
+    checkPackageLicense({ key: "<license-self-test-reviewed>", manifest: { license: "MPL-2.0" } }, counts);
+    if (counts.get("MPL-2.0") !== 1) {
+      failures.push("license-report self-test reviewed license was not counted");
+    }
+  });
+  if (reviewedFailures.length > 0) {
+    failures.push(`license-report self-test reviewed license failed: ${reviewedFailures.join("; ")}`);
+  }
+
+  const deniedFailures = collectDependencyLicenseFailures(() => {
+    checkPackageLicense({ key: "<license-self-test-denied>", manifest: { license: "GPL-3.0" } });
+  });
+  if (!deniedFailures.some((item) => item.includes("denied license GPL-3.0"))) {
+    failures.push(`license-report self-test denied license was not rejected: ${deniedFailures.join("; ")}`);
+  }
+
+  const unknownFailures = collectDependencyLicenseFailures(() => {
+    checkPackageLicense({ key: "<license-self-test-unknown>", manifest: { license: "Custom-1.0" } });
+  });
+  if (!unknownFailures.some((item) => item.includes("license requires review before release: Custom-1.0"))) {
+    failures.push(`license-report self-test unknown license was not rejected: ${unknownFailures.join("; ")}`);
+  }
+
+  const missingFailures = collectDependencyLicenseFailures(() => {
+    checkPackageLicense({ key: "<license-self-test-missing>", manifest: {} });
+  });
+  if (!missingFailures.some((item) => item.includes("missing license metadata"))) {
+    failures.push(`license-report self-test missing license was not rejected: ${missingFailures.join("; ")}`);
+  }
+}
+
+function collectDependencyLicenseFailures(fn) {
+  const before = failures.length;
+  fn();
+  return failures.splice(before);
 }
 
 function normalizeLicense(value) {
