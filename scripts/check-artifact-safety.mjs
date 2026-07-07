@@ -120,7 +120,7 @@ function checkReleaseRecordObject(path, record) {
 
   for (const [index, item] of artifacts.entries()) {
     checkOptionalArtifactName(item?.name, `${path}: artifacts[${index}].name`);
-    checkOptionalRepositoryPath(item?.source, `${path}: artifacts[${index}].source`);
+    checkOptionalTrackedRepositoryPath(item?.source, `${path}: artifacts[${index}].source`);
   }
 }
 
@@ -133,6 +133,13 @@ function checkOptionalRepositoryPath(value, label) {
     return;
   }
   checkRepositoryPath(value, label);
+}
+
+function checkOptionalTrackedRepositoryPath(value, label) {
+  checkOptionalRepositoryPath(value, label);
+  if (!isPlaceholder(value) && typeof value === "string" && !trackedSet.has(value)) {
+    failures.push(`${label}: referenced artifact source must be tracked`);
+  }
 }
 
 function checkOptionalArtifactName(value, label) {
@@ -228,6 +235,10 @@ function checkArtifactSafetyValidator() {
         {
           name: "capture-logs.tgz",
           source: "logs/private/capture.json"
+        },
+        {
+          name: "local-release-directory",
+          source: "docs/ops/release-records"
         }
       ]
     });
@@ -235,7 +246,8 @@ function checkArtifactSafetyValidator() {
   if (
     !unsafeRecordFailures.some((item) => item.includes("paths must not contain traversal or empty segments")) ||
     !unsafeRecordFailures.some((item) => item.includes("artifact names must not contain path separators or traversal")) ||
-    !unsafeRecordFailures.some((item) => item.includes('forbidden public artifact path segment "logs"'))
+    !unsafeRecordFailures.some((item) => item.includes('forbidden public artifact path segment "logs"')) ||
+    !unsafeRecordFailures.some((item) => item.includes("referenced artifact source must be tracked"))
   ) {
     failures.push(`artifact-safety self-test unsafe release record was not rejected: ${unsafeRecordFailures.join("; ")}`);
   }

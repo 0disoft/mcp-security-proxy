@@ -170,6 +170,8 @@ function checkReleaseRecordObject(path, record) {
       }
       if (!existsSync(join(root, item.source))) {
         failures.push(`${path}: artifacts[${index}].source must exist`);
+      } else if (!trackedFiles.has(item.source)) {
+        failures.push(`${path}: artifacts[${index}].source must be tracked`);
       }
     }
   }
@@ -271,6 +273,19 @@ function checkReleaseRecordValidator() {
     !mismatchFailures.some((item) => item.includes("duplicate artifact name"))
   ) {
     failures.push(`release-readiness self-test mismatch fixture was not rejected: ${mismatchFailures.join("; ")}`);
+  }
+
+  const untrackedArtifactFailures = collectReleaseRecordFailures("<release-readiness-self-test-untracked-artifact>", {
+    ...validRecord,
+    artifacts: [
+      {
+        name: "release-records-directory",
+        source: "docs/ops/release-records"
+      }
+    ]
+  });
+  if (!untrackedArtifactFailures.some((item) => item.includes("artifacts[0].source must be tracked"))) {
+    failures.push(`release-readiness self-test untracked artifact source was not rejected: ${untrackedArtifactFailures.join("; ")}`);
   }
 
   const duplicatePackageNameFailures = collectReleaseRecordFailures("<release-readiness-self-test-duplicate-package-name>", {

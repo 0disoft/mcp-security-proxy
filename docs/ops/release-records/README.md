@@ -30,4 +30,6 @@ external MCP client/server fixtures are excluded. A release that includes them m
 exclusion with tracked fixture and validation evidence.
 
 Use `public-release.template.json` as the starting shape. Do not put credentials, tokens, private
-audit logs, private policy files, or raw incident evidence in release records.
+audit logs, private policy files, or raw incident evidence in release records. Release artifact
+`source` paths must point at tracked repository files so release recovery does not depend on local,
+untracked state.
