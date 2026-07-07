@@ -18,6 +18,7 @@ This document owns stable validation names for this scaffold.
 - docs
 - package-surface
 - secret-scan
+- compatibility
 - check
 
 ## Required Final Report

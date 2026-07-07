@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "msp.decision.v1",
+  "action": "deny",
+  "evidence": [
+    {
+      "ruleId": "deny-private-files",
+      "capability": "file-read",
+      "reason": "matched deny rule"
+    }
+  ]
+}

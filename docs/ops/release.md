@@ -33,8 +33,8 @@ UNDECIDED. Before publishing any public artifact, a release record must name:
 - the registry target and publish credentials owner;
 - the release artifact list;
 - the package version to publish;
-- the exact validation output for `docs`, `package-surface`, `secret-scan`, `contract`, `test`,
-  `smoke`, and `check`;
+- the exact validation output for `docs`, `package-surface`, `secret-scan`, `compatibility`,
+  `contract`, `test`, `smoke`, and `check`;
 - the rollback path for a bad package or CLI release.
 
 Until that record exists, package manifests must stay private and versioned as `0.0.0`.
@@ -48,12 +48,13 @@ Until that record exists, package manifests must stay private and versioned as `
 - Dependency license report missing after dependencies exist.
 - Release artifact includes real logs, real policies, private captures, or exploit corpus data.
 - `pnpm run package-surface` fails.
+- `pnpm run compatibility` fails.
 - Package manifests are public before release readiness records public names and artifacts.
 
 ## Validation
 
-- Required validation names: docs, package-surface, secret-scan, contract, test, smoke, check when
-  commands exist.
+- Required validation names: docs, package-surface, secret-scan, compatibility, contract, test,
+  smoke, check when commands exist.
 - Release blocker status: blocked for public npm release until package naming, artifact naming,
   publish credentials ownership, and rollback records exist.
 - Remaining operational risk: release automation does not exist yet; manual release is not allowed

@@ -17,6 +17,7 @@ const requiredFiles = [
   "packages/contracts/schemas/audit-event.v1.schema.json",
   "fixtures/policies/deny-by-default.json",
   "fixtures/policies/local-dev.json",
+  "fixtures/compatibility/manifest.json",
   "fixtures/mcp/call-file-read-denied.json",
   "fixtures/audit/decision-denied.redacted.jsonl"
 ];

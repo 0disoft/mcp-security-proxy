@@ -54,6 +54,8 @@ Status: partially implemented.
 - Add compatibility fixtures for representative MCP clients.
 - Expose stable optional decision evidence codes for audit consumers.
 - Expose an approval hook API for embedding hosts.
+- Maintain fixture-backed compatibility evidence for discovery, allowed calls, denied calls,
+  redaction, CLI JSON output, and library decision results.
 
 ## Milestone 3: Host Integration Hardening
 

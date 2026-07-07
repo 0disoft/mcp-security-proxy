@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "msp.compatibility-evidence.v1",
+  "target": "local-stdio-mvp",
+  "evidence": [
+    {
+      "id": "mcp-discovery-basic",
+      "kind": "mcp.discovery",
+      "path": "fixtures/mcp/tools-list-basic.json"
+    },
+    {
+      "id": "mcp-call-file-read-allowed",
+      "kind": "mcp.call.allowed",
+      "path": "fixtures/mcp/call-file-read-allowed.json"
+    },
+    {
+      "id": "mcp-call-file-read-denied",
+      "kind": "mcp.call.denied",
+      "path": "fixtures/mcp/call-file-read-denied.json"
+    },
+    {
+      "id": "audit-decision-denied-redacted",
+      "kind": "audit.redaction",
+      "path": "fixtures/audit/decision-denied.redacted.jsonl"
+    },
+    {
+      "id": "cli-check-policy-local-dev",
+      "kind": "cli.json.check-policy",
+      "path": "fixtures/compatibility/cli-check-policy.local-dev.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "check-policy",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--json"
+      ]
+    },
+    {
+      "id": "cli-eval-call-denied-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-denied.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-file-read-denied.json",
+        "--json"
+      ]
+    },
+    {
+      "id": "library-decision-file-read-denied",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-file-read-denied.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "call": "fixtures/mcp/call-file-read-denied.json",
+      "profile": "local"
+    }
+  ]
+}

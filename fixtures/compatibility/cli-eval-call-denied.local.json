@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "command": "eval-call",
+  "profile": "local",
+  "decision": {
+    "action": "deny",
+    "evidence": [
+      {
+        "ruleId": "deny-private-files",
+        "capability": "file-read",
+        "reason": "matched deny rule"
+      }
+    ]
+  }
+}

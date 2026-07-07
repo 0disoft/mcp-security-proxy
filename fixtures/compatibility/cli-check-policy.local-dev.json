@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "command": "check-policy",
+  "policy": {
+    "path": "fixtures/policies/local-dev.json",
+    "profiles": [
+      {
+        "id": "local",
+        "rules": 5,
+        "auditFailure": "fail_closed"
+      }
+    ],
+    "schemas": [
+      "msp.policy.v1",
+      "msp.decision.v1",
+      "msp.audit-event.v1"
+    ]
+  }
+}

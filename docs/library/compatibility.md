@@ -44,9 +44,14 @@ This repository type owns public API surface, package compatibility, semantic ve
 - CLI JSON output fixture.
 - Library decision-result fixture.
 
+The current evidence registry is `fixtures/compatibility/manifest.json`. `pnpm run compatibility`
+builds the workspace, verifies every manifest entry, and compares the captured CLI and library
+fixtures against the current implementation.
+
 ## Review Blockers
 
 - Public exports change without semver and migration notes.
 - Compatibility claims lack runtime or consumer evidence.
 - Package artifacts drift from documented public API.
 - Package manifest compatibility drifts from `docs/library/package-surface.md`.
+- `pnpm run compatibility` fails.

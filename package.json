@@ -10,7 +10,8 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs && pnpm run package-surface && pnpm run secret-scan && pnpm run smoke",
+    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs && pnpm run package-surface && pnpm run secret-scan && pnpm run compatibility && pnpm run smoke",
+    "compatibility": "pnpm build && node scripts/check-compatibility-evidence.mjs",
     "contract": "pnpm build && pnpm --filter @0disoft/mcp-security-proxy-contracts typecheck && pnpm --filter @0disoft/mcp-security-proxy-core test",
     "docs": "node scripts/check-docs.mjs",
     "package-surface": "node scripts/check-package-surface.mjs",
