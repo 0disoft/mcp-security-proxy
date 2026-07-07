@@ -75,7 +75,6 @@ prints the decision without forwarding it.
 - `--audit-log` selects JSON Lines audit output for live proxy behavior.
 - `--shutdown-grace-ms` selects the live proxy shutdown grace window in milliseconds.
 - `--max-frame-bytes` and `--max-json-depth` select live proxy frame guards.
-- `--dry-run` never forwards a tool call.
 
 `run` does not support `--json` because stdout is reserved for MCP protocol messages after the live
 proxy starts. `run --help` exits before startup and may print usage text to stdout.

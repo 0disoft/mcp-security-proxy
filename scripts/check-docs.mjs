@@ -46,12 +46,60 @@ for (const file of requiredFiles) {
   }
 }
 
-if (missing.length > 0 || forbiddenHits.length > 0) {
+const cliContractFailures = checkCliCommandDocs();
+
+if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
   for (const file of missing) {
     console.error(`missing required doc: ${file}`);
   }
   for (const hit of forbiddenHits) {
     console.error(`forbidden scaffold phrase: ${hit}`);
   }
+  for (const failure of cliContractFailures) {
+    console.error(failure);
+  }
   process.exit(1);
+}
+
+function checkCliCommandDocs() {
+  const failures = [];
+  const commandSource = readFileSync(join(root, "packages/cli/src/commands.ts"), "utf8");
+  const commandContract = readFileSync(join(root, "docs/cli/command-contract.md"), "utf8");
+  const cliReadme = readFileSync(join(root, "docs/cli/README.md"), "utf8");
+  const commands = extractCommandNames(commandSource);
+  const expectedCommands = ["run", "check-policy", "inspect-tools", "eval-call"];
+  if (JSON.stringify(commands) !== JSON.stringify(expectedCommands)) {
+    failures.push(`packages/cli/src/commands.ts: expected command list ${expectedCommands.join(", ")}, got ${commands.join(", ")}`);
+  }
+  for (const command of expectedCommands) {
+    if (!commandContract.includes(`mcp-security-proxy ${command}`)) {
+      failures.push(`docs/cli/command-contract.md: missing command section for ${command}`);
+    }
+  }
+  for (const flag of [
+    "--policy",
+    "--profile",
+    "--input",
+    "--approval-hook",
+    "--audit-log",
+    "--shutdown-grace-ms",
+    "--max-frame-bytes",
+    "--max-json-depth"
+  ]) {
+    if (!commandContract.includes(flag)) {
+      failures.push(`docs/cli/command-contract.md: missing flag documentation for ${flag}`);
+    }
+  }
+  if (commandContract.includes("--dry-run") || cliReadme.includes("--dry-run")) {
+    failures.push("docs/cli: --dry-run flag is not implemented and must not be documented");
+  }
+  return failures;
+}
+
+function extractCommandNames(source) {
+  const match = source.match(/export type CommandName = ([^;]+);/);
+  if (!match) {
+    return [];
+  }
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
 }
