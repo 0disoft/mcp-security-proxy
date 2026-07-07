@@ -12,6 +12,12 @@ const expectedWorkspacePackages = [
   "proxy-runtime",
   "testkit"
 ];
+const dependencyGroups = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
+const mcpSdkDependencyPatterns = [
+  /^@modelcontextprotocol\/sdk$/,
+  /\bmcp-sdk\b/i,
+  /\bmodelcontextprotocol\b/i
+];
 
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 const formatPath = (path) => relative(root, path).replaceAll("\\", "/");
@@ -49,10 +55,13 @@ const checkWorkspacePackage = (manifest, manifestPath) => {
 
 const checkDependencies = (manifest, manifestPath, workspacePackageNames) => {
   const file = formatPath(manifestPath);
-  const dependencyGroups = ["dependencies", "peerDependencies", "optionalDependencies"];
+  checkDependencyDecisionGuards(manifest, file);
   for (const group of dependencyGroups) {
     const dependencies = manifest[group] ?? {};
     for (const [name, version] of Object.entries(dependencies)) {
+      if (group === "devDependencies") {
+        continue;
+      }
       if (!workspacePackageNames.has(name)) {
         failures.push(`${file}: ${group}.${name} must not introduce external runtime dependencies before release readiness records them`);
         continue;
@@ -62,11 +71,49 @@ const checkDependencies = (manifest, manifestPath, workspacePackageNames) => {
   }
 };
 
+const checkDependencyDecisionGuards = (manifest, file) => {
+  for (const group of dependencyGroups) {
+    const dependencies = manifest[group] ?? {};
+    for (const name of Object.keys(dependencies)) {
+      checkMcpSdkDependency(name, file, group);
+    }
+  }
+};
+
+const checkMcpSdkDependency = (name, file, group) => {
+  if (mcpSdkDependencyPatterns.some((pattern) => pattern.test(name))) {
+    failures.push(`${file}: ${group}.${name} must wait for an ADR or release-readiness record because MCP SDK choices are UNDECIDED`);
+  }
+};
+
+const checkPackageSurfaceValidator = () => {
+  const sdkDependencyFailures = collectPackageSurfaceFailures(() => {
+    checkDependencyDecisionGuards(
+      {
+        devDependencies: {
+          "@modelcontextprotocol/sdk": "^1.0.0"
+        }
+      },
+      "<package-surface-self-test-mcp-sdk-dependency>"
+    );
+  });
+  if (!sdkDependencyFailures.some((item) => item.includes("MCP SDK choices are UNDECIDED"))) {
+    failures.push(`package-surface self-test MCP SDK dependency was not rejected: ${sdkDependencyFailures.join("; ")}`);
+  }
+};
+
+const collectPackageSurfaceFailures = (fn) => {
+  const before = failures.length;
+  fn();
+  return failures.splice(before);
+};
+
 const rootManifestPath = join(root, "package.json");
 const rootManifest = readJson(rootManifestPath);
 checkCommonManifest(rootManifest, rootManifestPath);
 assertEqual(rootManifest.name === "mcp-security-proxy-workspace", "package.json: workspace package name changed unexpectedly");
 assertEqual(rootManifest.version === "0.0.0", "package.json: workspace version must stay 0.0.0 before public release");
+checkDependencyDecisionGuards(rootManifest, "package.json");
 
 const packagesDir = join(root, "packages");
 assertEqual(existsSync(packagesDir), "packages/: workspace packages directory is missing");
@@ -102,6 +149,8 @@ if (existsSync(packagesDir)) {
     failures.push("packages/cli/package.json: CLI package is missing");
   }
 }
+
+checkPackageSurfaceValidator();
 
 if (failures.length > 0) {
   for (const failure of failures) {
