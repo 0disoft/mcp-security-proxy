@@ -210,6 +210,20 @@ function parseJsonLine(line: string): { readonly ok: true; readonly value: JsonR
     if ("method" in parsed && typeof parsed["method"] !== "string") {
       return { ok: false, reason: "JSON-RPC method must be a string when present" };
     }
+    const hasMethod = "method" in parsed;
+    const hasResult = "result" in parsed;
+    const hasError = "error" in parsed;
+    if (hasMethod && (hasResult || hasError)) {
+      return { ok: false, reason: "JSON-RPC request or notification must not include result or error" };
+    }
+    if (!hasMethod) {
+      if (!("id" in parsed)) {
+        return { ok: false, reason: "JSON-RPC response must include an id" };
+      }
+      if (hasResult === hasError) {
+        return { ok: false, reason: "JSON-RPC response must include exactly one of result or error" };
+      }
+    }
     return { ok: true, value: parsed as unknown as JsonRpcEnvelope };
   } catch {
     return { ok: false, reason: "message is not valid JSON" };

@@ -105,6 +105,129 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("drops upstream responses that include both result and error", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-both",
+        method: "tools/list"
+      })
+    );
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-both",
+        result: readJsonFixture("fixtures/mcp/tools-list-basic.json"),
+        error: {
+          code: -32000,
+          message: "RAW_RESPONSE_ERROR_MARKER"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_RESPONSE_ERROR_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ reason: "JSON-RPC response must include exactly one of result or error" }]
+      }
+    });
+
+    const call = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-after-invalid-response",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+
+    expect(call.forwardLine).toBeUndefined();
+    expect(JSON.parse(call.responseLine ?? "{}")).toMatchObject({
+      id: "call-after-invalid-response",
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "tool was not visible in filtered discovery" }]
+          }
+        }
+      }
+    });
+  });
+
+  it("drops upstream responses that include neither result nor error", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "empty-response"
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ reason: "JSON-RPC response must include exactly one of result or error" }]
+      }
+    });
+  });
+
+  it("rejects client requests that include response fields", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "request-with-result",
+        method: "tools/list",
+        result: {}
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32600,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "JSON-RPC request or notification must not include result or error" }]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents).toHaveLength(1);
+  });
+
   it("denies unsupported upstream server requests before response correlation", () => {
     const session = createProxySession({
       policy: readPolicy(),
