@@ -1869,6 +1869,38 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("shows secret tools in discovery only when a secret label policy covers them", () => {
+    const session = createProxySession({
+      policy: readSecretLabelPolicy(),
+      profileId: "local"
+    });
+
+    const outbound = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "secret-tools",
+        method: "tools/list"
+      })
+    );
+    expect(outbound.forwardLine).toBeTruthy();
+
+    const inbound = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "secret-tools",
+        result: readJsonFixture("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+
+    const filtered = JSON.parse(inbound.forwardLine ?? "{}") as { readonly result?: { readonly tools?: readonly { readonly name: string }[] } };
+    expect(filtered.result?.tools?.map((tool) => tool.name)).toEqual(["read_secret"]);
+    expect(inbound.auditEvents).toHaveLength(1);
+    expect(inbound.auditEvents[0]).toMatchObject({
+      kind: "discovery-filtered",
+      decision: { action: "deny" }
+    });
+  });
+
   it("removes non-contract top-level fields from visible tool discovery descriptors", () => {
     const session = createProxySession({
       policy: readPolicy(),
