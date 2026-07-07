@@ -258,6 +258,101 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("preserves JSON-RPC id type when matching pending discovery responses", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "1",
+        method: "tools/list"
+      })
+    );
+
+    const numericIdResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        result: readJsonFixture("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+
+    const unfiltered = JSON.parse(numericIdResponse.forwardLine ?? "{}") as {
+      readonly id?: string | number;
+      readonly result?: { readonly tools?: readonly { readonly name: string }[] };
+    };
+    expect(unfiltered.id).toBe(1);
+    expect(unfiltered.result?.tools?.map((tool) => tool.name)).toEqual(["read_file", "run_command", "unknown_tool"]);
+    expect(numericIdResponse.auditEvents).toHaveLength(0);
+
+    const deniedBeforeMatchingDiscovery = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-before",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+
+    expect(deniedBeforeMatchingDiscovery.forwardLine).toBeUndefined();
+    expect(JSON.parse(deniedBeforeMatchingDiscovery.responseLine ?? "{}")).toMatchObject({
+      id: "call-before",
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "tool was not visible in filtered discovery" }]
+          }
+        }
+      }
+    });
+
+    const stringIdResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "1",
+        result: readJsonFixture("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+
+    expect(JSON.parse(stringIdResponse.forwardLine ?? "{}")).toMatchObject({
+      id: "1",
+      result: {
+        tools: [
+          {
+            name: "read_file"
+          }
+        ]
+      }
+    });
+    expect(stringIdResponse.auditEvents).toHaveLength(1);
+
+    const allowedAfterMatchingDiscovery = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-after",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+
+    expect(allowedAfterMatchingDiscovery.forwardLine).toBeTruthy();
+    expect(allowedAfterMatchingDiscovery.responseLine).toBeUndefined();
+  });
+
   it("forwards allowed tool calls after policy evaluation", () => {
     const session = createProxySession({
       policy: readPolicy(),

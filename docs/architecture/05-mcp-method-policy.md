@@ -49,6 +49,8 @@ still required because the upstream server and tool arguments remain untrusted.
 Each filtered `tools/list` response replaces the current session's visible tool set. A tool that was
 visible in an earlier discovery response must not remain callable after a later filtered discovery
 response hides or omits it.
+Pending request/response correlation must preserve the JSON-RPC id type. For example, numeric id
+`1` and string id `"1"` must not match the same pending `tools/list` request.
 
 ## Call Policy
 

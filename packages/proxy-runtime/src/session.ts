@@ -62,7 +62,7 @@ export class ProxySession {
     }
 
     if (envelope.id !== undefined) {
-      this.pendingRequestMethods.set(String(envelope.id), envelope.method);
+      this.pendingRequestMethods.set(requestIdKey(envelope.id), envelope.method);
     }
 
     if (envelope.method !== "tools/call") {
@@ -139,7 +139,7 @@ export class ProxySession {
     if (envelope.id === undefined) {
       return undefined;
     }
-    const key = String(envelope.id);
+    const key = requestIdKey(envelope.id);
     const method = this.pendingRequestMethods.get(key);
     this.pendingRequestMethods.delete(key);
     return method;
@@ -333,6 +333,13 @@ function encodeJsonRpcError(id: string | number | null, code: number, message: s
       }
     }
   });
+}
+
+function requestIdKey(id: string | number | null): string {
+  if (id === null) {
+    return "null:null";
+  }
+  return `${typeof id}:${String(id)}`;
 }
 
 function denyDecision(reason: string, evidence?: Omit<DecisionEvidence, "reason">): PolicyDecision {
