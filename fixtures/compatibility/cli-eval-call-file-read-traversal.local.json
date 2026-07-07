@@ -7,6 +7,7 @@
     "evidence": [
       {
         "capability": "file-read",
+        "code": "policy.ambiguous_path",
         "reason": "ambiguous path denied by default"
       }
     ]

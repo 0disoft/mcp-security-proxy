@@ -31,21 +31,26 @@ export function evaluateToolCall(options: EvaluateToolCallOptions): PolicyDecisi
 
   const blockingIssue = findBlockingArgumentIssue(options.call.argumentFacts);
   if (blockingIssue) {
-    return deny(blockingIssue.reason, capabilityForFactKind(blockingIssue.kind));
+    return deny(blockingIssue.reason, capabilityForFactKind(blockingIssue.kind), blockingIssue.code);
   }
 
   if (hasFactKind(options.call.argumentFacts, "secret") && !options.call.capabilities.includes("secret")) {
-    return deny("secret-sensitive argument requires explicit secret capability", "secret");
+    return deny(
+      "secret-sensitive argument requires explicit secret capability",
+      "secret",
+      "policy.secret_capability_required"
+    );
   }
 
   if (options.call.capabilities.includes("unknown")) {
-    return deny("unknown capability denied by default", "unknown");
+    return deny("unknown capability denied by default", "unknown", "policy.unknown_capability");
   }
 
   for (const action of ["deny", "approval_required", "allow"] as const) {
     const rule = profile.rules.find((candidate) => candidate.action === action && ruleMatches(candidate, options.call));
     if (rule) {
       const evidence: DecisionEvidence = {
+        code: codeForRuleAction(action),
         ruleId: rule.id,
         ...withCapability(firstMatchingCapability(rule, options.call)),
         reason: `matched ${action} rule`
@@ -95,6 +100,16 @@ function firstMatchingCapability(rule: PolicyRule, call: NormalizedToolCall): Ca
 
 function withCapability(capability: Capability | undefined): { readonly capability: Capability } | Record<string, never> {
   return capability ? { capability } : {};
+}
+
+function codeForRuleAction(action: PolicyRule["action"]): NonNullable<DecisionEvidence["code"]> {
+  if (action === "allow") {
+    return "policy.rule_allow";
+  }
+  if (action === "deny") {
+    return "policy.rule_deny";
+  }
+  return "policy.rule_approval_required";
 }
 
 function matcherMatches(kind: "path" | "command" | "network" | "secret", rule: PolicyRule, call: NormalizedToolCall): boolean {

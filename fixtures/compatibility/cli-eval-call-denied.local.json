@@ -6,6 +6,7 @@
     "action": "deny",
     "evidence": [
       {
+        "code": "policy.rule_deny",
         "ruleId": "deny-private-files",
         "capability": "file-read",
         "reason": "matched deny rule"

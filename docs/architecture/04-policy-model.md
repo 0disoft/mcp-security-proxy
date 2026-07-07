@@ -52,6 +52,10 @@ The evaluator must return rule evidence for the winning decision. Classifier out
 a rule matched, but classifier output alone must not grant permission.
 Decision evidence includes a stable machine-readable code and a human-readable reason. The reason
 is for operators; the code is for tests, audit consumers, and future integrations.
+Rule decisions must use action-specific codes (`policy.rule_allow`, `policy.rule_deny`, or
+`policy.rule_approval_required`). Fail-closed checks that happen before rule evaluation must use
+specific denial codes for ambiguous paths, free-form shell wrappers, ambiguous network targets,
+missing secret capability, and unknown capabilities so consumers do not parse operator text.
 
 ## Path Matching
 

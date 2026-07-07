@@ -4,6 +4,7 @@
   "evidence": [
     {
       "capability": "network",
+      "code": "policy.ambiguous_network",
       "reason": "ambiguous network target denied by default"
     }
   ]

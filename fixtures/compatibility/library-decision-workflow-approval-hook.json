@@ -3,6 +3,7 @@
   "action": "approval_required",
   "evidence": [
     {
+      "code": "policy.rule_approval_required",
       "ruleId": "approval-workflow",
       "capability": "workflow",
       "reason": "matched approval_required rule"

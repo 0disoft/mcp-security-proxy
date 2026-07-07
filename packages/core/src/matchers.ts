@@ -1,6 +1,7 @@
 import type {
   ArgumentFact,
   CommandRule,
+  DecisionEvidence,
   NetworkRule,
   PathRule,
   SecretRule
@@ -8,21 +9,22 @@ import type {
 
 export interface MatcherIssue {
   readonly kind: ArgumentFact["kind"];
+  readonly code: NonNullable<DecisionEvidence["code"]>;
   readonly reason: string;
 }
 
 export function findBlockingArgumentIssue(facts: readonly ArgumentFact[]): MatcherIssue | undefined {
   for (const fact of facts) {
     if (fact.kind === "path" && !normalizePathValue(fact.value).ok) {
-      return { kind: "path", reason: "ambiguous path denied by default" };
+      return { kind: "path", code: "policy.ambiguous_path", reason: "ambiguous path denied by default" };
     }
 
     if (fact.kind === "command" && isDeniedShellCommand(fact)) {
-      return { kind: "command", reason: "free-form shell command denied by default" };
+      return { kind: "command", code: "policy.free_form_shell", reason: "free-form shell command denied by default" };
     }
 
     if (fact.kind === "network" && !normalizeNetworkValue(fact.value).ok) {
-      return { kind: "network", reason: "ambiguous network target denied by default" };
+      return { kind: "network", code: "policy.ambiguous_network", reason: "ambiguous network target denied by default" };
     }
   }
 

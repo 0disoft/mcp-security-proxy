@@ -3,6 +3,7 @@
   "action": "allow",
   "evidence": [
     {
+      "code": "policy.rule_allow",
       "ruleId": "allow-example-network",
       "capability": "network",
       "reason": "matched allow rule"

@@ -45,9 +45,10 @@ The exact schema is not final, but JSON command output should follow this shape:
     "action": "deny",
     "evidence": [
       {
-        "reason": "matched deny rule",
+        "code": "policy.rule_deny",
         "ruleId": "deny-private-files",
-        "capability": "file-read"
+        "capability": "file-read",
+        "reason": "matched deny rule"
       }
     ]
   },

@@ -22,6 +22,7 @@ describe("MCP Security Proxy core", () => {
     const decision = evaluateMcpMethod("resources/list", policy);
 
     expect(decision.action).toBe("deny");
+    expect(decision.evidence[0]?.code).toBe("method.unsupported");
     expect(decision.evidence[0]?.reason).toContain("unsupported MCP method");
   });
 
@@ -34,6 +35,7 @@ describe("MCP Security Proxy core", () => {
     });
 
     expect(decision.action).toBe("deny");
+    expect(decision.evidence[0]?.code).toBe("policy.default_deny");
     expect(decision.evidence[0]?.reason).toBe("default deny");
   });
 
@@ -45,6 +47,7 @@ describe("MCP Security Proxy core", () => {
     });
 
     expect(decision.action).toBe("allow");
+    expect(decision.evidence[0]?.code).toBe("policy.rule_allow");
     expect(decision.evidence[0]?.ruleId).toBe("allow-public-files");
   });
 
@@ -56,6 +59,7 @@ describe("MCP Security Proxy core", () => {
     });
 
     expect(decision.action).toBe("deny");
+    expect(decision.evidence[0]?.code).toBe("policy.rule_deny");
     expect(decision.evidence[0]?.ruleId).toBe("deny-private-files");
   });
 
@@ -67,6 +71,7 @@ describe("MCP Security Proxy core", () => {
     });
 
     expect(decision.action).toBe("deny");
+    expect(decision.evidence[0]?.code).toBe("policy.ambiguous_path");
     expect(decision.evidence[0]?.reason).toBe("ambiguous path denied by default");
   });
 
@@ -78,6 +83,7 @@ describe("MCP Security Proxy core", () => {
     });
 
     expect(decision.action).toBe("deny");
+    expect(decision.evidence[0]?.code).toBe("policy.free_form_shell");
     expect(decision.evidence[0]?.reason).toBe("free-form shell command denied by default");
   });
 
@@ -89,16 +95,35 @@ describe("MCP Security Proxy core", () => {
         policy,
         profileId: "local",
         call: readFixture<NormalizedToolCall>("fixtures/mcp/call-network-allowed.json")
-      }).action
-    ).toBe("allow");
+      })
+    ).toMatchObject({
+      action: "allow",
+      evidence: [{ code: "policy.rule_allow" }]
+    });
 
     expect(
       evaluateToolCall({
         policy,
         profileId: "local",
         call: readFixture<NormalizedToolCall>("fixtures/mcp/call-network-denied.json")
-      }).action
-    ).toBe("deny");
+      })
+    ).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.default_deny" }]
+    });
+  });
+
+  it("fails closed on ambiguous network targets before rule evaluation", () => {
+    const decision = evaluateToolCall({
+      policy: readFixture<PolicyDocument>("fixtures/policies/local-dev.json"),
+      profileId: "local",
+      call: readFixture<NormalizedToolCall>("fixtures/mcp/call-network-ambiguous.json")
+    });
+
+    expect(decision).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.ambiguous_network", reason: "ambiguous network target denied by default" }]
+    });
   });
 
   it("turns approval-required into deny when no approval hook is available", () => {
@@ -111,9 +136,14 @@ describe("MCP Security Proxy core", () => {
     };
 
     expect(evaluateToolCall({ policy, profileId: "local", call }).action).toBe("deny");
-    expect(evaluateToolCall({ policy, profileId: "local", call, approvalHookAvailable: true }).action).toBe(
-      "approval_required"
-    );
+    expect(evaluateToolCall({ policy, profileId: "local", call })).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.approval_hook_missing" }]
+    });
+    expect(evaluateToolCall({ policy, profileId: "local", call, approvalHookAvailable: true })).toMatchObject({
+      action: "approval_required",
+      evidence: [{ code: "policy.rule_approval_required" }]
+    });
   });
 
   it("denies unknown capability before classifier hints can grant permission", () => {
@@ -129,6 +159,7 @@ describe("MCP Security Proxy core", () => {
     });
 
     expect(decision.action).toBe("deny");
+    expect(decision.evidence[0]?.code).toBe("policy.unknown_capability");
     expect(decision.evidence[0]?.reason).toBe("unknown capability denied by default");
   });
 
@@ -149,6 +180,7 @@ describe("MCP Security Proxy core", () => {
 
     expect(decision.action).toBe("deny");
     expect(decision.evidence[0]).toMatchObject({
+      code: "policy.secret_capability_required",
       capability: "secret",
       reason: "secret-sensitive argument requires explicit secret capability"
     });
@@ -177,7 +209,7 @@ describe("MCP Security Proxy core", () => {
       })
     ).toMatchObject({
       action: "allow",
-      evidence: [{ ruleId: "allow-api-key-secret", capability: "secret" }]
+      evidence: [{ code: "policy.rule_allow", ruleId: "allow-api-key-secret", capability: "secret" }]
     });
 
     expect(

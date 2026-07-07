@@ -6,6 +6,7 @@
     "action": "allow",
     "evidence": [
       {
+        "code": "policy.rule_allow",
         "ruleId": "allow-public-files",
         "capability": "file-read",
         "reason": "matched allow rule"
