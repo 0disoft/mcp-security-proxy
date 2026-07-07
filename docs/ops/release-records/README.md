@@ -14,11 +14,13 @@ Release records must include validation evidence for: `docs`, `schema-contract`,
 `validation-registry`, `ci-contract`, `compatibility`, `license-report`, `release-readiness`,
 `performance-smoke`, `contract`, `test`, `smoke`, and `check`.
 
-Release records must also name whether MCP SDK dependency usage, HTTP transport support, and
-host-specific approval UX are included or excluded from the release scope, with evidence for each
-scope decision. Scope evidence values must be safe repository-relative paths to tracked decision,
-architecture, or operational files. Do not imply HTTP, hosted control plane, bundled approval UI, or
-SDK compatibility support through package names or release notes when the release record excludes it.
+Release records must also name whether MCP SDK dependency usage, HTTP transport support,
+host-specific approval UX, and external MCP compatibility fixtures are included or excluded from
+the release scope, with evidence for each scope decision. Scope evidence values must be safe
+repository-relative paths to tracked decision, architecture, or operational files. Do not imply
+HTTP, hosted control plane, bundled approval UI, SDK compatibility support, or external MCP
+client/server compatibility through package names or release notes when the release record excludes
+it.
 
 Use `public-release.template.json` as the starting shape. Do not put credentials, tokens, private
 audit logs, private policy files, or raw incident evidence in release records.

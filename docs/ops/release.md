@@ -38,6 +38,8 @@ UNDECIDED. Before publishing any public artifact, a release record must name:
   `compatibility`, `license-report`, `release-readiness`, `performance-smoke`, `contract`, `test`,
   `smoke`, and `check`;
 - the rollback path for a bad package or CLI release.
+- whether external MCP client/server compatibility fixtures are included or explicitly excluded
+  from the release scope.
 
 Until that record exists, package manifests must stay private and versioned as `0.0.0`.
 Release records live under `docs/ops/release-records/*.release.json`; use
@@ -63,6 +65,8 @@ validation and runtime versions.
 - `pnpm run validation-registry` fails.
 - `pnpm run ci-contract` fails.
 - Compatibility claims without fixture-backed evidence.
+- External MCP client/server compatibility claims without fixture-backed evidence or an explicit
+  release-scope exclusion.
 - `pnpm run license-report` fails after dependencies exist.
 - Release artifact includes real logs, real policies, private captures, or exploit corpus data.
 - `pnpm run package-surface` fails.

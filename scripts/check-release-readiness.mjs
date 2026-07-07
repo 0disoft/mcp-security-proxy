@@ -23,7 +23,7 @@ const requiredValidations = [
   "smoke",
   "check"
 ];
-const requiredReleaseScopeDecisions = ["mcpSdkDependency", "httpTransport", "hostApprovalUx"];
+const requiredReleaseScopeDecisions = ["mcpSdkDependency", "httpTransport", "hostApprovalUx", "externalMcpFixture"];
 const releaseScopeStatuses = new Set(["included", "excluded"]);
 const releaseScopeEvidencePrefixes = ["docs/adr/", "docs/architecture/", "docs/ops/"];
 const trackedFiles = new Set(
@@ -370,6 +370,10 @@ function createReleaseRecordSelfTestFixture() {
       hostApprovalUx: {
         status: "excluded",
         evidence: "docs/architecture/08-host-approval-ux-plan.md"
+      },
+      externalMcpFixture: {
+        status: "excluded",
+        evidence: "docs/ops/release.md"
       }
     },
     validation: Object.fromEntries(requiredValidations.map((name) => [name, "self-test recorded"])),

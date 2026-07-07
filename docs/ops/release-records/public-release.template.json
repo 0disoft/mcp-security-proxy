@@ -29,6 +29,10 @@
     "hostApprovalUx": {
       "status": "UNDECIDED",
       "evidence": "UNDECIDED"
+    },
+    "externalMcpFixture": {
+      "status": "UNDECIDED",
+      "evidence": "UNDECIDED"
     }
   },
   "validation": {
