@@ -64,7 +64,8 @@ transports remain future runtime responsibilities.
 2. Proxy classifies tool capabilities from explicit policy, tool name, and description.
 3. Proxy applies discovery filtering rules.
 4. Proxy rebuilds each visible descriptor with only `name`, optional `description`,
-   object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`.
+   object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`,
+   while removing nested `default`, `example`, `examples`, `$comment`, and `_meta` metadata.
 5. Client receives only sanitized tools allowed for discovery.
 6. Proxy records a redacted discovery audit event.
 

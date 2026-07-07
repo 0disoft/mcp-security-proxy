@@ -30,6 +30,8 @@ Define how sensitive data moves through MCP Security Proxy and what must never b
 - Tool descriptors are hints, not security proof.
 - Tool discovery forwarding is allowlisted at the descriptor field boundary. Unknown top-level
   descriptor metadata, including `_meta`, is not retained in forwarded discovery responses.
+  Nested schema and annotation metadata keys that commonly carry example or debug values are also
+  removed before forwarding.
 - Raw MCP payloads may be inspected for policy facts but must not be stored in audit events.
 - Audit events receive redacted summaries only.
 - Redaction must happen before audit write and before machine-readable CLI output.

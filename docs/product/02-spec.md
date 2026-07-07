@@ -41,7 +41,9 @@ discovery and tool calls through explicit policy, redaction, and audit events.
 - Filter tool discovery output before the client sees it.
 - Forward only sanitized visible tool descriptors from discovery: `name`, optional `description`,
   object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`.
-  Unknown top-level descriptor fields and `_meta` are not forwarded by the MVP proxy.
+  Unknown top-level descriptor fields and `_meta` are not forwarded by the MVP proxy. Nested
+  discovery metadata keys that commonly carry example values, such as `default`, `example`,
+  `examples`, `$comment`, and `_meta`, are removed from forwarded schema and annotation objects.
 - Evaluate tool calls before forwarding them.
 - Support embedding-host approval hooks for approval-required calls. Calls must be forwarded only
   when the hook approves.

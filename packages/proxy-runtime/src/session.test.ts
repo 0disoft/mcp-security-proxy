@@ -1329,15 +1329,35 @@ describe("proxy runtime session", () => {
               description: "Read a file from a caller-provided path.",
               inputSchema: {
                 type: "object",
+                examples: [{ path: "RAW_SCHEMA_EXAMPLES_MARKER" }],
                 properties: {
-                  path: { type: "string" }
-                }
+                  path: {
+                    type: "string",
+                    default: "RAW_SCHEMA_DEFAULT_MARKER",
+                    $comment: "RAW_SCHEMA_COMMENT_MARKER",
+                    _meta: {
+                      debug: "RAW_SCHEMA_META_MARKER"
+                    }
+                  },
+                  mode: {
+                    type: "string",
+                    enum: ["fast", "safe"]
+                  }
+                },
+                required: ["path"]
               },
               outputSchema: {
-                type: "object"
+                type: "object",
+                example: {
+                  path: "RAW_OUTPUT_SCHEMA_EXAMPLE_MARKER"
+                }
               },
               annotations: {
-                readOnlyHint: true
+                readOnlyHint: true,
+                examples: ["RAW_ANNOTATION_EXAMPLES_MARKER"],
+                _meta: {
+                  debug: "RAW_ANNOTATION_META_MARKER"
+                }
               },
               _meta: {
                 debug: "RAW_VISIBLE_DESCRIPTOR_META_MARKER"
@@ -1364,8 +1384,15 @@ describe("proxy runtime session", () => {
         inputSchema: {
           type: "object",
           properties: {
-            path: { type: "string" }
-          }
+            path: {
+              type: "string"
+            },
+            mode: {
+              type: "string",
+              enum: ["fast", "safe"]
+            }
+          },
+          required: ["path"]
         },
         outputSchema: {
           type: "object"
@@ -1378,8 +1405,17 @@ describe("proxy runtime session", () => {
     expect(JSON.stringify(forwarded)).not.toContain("RAW_VISIBLE_DESCRIPTOR_META_MARKER");
     expect(JSON.stringify(forwarded)).not.toContain("RAW_VISIBLE_DESCRIPTOR_DEBUG_MARKER");
     expect(JSON.stringify(forwarded)).not.toContain("RAW_HIDDEN_DESCRIPTOR_DEBUG_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_SCHEMA_EXAMPLES_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_SCHEMA_DEFAULT_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_SCHEMA_COMMENT_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_SCHEMA_META_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_OUTPUT_SCHEMA_EXAMPLE_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_ANNOTATION_EXAMPLES_MARKER");
+    expect(JSON.stringify(forwarded)).not.toContain("RAW_ANNOTATION_META_MARKER");
     expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_VISIBLE_DESCRIPTOR_META_MARKER");
     expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_HIDDEN_DESCRIPTOR_DEBUG_MARKER");
+    expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_SCHEMA_DEFAULT_MARKER");
+    expect(JSON.stringify(inbound.auditEvents)).not.toContain("RAW_ANNOTATION_META_MARKER");
   });
 
   it("denies tool calls whose extracted path facts violate policy", () => {

@@ -50,6 +50,7 @@ const upstreamServerOriginAllowedMethods = new Set(["ping"]);
 const redactedUpstreamErrorMessage = "upstream error message redacted";
 const defaultMaxFrameBytes = 1_048_576;
 const defaultMaxJsonDepth = 64;
+const discoveryMetadataRedactionKeys = new Set(["default", "example", "examples", "$comment", "_meta"]);
 
 export class ProxySession {
   private readonly pendingRequestMethods = new Map<string, string>();
@@ -727,8 +728,32 @@ function sanitizeVisibleToolDescriptor(item: Readonly<Record<string, unknown>>, 
 function copyRecordField(source: Readonly<Record<string, unknown>>, target: Record<string, unknown>, field: string): void {
   const value = source[field];
   if (isRecord(value)) {
-    target[field] = value;
+    target[field] = sanitizeDiscoveryMetadata(value);
   }
+}
+
+function sanitizeDiscoveryMetadata(value: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  const sanitized = sanitizeDiscoveryMetadataValue(value);
+  return isRecord(sanitized) ? sanitized : {};
+}
+
+function sanitizeDiscoveryMetadataValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeDiscoveryMetadataValue(item));
+  }
+
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (discoveryMetadataRedactionKeys.has(key)) {
+      continue;
+    }
+    sanitized[key] = sanitizeDiscoveryMetadataValue(item);
+  }
+  return sanitized;
 }
 
 function toolIsDiscoverable(tool: ToolMetadata, policy: PolicyDocument, profileId: string): boolean {
