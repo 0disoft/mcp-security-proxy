@@ -123,6 +123,13 @@ const checkPackageSurfaceValidator = () => {
   if (!rootRuntimeDependencyFailures.some((item) => item.includes("must not be declared at the root workspace"))) {
     failures.push(`package-surface self-test root runtime dependency was not rejected: ${rootRuntimeDependencyFailures.join("; ")}`);
   }
+
+  const documentedPackageFailures = collectPackageSurfaceFailures(() => {
+    checkDocumentedPackageSurfaceNames("<package-surface-self-test-documented-packages>", ["core"], ["core", "cli"]);
+  });
+  if (!documentedPackageFailures.some((item) => item.includes("documented package surfaces"))) {
+    failures.push(`package-surface self-test documented package drift was not rejected: ${documentedPackageFailures.join("; ")}`);
+  }
 };
 
 const collectPackageSurfaceFailures = (fn) => {
@@ -138,6 +145,7 @@ assertEqual(rootManifest.name === "mcp-security-proxy-workspace", "package.json:
 assertEqual(rootManifest.version === "0.0.0", "package.json: workspace version must stay 0.0.0 before public release");
 checkDependencyDecisionGuards(rootManifest, "package.json");
 checkRootRuntimeDependencies(rootManifest, "package.json");
+checkDocumentedPackageSurfaces("docs/library/package-surface.md", expectedWorkspacePackages);
 
 const packagesDir = join(root, "packages");
 assertEqual(existsSync(packagesDir), "packages/: workspace packages directory is missing");
@@ -181,4 +189,19 @@ if (failures.length > 0) {
     console.error(failure);
   }
   process.exit(1);
+}
+
+function checkDocumentedPackageSurfaces(path, expectedPackages) {
+  const text = readFileSync(join(root, path), "utf8");
+  const documentedPackages = [...text.matchAll(/^- `packages\/([^`]+)`:/gm)]
+    .map((match) => match[1])
+    .sort((left, right) => left.localeCompare(right));
+  checkDocumentedPackageSurfaceNames(path, documentedPackages, expectedPackages);
+}
+
+function checkDocumentedPackageSurfaceNames(label, documentedPackages, expectedPackages) {
+  assertEqual(
+    JSON.stringify(documentedPackages) === JSON.stringify(expectedPackages),
+    `${label}: documented package surfaces must match ${expectedPackages.join(", ")}`
+  );
 }
