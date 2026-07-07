@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -7,6 +7,8 @@ const repoRoot = resolve(import.meta.dirname, "..");
 const tempDir = mkdtempSync(join(tmpdir(), "mcp-security-proxy-"));
 const auditLog = join(tempDir, "audit.jsonl");
 const auditFailurePath = join(tempDir, "audit-directory");
+const auditWarnPolicyPath = join(tempDir, "audit-warn-and-continue-policy.json");
+const auditWarnPath = join(tempDir, "audit-warn-directory");
 const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
@@ -15,6 +17,7 @@ const secretAuditLog = join(tempDir, "secret-audit.jsonl");
 
 try {
   mkdirSync(auditFailurePath);
+  mkdirSync(auditWarnPath);
 
   const auditFailureChild = spawn(
     process.execPath,
@@ -67,6 +70,90 @@ try {
   const auditFailureOutput = Buffer.concat(auditFailureStdoutChunks).toString("utf8");
   if (auditFailureOutput.length > 0) {
     throw new Error(`audit write failure emitted MCP stdout before failing closed: ${auditFailureOutput}`);
+  }
+
+  const auditWarnPolicy = JSON.parse(readFileSync(resolve(repoRoot, "fixtures/policies/local-dev.json"), "utf8"));
+  writeFileSync(
+    auditWarnPolicyPath,
+    `${JSON.stringify(
+      {
+        ...auditWarnPolicy,
+        profiles: auditWarnPolicy.profiles.map((profile) =>
+          profile.id === "local"
+            ? {
+                ...profile,
+                audit: {
+                  ...profile.audit,
+                  onFailure: "warn_and_continue"
+                }
+              }
+            : profile
+        )
+      },
+      null,
+      2
+    )}\n`
+  );
+  const auditWarnChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      auditWarnPolicyPath,
+      "--profile",
+      "local",
+      "--audit-log",
+      auditWarnPath,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const auditWarnStdoutChunks = [];
+  const auditWarnStderrChunks = [];
+  auditWarnChild.stdout.on("data", (chunk) => auditWarnStdoutChunks.push(chunk));
+  auditWarnChild.stderr.on("data", (chunk) => auditWarnStderrChunks.push(chunk));
+  auditWarnChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "audit-warn-denied",
+      method: "tools/call",
+      params: {
+        name: "read_file",
+        arguments: {
+          path: "workspace/private/secret.txt"
+        }
+      }
+    })}\n`
+  );
+  auditWarnChild.stdin.end();
+  const auditWarnExitCode = await new Promise((resolve, reject) => {
+    auditWarnChild.once("error", reject);
+    auditWarnChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (auditWarnExitCode !== 0) {
+    throw new Error(
+      `expected audit warn-and-continue live run smoke to exit 0, got ${auditWarnExitCode}: ${Buffer.concat(auditWarnStderrChunks).toString("utf8")}`
+    );
+  }
+  const auditWarnOutputLines = Buffer.concat(auditWarnStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
+  const auditWarnDeniedResult = auditWarnOutputLines.find((line) => line.id === "audit-warn-denied");
+  if (!auditWarnDeniedResult?.error?.data?.decision || auditWarnDeniedResult.error.data.decision.action !== "deny") {
+    throw new Error(`unexpected audit warn-and-continue denial response: ${JSON.stringify(auditWarnDeniedResult)}`);
+  }
+  const auditWarnOutputText = auditWarnOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (auditWarnOutputText.includes("workspace/private/secret.txt")) {
+    throw new Error("raw denied path leaked into audit warn-and-continue MCP output");
   }
 
   const child = spawn(
