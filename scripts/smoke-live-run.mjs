@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 const repoRoot = resolve(import.meta.dirname, "..");
 const tempDir = mkdtempSync(join(tmpdir(), "mcp-security-proxy-"));
 const auditLog = join(tempDir, "audit.jsonl");
+const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
 const failedAuditLog = join(tempDir, "failed-audit.jsonl");
@@ -91,6 +92,108 @@ try {
   }
   if (!auditText.includes('"stderr_line":1')) {
     throw new Error(`expected redacted stderr summary audit event, got ${auditText}`);
+  }
+
+  const upstreamErrorChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      upstreamErrorAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--upstream-error-on-tool-call"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const upstreamErrorStdoutChunks = [];
+  const upstreamErrorStderrChunks = [];
+  const upstreamErrorOutputLines = [];
+  upstreamErrorChild.stdout.on("data", (chunk) => upstreamErrorStdoutChunks.push(chunk));
+  upstreamErrorChild.stderr.on("data", (chunk) => upstreamErrorStderrChunks.push(chunk));
+  const waitForUpstreamErrorTools = waitForJsonLine(upstreamErrorChild.stdout, (line) => {
+    upstreamErrorOutputLines.push(line);
+    return line.id === "upstream-error-tools";
+  });
+  upstreamErrorChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "upstream-error-tools", method: "tools/list" })}\n`);
+  await waitForUpstreamErrorTools;
+  upstreamErrorChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "upstream-error-call",
+      method: "tools/call",
+      params: {
+        name: "read_file",
+        arguments: {
+          path: "workspace/public/readme.md"
+        }
+      }
+    })}\n`
+  );
+  upstreamErrorChild.stdin.end();
+  const upstreamErrorExitCode = await new Promise((resolve, reject) => {
+    upstreamErrorChild.once("error", reject);
+    upstreamErrorChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (upstreamErrorExitCode !== 0) {
+    throw new Error(
+      `expected upstream error live run smoke to exit 0, got ${upstreamErrorExitCode}: ${Buffer.concat(upstreamErrorStderrChunks).toString("utf8")}`
+    );
+  }
+  for (const line of Buffer.concat(upstreamErrorStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line))) {
+    if (!upstreamErrorOutputLines.some((item) => item.id === line.id)) {
+      upstreamErrorOutputLines.push(line);
+    }
+  }
+  const upstreamErrorToolsResult = upstreamErrorOutputLines.find((line) => line.id === "upstream-error-tools");
+  const upstreamErrorCallResult = upstreamErrorOutputLines.find((line) => line.id === "upstream-error-call");
+  if (!upstreamErrorToolsResult || upstreamErrorToolsResult.result.tools.length !== 1 || upstreamErrorToolsResult.result.tools[0].name !== "read_file") {
+    throw new Error(`unexpected upstream error filtered tools response: ${JSON.stringify(upstreamErrorToolsResult)}`);
+  }
+  if (
+    upstreamErrorCallResult?.error?.code !== -32099 ||
+    upstreamErrorCallResult.error.message !== "upstream error message redacted" ||
+    "data" in upstreamErrorCallResult.error ||
+    "debug" in upstreamErrorCallResult.error
+  ) {
+    throw new Error(`unexpected sanitized upstream error response: ${JSON.stringify(upstreamErrorCallResult)}`);
+  }
+  const upstreamErrorOutputText = upstreamErrorOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  if (
+    upstreamErrorOutputText.includes("REDACT_ME_UPSTREAM_ERROR_MARKER") ||
+    upstreamErrorOutputText.includes("REDACT_ME_UPSTREAM_ERROR_DATA_MARKER") ||
+    upstreamErrorOutputText.includes("REDACT_ME_UPSTREAM_ERROR_DEBUG_MARKER")
+  ) {
+    throw new Error("raw upstream error marker leaked into client output");
+  }
+  const upstreamErrorAudit = readFileSync(upstreamErrorAuditLog, "utf8");
+  if (
+    upstreamErrorAudit.includes("REDACT_ME_UPSTREAM_ERROR_MARKER") ||
+    upstreamErrorAudit.includes("REDACT_ME_UPSTREAM_ERROR_DATA_MARKER") ||
+    upstreamErrorAudit.includes("REDACT_ME_UPSTREAM_ERROR_DEBUG_MARKER") ||
+    upstreamErrorAudit.includes("RAW_STDERR_MARKER")
+  ) {
+    throw new Error("raw upstream error or stderr marker leaked into audit log");
+  }
+  if (!upstreamErrorAudit.includes('"code":"jsonrpc.upstream_error_redacted"')) {
+    throw new Error(`expected upstream error redaction audit event, got ${upstreamErrorAudit}`);
+  }
+  if (!upstreamErrorAudit.includes('"jsonrpc_error_data":1') || !upstreamErrorAudit.includes('"jsonrpc_error_message":1')) {
+    throw new Error(`expected upstream error redaction counts, got ${upstreamErrorAudit}`);
   }
 
   const pingChild = spawn(
