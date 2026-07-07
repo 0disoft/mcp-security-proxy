@@ -12,7 +12,8 @@ import {
   findBlockingArgumentIssue,
   hasFactKind,
   networkRuleMatches,
-  pathRuleMatches
+  pathRuleMatches,
+  secretRuleMatches
 } from "./matchers.js";
 
 export interface EvaluateToolCallOptions {
@@ -83,8 +84,9 @@ function ruleMatches(rule: PolicyRule, call: NormalizedToolCall): boolean {
   const pathMatches = matcherMatches("path", rule, call);
   const commandMatches = matcherMatches("command", rule, call);
   const networkMatches = matcherMatches("network", rule, call);
+  const secretMatches = matcherMatches("secret", rule, call);
 
-  return toolMatches && capabilityMatches && methodMatches && pathMatches && commandMatches && networkMatches;
+  return toolMatches && capabilityMatches && methodMatches && pathMatches && commandMatches && networkMatches && secretMatches;
 }
 
 function firstMatchingCapability(rule: PolicyRule, call: NormalizedToolCall): Capability | undefined {
@@ -95,7 +97,7 @@ function withCapability(capability: Capability | undefined): { readonly capabili
   return capability ? { capability } : {};
 }
 
-function matcherMatches(kind: "path" | "command" | "network", rule: PolicyRule, call: NormalizedToolCall): boolean {
+function matcherMatches(kind: "path" | "command" | "network" | "secret", rule: PolicyRule, call: NormalizedToolCall): boolean {
   if (kind === "path") {
     return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "path"), Boolean(rule.paths), () =>
       rule.paths ? pathRuleMatches(rule.paths, call.argumentFacts, rule.action === "deny" ? "deny" : "allow") : false
@@ -108,8 +110,14 @@ function matcherMatches(kind: "path" | "command" | "network", rule: PolicyRule, 
     );
   }
 
-  return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "network"), Boolean(rule.networks), () =>
-    rule.networks ? networkRuleMatches(rule.networks, call.argumentFacts) : false
+  if (kind === "network") {
+    return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "network"), Boolean(rule.networks), () =>
+      rule.networks ? networkRuleMatches(rule.networks, call.argumentFacts) : false
+    );
+  }
+
+  return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "secret"), Boolean(rule.secrets), () =>
+    rule.secrets ? secretRuleMatches(rule.secrets, call.argumentFacts) : false
   );
 }
 

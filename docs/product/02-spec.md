@@ -93,6 +93,7 @@ The policy model should be explicit and boring:
 - path rule: allowed roots and denied roots after normalized path resolution
 - command rule: executable plus argv pattern, not free-form shell acceptance
 - network rule: domain allowlist and denylist for values present in tool-call arguments
+- secret rule: label allowlist for redacted secret facts such as `api-key`, never raw values
 - redaction rule: named detector with replacement token
 - audit rule: event destination and content-capture limits
 - decision evidence: stable code plus human-readable reason

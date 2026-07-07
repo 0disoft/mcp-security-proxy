@@ -241,6 +241,13 @@ function validateRuleMatchers(rule: PolicyRule, path: string, errors: string[]):
       }
     }
   }
+  if (rule.secrets !== undefined) {
+    if (!isRecord(rule.secrets)) {
+      errors.push(`${path}.secrets must be an object`);
+    } else {
+      validateNonEmptyStringArray(rule.secrets["labels"], `${path}.secrets.labels`, errors, true);
+    }
+  }
 }
 
 function validateAudit(value: unknown, path: string, errors: string[]): void {
@@ -311,7 +318,8 @@ function validateRuleHasSelector(rule: Readonly<Record<string, unknown>>, path: 
     rule["methods"] === undefined &&
     rule["paths"] === undefined &&
     rule["commands"] === undefined &&
-    rule["networks"] === undefined
+    rule["networks"] === undefined &&
+    rule["secrets"] === undefined
   ) {
     errors.push(`${path} must include at least one selector or matcher`);
   }

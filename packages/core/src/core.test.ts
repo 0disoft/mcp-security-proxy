@@ -154,6 +154,49 @@ describe("MCP Security Proxy core", () => {
     });
   });
 
+  it("matches secret argument labels through explicit secret policy", () => {
+    const policy = policyWithRule({
+      id: "allow-api-key-secret",
+      action: "allow",
+      capabilities: ["secret"],
+      secrets: {
+        labels: ["api-key"]
+      }
+    });
+
+    expect(
+      evaluateToolCall({
+        policy,
+        profileId: "local",
+        call: {
+          method: "tools/call",
+          toolName: "read_secret",
+          capabilities: ["secret"],
+          argumentFacts: [{ kind: "secret", label: "api-key" }]
+        }
+      })
+    ).toMatchObject({
+      action: "allow",
+      evidence: [{ ruleId: "allow-api-key-secret", capability: "secret" }]
+    });
+
+    expect(
+      evaluateToolCall({
+        policy,
+        profileId: "local",
+        call: {
+          method: "tools/call",
+          toolName: "read_secret",
+          capabilities: ["secret"],
+          argumentFacts: [{ kind: "secret", label: "token" }]
+        }
+      })
+    ).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.default_deny" }]
+    });
+  });
+
   it("classifies secret-like tool descriptors without treating api alone as a secret", () => {
     const secretTool = classifyToolDescriptor({
       name: "read_secret",
@@ -223,6 +266,13 @@ describe("MCP Security Proxy core", () => {
               id: "empty-matcher",
               action: "deny",
               networks: [{}]
+            },
+            {
+              id: "empty-secret-labels",
+              action: "allow",
+              secrets: {
+                labels: []
+              }
             }
           ]
         },
@@ -255,11 +305,27 @@ describe("MCP Security Proxy core", () => {
       expect(result.errors).toContain("profiles[0].rules[5].id must be unique within the profile");
       expect(result.errors).toContain("profiles[0].rules[5].capabilities must be a non-empty array");
       expect(result.errors).toContain("profiles[0].rules[6].networks[0] must include domains or ips");
+      expect(result.errors).toContain("profiles[0].rules[7].secrets.labels must be a non-empty array");
       expect(result.errors).toContain("redaction.detectors[1].id must be unique");
       expect(result.errors).toContain("redaction.detectors[1].kind is unsupported");
     }
   });
 });
+
+function policyWithRule(rule: PolicyDocument["profiles"][number]["rules"][number]): PolicyDocument {
+  const policy = readFixture<PolicyDocument>("fixtures/policies/local-dev.json");
+  return {
+    ...policy,
+    profiles: policy.profiles.map((profile) =>
+      profile.id === "local"
+        ? {
+            ...profile,
+            rules: [rule]
+          }
+        : profile
+    )
+  };
+}
 
 function readFixture<T>(path: string): T {
   return JSON.parse(readTextFixture(path)) as T;

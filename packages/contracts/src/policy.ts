@@ -51,6 +51,10 @@ export interface NetworkRule {
   readonly ips?: readonly string[];
 }
 
+export interface SecretRule {
+  readonly labels: readonly string[];
+}
+
 export interface PolicyRule {
   readonly id: string;
   readonly action: PolicyAction;
@@ -60,6 +64,7 @@ export interface PolicyRule {
   readonly paths?: PathRule;
   readonly commands?: readonly CommandRule[];
   readonly networks?: readonly NetworkRule[];
+  readonly secrets?: SecretRule;
 }
 
 export interface AuditPolicy {

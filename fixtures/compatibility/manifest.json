@@ -28,6 +28,11 @@
       "path": "fixtures/mcp/call-secret-denied.json"
     },
     {
+      "id": "mcp-call-secret-api-key-allowed",
+      "kind": "mcp.call.allowed",
+      "path": "fixtures/mcp/call-secret-api-key-allowed.json"
+    },
+    {
       "id": "mcp-call-workflow-approval",
       "kind": "mcp.call.approval-required",
       "path": "fixtures/mcp/call-workflow-approval.json"
@@ -204,6 +209,23 @@
       ]
     },
     {
+      "id": "cli-eval-call-secret-api-key-allowed-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-secret-api-key-allowed.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/secret-labels.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-secret-api-key-allowed.json",
+        "--json"
+      ]
+    },
+    {
       "id": "cli-eval-call-workflow-no-hook-local",
       "kind": "cli.json.eval-call",
       "path": "fixtures/compatibility/cli-eval-call-workflow-no-hook.local.json",
@@ -300,6 +322,14 @@
       "path": "fixtures/compatibility/library-decision-secret-denied.json",
       "policy": "fixtures/policies/local-dev.json",
       "call": "fixtures/mcp/call-secret-denied.json",
+      "profile": "local"
+    },
+    {
+      "id": "library-decision-secret-api-key-allowed",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-secret-api-key-allowed.json",
+      "policy": "fixtures/policies/secret-labels.json",
+      "call": "fixtures/mcp/call-secret-api-key-allowed.json",
       "profile": "local"
     },
     {

@@ -2,7 +2,8 @@ import type {
   ArgumentFact,
   CommandRule,
   NetworkRule,
-  PathRule
+  PathRule,
+  SecretRule
 } from "@0disoft/mcp-security-proxy-contracts";
 
 export interface MatcherIssue {
@@ -79,8 +80,19 @@ export function networkRuleMatches(rules: readonly NetworkRule[], facts: readonl
   });
 }
 
+export function secretRuleMatches(rule: SecretRule, facts: readonly ArgumentFact[]): boolean {
+  const secretFacts = facts.filter((fact): fact is Extract<ArgumentFact, { readonly kind: "secret" }> => fact.kind === "secret");
+  const labels = new Set(rule.labels.map((label) => normalizeSecretLabel(label)));
+
+  return secretFacts.some((fact) => labels.has(normalizeSecretLabel(fact.label)));
+}
+
 export function hasFactKind(facts: readonly ArgumentFact[], kind: ArgumentFact["kind"]): boolean {
   return facts.some((fact) => fact.kind === kind);
+}
+
+function normalizeSecretLabel(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 function normalizeRoots(values: readonly string[] | undefined): readonly string[] {

@@ -102,7 +102,8 @@
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/networkRule" }
-        }
+        },
+        "secrets": { "$ref": "#/$defs/secretRule" }
       },
       "anyOf": [
         { "required": ["tools"] },
@@ -110,7 +111,8 @@
         { "required": ["methods"] },
         { "required": ["paths"] },
         { "required": ["commands"] },
-        { "required": ["networks"] }
+        { "required": ["networks"] },
+        { "required": ["secrets"] }
       ],
       "additionalProperties": false
     },
@@ -158,6 +160,18 @@
         }
       },
       "anyOf": [{ "required": ["domains"] }, { "required": ["ips"] }],
+      "additionalProperties": false
+    },
+    "secretRule": {
+      "type": "object",
+      "required": ["labels"],
+      "properties": {
+        "labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
       "additionalProperties": false
     },
     "auditPolicy": {
