@@ -191,10 +191,20 @@ function parseJsonLine(line: string): { readonly ok: true; readonly value: JsonR
     if (!isRecord(parsed) || parsed["jsonrpc"] !== "2.0") {
       return { ok: false, reason: "message is not a JSON-RPC 2.0 object" };
     }
+    if ("id" in parsed && !isJsonRpcId(parsed["id"])) {
+      return { ok: false, reason: "JSON-RPC id must be a string, number, null, or absent" };
+    }
+    if ("method" in parsed && typeof parsed["method"] !== "string") {
+      return { ok: false, reason: "JSON-RPC method must be a string when present" };
+    }
     return { ok: true, value: parsed as unknown as JsonRpcEnvelope };
   } catch {
     return { ok: false, reason: "message is not valid JSON" };
   }
+}
+
+function isJsonRpcId(value: unknown): value is string | number | null {
+  return value === null || typeof value === "string" || typeof value === "number";
 }
 
 function readToolCallName(envelope: JsonRpcEnvelope): string {

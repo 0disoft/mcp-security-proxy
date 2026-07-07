@@ -7,6 +7,104 @@ import { createProxySession } from "./session.js";
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
 describe("proxy runtime session", () => {
+  it("rejects client messages with invalid JSON-RPC id types", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: { nested: 1 },
+        method: "tools/list"
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32600,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "JSON-RPC id must be a string, number, null, or absent" }]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: { action: "deny" }
+    });
+  });
+
+  it("rejects client messages with invalid JSON-RPC method types", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: 7
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32600,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ reason: "JSON-RPC method must be a string when present" }]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: { action: "deny" }
+    });
+  });
+
+  it("drops upstream server messages with invalid JSON-RPC envelope fields", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: [1],
+        result: {
+          tools: [{ name: "read_file" }]
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ reason: "JSON-RPC id must be a string, number, null, or absent" }]
+      }
+    });
+  });
+
   it("denies unsupported client methods without forwarding upstream", () => {
     const session = createProxySession({
       policy: readPolicy(),

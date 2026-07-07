@@ -41,6 +41,13 @@ Default behavior for unsupported methods is deny with an MCP-compatible error an
 event. A future ADR may add support for a method family only after its data flow, privacy impact,
 and policy hooks are documented.
 
+## Envelope Validation
+
+Malformed JSON-RPC envelopes must not be forwarded across the proxy boundary. The runtime accepts
+only JSON-RPC 2.0 objects whose `id`, when present, is a string, number, or `null`, and whose
+`method`, when present, is a string. Invalid client messages return `-32600`; invalid upstream
+server messages are dropped with a redacted audit event.
+
 ## Discovery Policy
 
 `tools/list` responses are not trusted as proof of safety. Tool descriptors may be incomplete,
