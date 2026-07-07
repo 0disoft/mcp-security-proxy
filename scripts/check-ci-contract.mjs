@@ -37,8 +37,8 @@ assertContains(workflow, "permissions:\n  contents: read", `${workflowPath}: rea
 assertContains(workflow, "cancel-in-progress: true", `${workflowPath}: concurrency cancellation`);
 assertContains(workflow, "runs-on: ubuntu-latest", `${workflowPath}: Ubuntu runner`);
 assertContains(workflow, "timeout-minutes: 15", `${workflowPath}: bounded timeout`);
-assertPinnedAction("actions/checkout");
-assertPinnedAction("actions/setup-node");
+assertPinnedAction(workflowPath, workflow, "actions/checkout");
+assertPinnedAction(workflowPath, workflow, "actions/setup-node");
 assertContains(workflow, "pnpm install --frozen-lockfile", `${workflowPath}: frozen lockfile install`);
 assertContains(workflow, "pnpm run check", `${workflowPath}: repository check command`);
 assertContains(workflow, "git diff --check", `${workflowPath}: diff hygiene command`);
@@ -48,6 +48,8 @@ assertContains(ciDoc, `enables pnpm ${packageManager.version}`, `${ciDocPath}: d
 assertContains(ciDoc, "runs `pnpm run check`", `${ciDocPath}: documented check command`);
 assertContains(ciDoc, "runs `git diff --check`", `${ciDocPath}: documented diff hygiene command`);
 
+checkCiContractValidator();
+
 if (failures.length > 0) {
   for (const failure of failures) {
     console.error(failure);
@@ -55,15 +57,15 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-function assertPinnedAction(actionName) {
+function assertPinnedAction(label, workflowText, actionName) {
   const pattern = new RegExp(`uses:\\s*${escapeRegExp(actionName)}@([^\\s#]+)`);
-  const match = workflow.match(pattern);
+  const match = workflowText.match(pattern);
   if (!match) {
-    failures.push(`${workflowPath}: missing ${actionName} step`);
+    failures.push(`${label}: missing ${actionName} step`);
     return;
   }
   if (!/^[a-f0-9]{40}$/i.test(match[1])) {
-    failures.push(`${workflowPath}: ${actionName} must be pinned to a full commit SHA`);
+    failures.push(`${label}: ${actionName} must be pinned to a full commit SHA`);
   }
 }
 
@@ -139,4 +141,63 @@ function readText(path) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function checkCiContractValidator() {
+  const validPackageManagerFailures = collectCiContractFailures(() => {
+    const parsed = parsePackageManager("pnpm@11.7.0");
+    if (parsed.name !== "pnpm" || parsed.version !== "11.7.0") {
+      failures.push("ci-contract self-test valid packageManager was not parsed");
+    }
+  });
+  if (validPackageManagerFailures.length > 0) {
+    failures.push(`ci-contract self-test valid packageManager failed: ${validPackageManagerFailures.join("; ")}`);
+  }
+
+  const invalidPackageManagerFailures = collectCiContractFailures(() => {
+    parsePackageManager("pnpm");
+  });
+  if (!invalidPackageManagerFailures.some((item) => item.includes("packageManager must use name@version format"))) {
+    failures.push(`ci-contract self-test invalid packageManager was not rejected: ${invalidPackageManagerFailures.join("; ")}`);
+  }
+
+  const validNodeFloorFailures = collectCiContractFailures(() => {
+    const floor = parseNodeEngineFloor(">=24.0.0");
+    if (!satisfiesNodeFloor("24.11.1", floor)) {
+      failures.push("ci-contract self-test node version should satisfy floor");
+    }
+    if (satisfiesNodeFloor("23.11.1", floor)) {
+      failures.push("ci-contract self-test node version below floor was accepted");
+    }
+  });
+  if (validNodeFloorFailures.length > 0) {
+    failures.push(`ci-contract self-test node floor failed: ${validNodeFloorFailures.join("; ")}`);
+  }
+
+  const invalidNodeVersionFailures = collectCiContractFailures(() => {
+    satisfiesNodeFloor("24", { major: 24, minor: 0, patch: 0 });
+  });
+  if (!invalidNodeVersionFailures.some((item) => item.includes("node-version must use MAJOR.MINOR.PATCH format"))) {
+    failures.push(`ci-contract self-test invalid node-version was not rejected: ${invalidNodeVersionFailures.join("; ")}`);
+  }
+
+  const unpinnedActionFailures = collectCiContractFailures(() => {
+    assertPinnedAction("<ci-contract-self-test-unpinned-action>", "uses: actions/checkout@v7", "actions/checkout");
+  });
+  if (!unpinnedActionFailures.some((item) => item.includes("actions/checkout must be pinned to a full commit SHA"))) {
+    failures.push(`ci-contract self-test unpinned action was not rejected: ${unpinnedActionFailures.join("; ")}`);
+  }
+
+  const missingActionFailures = collectCiContractFailures(() => {
+    assertPinnedAction("<ci-contract-self-test-missing-action>", "uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e", "actions/checkout");
+  });
+  if (!missingActionFailures.some((item) => item.includes("missing actions/checkout step"))) {
+    failures.push(`ci-contract self-test missing action was not rejected: ${missingActionFailures.join("; ")}`);
+  }
+}
+
+function collectCiContractFailures(fn) {
+  const before = failures.length;
+  fn();
+  return failures.splice(before);
 }
