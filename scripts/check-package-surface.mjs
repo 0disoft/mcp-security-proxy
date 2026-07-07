@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const root = process.cwd();
+const releaseRecordsDir = join(root, "docs", "ops", "release-records");
 const expectedNodeEngine = ">=24.0.0";
 const expectedLicense = "Apache-2.0";
 const expectedWorkspacePackages = [
@@ -24,6 +25,7 @@ const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 const formatPath = (path) => relative(root, path).replaceAll("\\", "/");
 
 const failures = [];
+const releasePackageVersions = collectReleasePackageVersions(readReleaseRecords());
 
 const assertEqual = (condition, message) => {
   if (!condition) {
@@ -31,19 +33,28 @@ const assertEqual = (condition, message) => {
   }
 };
 
-const checkCommonManifest = (manifest, manifestPath) => {
+const checkCommonManifest = (manifest, manifestPath, options = {}) => {
   const file = formatPath(manifestPath);
-  assertEqual(manifest.private === true, `${file}: private must stay true before public release`);
+  if (options.releaseVersion) {
+    assertEqual(manifest.private !== true, `${file}: private must be removed or false when release readiness records it as public`);
+  } else {
+    assertEqual(manifest.private === true, `${file}: private must stay true before public release`);
+  }
   assertEqual(manifest.type === "module", `${file}: type must be module`);
   assertEqual(manifest.license === expectedLicense, `${file}: license must be ${expectedLicense}`);
   assertEqual(manifest.engines?.node === expectedNodeEngine, `${file}: engines.node must be ${expectedNodeEngine}`);
 };
 
-const checkWorkspacePackage = (manifest, manifestPath) => {
+const checkWorkspacePackage = (manifest, manifestPath, packageReleaseVersions = releasePackageVersions) => {
   const file = formatPath(manifestPath);
   const packageRoot = manifestPath.slice(0, -"package.json".length);
-  checkCommonManifest(manifest, manifestPath);
-  assertEqual(manifest.version === "0.0.0", `${file}: version must stay 0.0.0 until release readiness records a public version`);
+  const releaseVersion = packageReleaseVersions.get(file);
+  checkCommonManifest(manifest, manifestPath, { releaseVersion });
+  if (releaseVersion) {
+    assertEqual(manifest.version === releaseVersion, `${file}: version must match release readiness version ${releaseVersion}`);
+  } else {
+    assertEqual(manifest.version === "0.0.0", `${file}: version must stay 0.0.0 until release readiness records a public version`);
+  }
   assertEqual(typeof manifest.name === "string" && manifest.name.startsWith("@0disoft/mcp-security-proxy-"), `${file}: package name must stay under @0disoft/mcp-security-proxy-*`);
   assertEqual(manifest.types === "./src/index.ts", `${file}: types must point at ./src/index.ts`);
   assertEqual(manifest.exports?.["."]?.types === "./src/index.ts", `${file}: exports[.].types must point at ./src/index.ts`);
@@ -97,6 +108,67 @@ const checkMcpSdkDependency = (name, file, group) => {
 };
 
 const checkPackageSurfaceValidator = () => {
+  const releaseRecordPackages = collectReleasePackageVersions([
+    {
+      releaseVersion: "0.1.0-alpha.0",
+      publicPackages: [
+        {
+          workspacePath: "packages/cli"
+        }
+      ]
+    }
+  ]);
+  if (releaseRecordPackages.get("packages/cli/package.json") !== "0.1.0-alpha.0") {
+    failures.push("package-surface self-test release record package version was not collected");
+  }
+
+  const releaseManifestFailures = collectPackageSurfaceFailures(() => {
+    checkWorkspacePackage(
+      {
+        private: false,
+        type: "module",
+        license: expectedLicense,
+        engines: {
+          node: expectedNodeEngine
+        },
+        version: "0.1.0-alpha.0",
+        name: "@0disoft/mcp-security-proxy-cli",
+        types: "./src/index.ts",
+        exports: {
+          ".": {
+            types: "./src/index.ts",
+            default: "./dist/index.js"
+          }
+        },
+        scripts: {
+          build: "tsc -p tsconfig.json",
+          typecheck: "tsc -p tsconfig.json --noEmit"
+        }
+      },
+      join(root, "packages", "cli", "package.json"),
+      releaseRecordPackages
+    );
+  });
+  if (releaseManifestFailures.length > 0) {
+    failures.push(`package-surface self-test release manifest failed: ${releaseManifestFailures.join("; ")}`);
+  }
+
+  const conflictingReleaseRecordFailures = collectPackageSurfaceFailures(() => {
+    collectReleasePackageVersions([
+      {
+        releaseVersion: "0.1.0-alpha.0",
+        publicPackages: [{ workspacePath: "packages/cli" }]
+      },
+      {
+        releaseVersion: "0.1.0-alpha.1",
+        publicPackages: [{ workspacePath: "packages/cli" }]
+      }
+    ]);
+  });
+  if (!conflictingReleaseRecordFailures.some((item) => item.includes("conflicting release versions"))) {
+    failures.push(`package-surface self-test conflicting release records were not rejected: ${conflictingReleaseRecordFailures.join("; ")}`);
+  }
+
   const sdkDependencyFailures = collectPackageSurfaceFailures(() => {
     checkDependencyDecisionGuards(
       {
@@ -152,6 +224,44 @@ const collectPackageSurfaceFailures = (fn) => {
   fn();
   return failures.splice(before);
 };
+
+function readReleaseRecords() {
+  if (!existsSync(releaseRecordsDir)) {
+    return [];
+  }
+  return readdirSync(releaseRecordsDir)
+    .filter((name) => name.endsWith(".release.json"))
+    .sort((left, right) => left.localeCompare(right))
+    .map((name) => readJson(join(releaseRecordsDir, name)));
+}
+
+function collectReleasePackageVersions(records) {
+  const packageVersions = new Map();
+  for (const record of records) {
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      continue;
+    }
+    if (!isNonPlaceholderString(record.releaseVersion) || !Array.isArray(record.publicPackages)) {
+      continue;
+    }
+    for (const item of record.publicPackages) {
+      if (!item || typeof item !== "object" || !isNonPlaceholderString(item.workspacePath)) {
+        continue;
+      }
+      const packageManifestPath = `${item.workspacePath}/package.json`;
+      const previousVersion = packageVersions.get(packageManifestPath);
+      if (previousVersion && previousVersion !== record.releaseVersion) {
+        failures.push(`${packageManifestPath}: conflicting release versions ${previousVersion} and ${record.releaseVersion}`);
+      }
+      packageVersions.set(packageManifestPath, record.releaseVersion);
+    }
+  }
+  return packageVersions;
+}
+
+function isNonPlaceholderString(value) {
+  return typeof value === "string" && value.trim().length > 0 && value !== "UNDECIDED" && value !== "UNRECORDED";
+}
 
 const rootManifestPath = join(root, "package.json");
 const rootManifest = readJson(rootManifestPath);

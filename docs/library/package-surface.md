@@ -44,7 +44,10 @@ Until release readiness records public package names and artifacts:
 - runtime package dependencies must stay within this pnpm workspace and use `workspace:*` until
   release readiness records external runtime dependencies.
 
-`pnpm run package-surface` enforces this private package posture.
+`pnpm run package-surface` enforces this private package posture when no release record exists.
+When `docs/ops/release-records/*.release.json` records a package as public, the same check allows
+only that recorded `packages/*` manifest to use the recorded release version and public package
+posture. Packages not listed in a release record must remain private and versioned as `0.0.0`.
 
 ## Expected Package Surfaces
 

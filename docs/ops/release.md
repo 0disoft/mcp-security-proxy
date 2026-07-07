@@ -51,7 +51,9 @@ repository-hygiene` checks tracked files, ignore rules, line endings, and genera
 exclusions. `pnpm run validation-registry` keeps validation names synchronized across
 `VALIDATION.md`, agent validation profiles, runner scripts, release-readiness requirements, and
 release-record templates. `pnpm run ci-contract` checks hosted CI parity with documented local
-validation and runtime versions.
+validation and runtime versions. `pnpm run package-surface` keeps non-release packages private and
+only allows release-version public package posture for `packages/*` entries named by a release
+record.
 
 ## Release Blockers
 
