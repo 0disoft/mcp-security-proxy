@@ -12,6 +12,7 @@ const requiredFiles = [
   "docs/architecture/04-policy-model.md",
   "docs/architecture/05-mcp-method-policy.md",
   "docs/architecture/06-data-flow-and-privacy.md",
+  "docs/architecture/07-http-transport-plan.md",
   "docs/adr/0001-initial-architecture-boundaries.md",
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
@@ -55,7 +56,8 @@ const cliContractFailures = [
   ...checkCliCommandDocs(),
   ...checkCliExitCodeDocs(),
   ...checkOpsOwnerDocs(),
-  ...checkAuditExportDocs()
+  ...checkAuditExportDocs(),
+  ...checkHttpTransportPlanDocs()
 ];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
@@ -192,6 +194,27 @@ function checkAuditExportDocs() {
   ]) {
     if (!text.includes(phrase)) {
       failures.push(`${path}: missing audit export guidance phrase: ${phrase}`);
+    }
+  }
+  return failures;
+}
+
+function checkHttpTransportPlanDocs() {
+  const failures = [];
+  const path = "docs/architecture/07-http-transport-plan.md";
+  const text = readFileSync(join(root, path), "utf8");
+  for (const phrase of [
+    "HTTP transport is not implemented",
+    "does not approve an HTTP server, HTTP client, hosted control plane",
+    "preserve request and response correlation by exact JSON-RPC id value and type",
+    "authentication, authorization, cookies, bearer tokens, and header privacy",
+    "streaming response boundaries, reconnects, partial messages, and duplicate delivery",
+    "header allowlist and redaction fixtures",
+    "compatibility fixtures are registered in `fixtures/compatibility/manifest.json`",
+    "release record names HTTP support as included or explicitly excluded"
+  ]) {
+    if (!text.includes(phrase)) {
+      failures.push(`${path}: missing HTTP transport plan phrase: ${phrase}`);
     }
   }
   return failures;

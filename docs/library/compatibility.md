@@ -26,11 +26,14 @@ This repository type owns public API surface, package compatibility, semantic ve
 ## Compatibility Targets
 
 - MCP stdio transport first.
+- HTTP transport planning is documented in docs/architecture/07-http-transport-plan.md, but HTTP is
+  not implemented.
 - TypeScript project references and pnpm workspace checks are the current local compatibility
   baseline.
 - Node.js `>=24.0.0` is the current package manifest floor and must stay consistent across the
   workspace until a release readiness record changes it.
-- HTTP transport support is deferred until stdio behavior is proven.
+- HTTP transport support is deferred until stdio behavior is proven and HTTP-specific compatibility
+  fixtures exist.
 - Client compatibility must be fixture-backed, not claimed from schema reading alone.
 - Policy and audit schemas must remain deterministic across supported runtimes.
 - Public registry compatibility is not claimed while all packages remain private.

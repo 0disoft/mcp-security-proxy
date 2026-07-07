@@ -67,7 +67,9 @@ results.
   inspection, allowed call evaluation, and denied call evaluation through fixture-backed CLI JSON
   evidence.
 - Add host-specific approval UX integrations.
-- Add transport compatibility plan for HTTP.
+- Add transport compatibility plan for HTTP. Current planning records the non-implementation
+  boundary, stdio invariants that HTTP must preserve, HTTP-specific risks, required ADR decisions,
+  fixture evidence, and release gates.
 - Add audit export guidance. Current local stdio guidance covers JSONL export shape, exported
   field allowlist, forbidden raw data, operator-owned retention, and audit-write fail-closed
   behavior.
