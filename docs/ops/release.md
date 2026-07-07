@@ -52,8 +52,8 @@ exclusions. `pnpm run validation-registry` keeps validation names synchronized a
 `VALIDATION.md`, agent validation profiles, runner scripts, release-readiness requirements, and
 release-record templates. `pnpm run ci-contract` checks hosted CI parity with documented local
 validation and runtime versions. `pnpm run package-surface` keeps non-release packages private and
-only allows release-version public package posture for `packages/*` entries named by a release
-record.
+only allows release-version public package posture for `packages/*` entries named by an approved
+release record.
 
 ## Release Blockers
 

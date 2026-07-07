@@ -110,6 +110,7 @@ const checkMcpSdkDependency = (name, file, group) => {
 const checkPackageSurfaceValidator = () => {
   const releaseRecordPackages = collectReleasePackageVersions([
     {
+      status: "approved",
       releaseVersion: "0.1.0-alpha.0",
       publicPackages: [
         {
@@ -184,10 +185,12 @@ const checkPackageSurfaceValidator = () => {
   const conflictingReleaseRecordFailures = collectPackageSurfaceFailures(() => {
     collectReleasePackageVersions([
       {
+        status: "approved",
         releaseVersion: "0.1.0-alpha.0",
         publicPackages: [{ workspacePath: "packages/cli" }]
       },
       {
+        status: "approved",
         releaseVersion: "0.1.0-alpha.1",
         publicPackages: [{ workspacePath: "packages/cli" }]
       }
@@ -195,6 +198,22 @@ const checkPackageSurfaceValidator = () => {
   });
   if (!conflictingReleaseRecordFailures.some((item) => item.includes("conflicting release versions"))) {
     failures.push(`package-surface self-test conflicting release records were not rejected: ${conflictingReleaseRecordFailures.join("; ")}`);
+  }
+
+  const nonApprovedReleaseRecordPackages = collectReleasePackageVersions([
+    {
+      status: "proposed",
+      releaseVersion: "0.1.0-alpha.0",
+      publicPackages: [{ workspacePath: "packages/cli" }]
+    },
+    {
+      status: "blocked",
+      releaseVersion: "0.1.0-alpha.1",
+      publicPackages: [{ workspacePath: "packages/core" }]
+    }
+  ]);
+  if (nonApprovedReleaseRecordPackages.size !== 0) {
+    failures.push("package-surface self-test non-approved release records unlocked public package posture");
   }
 
   const sdkDependencyFailures = collectPackageSurfaceFailures(() => {
@@ -267,6 +286,9 @@ function collectReleasePackageVersions(records) {
   const packageVersions = new Map();
   for (const record of records) {
     if (!record || typeof record !== "object" || Array.isArray(record)) {
+      continue;
+    }
+    if (record.status !== "approved") {
       continue;
     }
     if (!isNonPlaceholderString(record.releaseVersion) || !Array.isArray(record.publicPackages)) {

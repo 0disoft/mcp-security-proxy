@@ -7,7 +7,8 @@ This directory stores public release readiness records.
 No public package release is approved until a `*.release.json` record exists, `pnpm run check`
 passes, and the release record captures the exact validation evidence required by
 `scripts/check-release-readiness.mjs`. Before that point, package manifests must stay private and
-versioned as `0.0.0`.
+versioned as `0.0.0`. Proposed or blocked records do not unlock public package posture; only an
+approved release record may do that.
 
 Release records must include validation evidence for: `docs`, `schema-contract`,
 `migration-check`, `package-surface`, `secret-scan`, `artifact-safety`, `repository-hygiene`,
