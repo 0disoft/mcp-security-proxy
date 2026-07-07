@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "msp.decision.v1",
+  "action": "deny",
+  "evidence": [
+    {
+      "capability": "shell",
+      "reason": "free-form shell command denied by default"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "command": "eval-call",
+  "profile": "local",
+  "decision": {
+    "action": "allow",
+    "evidence": [
+      {
+        "ruleId": "allow-example-network",
+        "capability": "network",
+        "reason": "matched allow rule"
+      }
+    ]
+  }
+}

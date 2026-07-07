@@ -18,6 +18,11 @@
       "path": "fixtures/mcp/call-file-read-denied.json"
     },
     {
+      "id": "mcp-call-workflow-approval",
+      "kind": "mcp.call.approval-required",
+      "path": "fixtures/mcp/call-workflow-approval.json"
+    },
+    {
       "id": "audit-decision-denied-redacted",
       "kind": "audit.redaction",
       "path": "fixtures/audit/decision-denied.redacted.jsonl"
@@ -87,6 +92,109 @@
       ]
     },
     {
+      "id": "cli-eval-call-file-read-traversal-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-file-read-traversal.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-file-read-traversal.json",
+        "--json"
+      ]
+    },
+    {
+      "id": "cli-eval-call-network-allowed-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-network-allowed.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-network-allowed.json",
+        "--json"
+      ]
+    },
+    {
+      "id": "cli-eval-call-network-denied-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-network-denied.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-network-denied.json",
+        "--json"
+      ]
+    },
+    {
+      "id": "cli-eval-call-shell-denied-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-shell-denied.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-shell-denied.json",
+        "--json"
+      ]
+    },
+    {
+      "id": "cli-eval-call-workflow-no-hook-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-workflow-no-hook.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-workflow-approval.json",
+        "--json"
+      ]
+    },
+    {
+      "id": "cli-eval-call-workflow-approval-hook-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-workflow-approval-hook.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-workflow-approval.json",
+        "--approval-hook",
+        "--json"
+      ]
+    },
+    {
       "id": "library-decision-file-read-allowed",
       "kind": "library.decision-result",
       "path": "fixtures/compatibility/library-decision-file-read-allowed.json",
@@ -101,6 +209,55 @@
       "policy": "fixtures/policies/local-dev.json",
       "call": "fixtures/mcp/call-file-read-denied.json",
       "profile": "local"
+    },
+    {
+      "id": "library-decision-file-read-traversal",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-file-read-traversal.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "call": "fixtures/mcp/call-file-read-traversal.json",
+      "profile": "local"
+    },
+    {
+      "id": "library-decision-network-allowed",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-network-allowed.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "call": "fixtures/mcp/call-network-allowed.json",
+      "profile": "local"
+    },
+    {
+      "id": "library-decision-network-denied",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-network-denied.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "call": "fixtures/mcp/call-network-denied.json",
+      "profile": "local"
+    },
+    {
+      "id": "library-decision-shell-denied",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-shell-denied.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "call": "fixtures/mcp/call-shell-denied.json",
+      "profile": "local"
+    },
+    {
+      "id": "library-decision-workflow-no-hook",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-workflow-no-hook.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "call": "fixtures/mcp/call-workflow-approval.json",
+      "profile": "local"
+    },
+    {
+      "id": "library-decision-workflow-approval-hook",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-workflow-approval-hook.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "call": "fixtures/mcp/call-workflow-approval.json",
+      "profile": "local",
+      "approvalHookAvailable": true
     }
   ]
 }

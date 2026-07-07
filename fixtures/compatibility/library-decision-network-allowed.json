@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "msp.decision.v1",
+  "action": "allow",
+  "evidence": [
+    {
+      "ruleId": "allow-example-network",
+      "capability": "network",
+      "reason": "matched allow rule"
+    }
+  ]
+}

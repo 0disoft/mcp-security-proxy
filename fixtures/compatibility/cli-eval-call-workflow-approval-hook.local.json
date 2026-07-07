@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "command": "eval-call",
+  "profile": "local",
+  "decision": {
+    "action": "approval_required",
+    "evidence": [
+      {
+        "ruleId": "approval-workflow",
+        "capability": "workflow",
+        "reason": "matched approval_required rule"
+      }
+    ]
+  }
+}

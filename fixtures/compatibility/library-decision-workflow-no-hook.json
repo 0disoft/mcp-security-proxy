@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "msp.decision.v1",
+  "action": "deny",
+  "evidence": [
+    {
+      "ruleId": "approval-workflow",
+      "capability": "workflow",
+      "reason": "approval required but no approval hook is available",
+      "code": "policy.approval_hook_missing"
+    }
+  ]
+}

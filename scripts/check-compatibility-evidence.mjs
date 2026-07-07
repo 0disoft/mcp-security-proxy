@@ -8,6 +8,7 @@ const requiredKinds = new Set([
   "mcp.discovery",
   "mcp.call.allowed",
   "mcp.call.denied",
+  "mcp.call.approval-required",
   "audit.redaction",
   "cli.json.check-policy",
   "cli.json.inspect-tools",
@@ -94,7 +95,7 @@ async function checkEvidenceEntry(item) {
   if (kind === "mcp.discovery") {
     checkDiscoveryFixture(id, path);
   }
-  if (kind === "mcp.call.allowed" || kind === "mcp.call.denied") {
+  if (kind === "mcp.call.allowed" || kind === "mcp.call.denied" || kind === "mcp.call.approval-required") {
     checkToolCallFixture(id, path);
   }
 }
@@ -159,7 +160,16 @@ async function checkLibraryDecisionFixture(id, path, item) {
   const { evaluateToolCall } = await import("../packages/core/dist/index.js");
   const policy = readJson(item.policy);
   const call = readJson(item.call);
-  const actual = evaluateToolCall({ policy, profileId: item.profile, call });
+  if (item.approvalHookAvailable !== undefined && typeof item.approvalHookAvailable !== "boolean") {
+    failures.push(`${id}: approvalHookAvailable must be a boolean when present`);
+    return;
+  }
+  const actual = evaluateToolCall({
+    policy,
+    profileId: item.profile,
+    call,
+    ...(item.approvalHookAvailable !== undefined ? { approvalHookAvailable: item.approvalHookAvailable } : {})
+  });
   const expected = readJson(path);
   assertJsonEqual(id, actual, expected);
 }

@@ -40,13 +40,18 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Captured MCP discovery fixture.
 - Captured allowed call fixture.
 - Captured denied call fixture.
+- Captured approval-required call fixture.
+- Captured matcher-denial fixtures for ambiguous paths and free-form shell commands.
+- Captured network allow and deny fixtures.
 - Captured redaction fixture.
 - CLI JSON output fixture.
 - Library decision-result fixture.
 
 The current evidence registry is `fixtures/compatibility/manifest.json`. `pnpm run compatibility`
 builds the workspace, verifies every manifest entry, and compares the captured CLI and library
-fixtures against the current implementation.
+fixtures against the current implementation. Approval-required library fixtures may explicitly
+record `approvalHookAvailable` in the manifest so hook-present and hook-missing decisions are both
+checked.
 
 ## Review Blockers
 

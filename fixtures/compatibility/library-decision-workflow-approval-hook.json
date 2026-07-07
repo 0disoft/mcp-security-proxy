@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "msp.decision.v1",
+  "action": "approval_required",
+  "evidence": [
+    {
+      "ruleId": "approval-workflow",
+      "capability": "workflow",
+      "reason": "matched approval_required rule"
+    }
+  ]
+}

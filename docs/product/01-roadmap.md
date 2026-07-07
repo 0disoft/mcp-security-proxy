@@ -46,8 +46,9 @@ Status: implemented for the current stdio-only boundary.
 ## Milestone 2: Embeddable Library
 
 Status: partially implemented with fixture-backed dry-run evidence for policy validation,
-discovery inspection, allowed calls, denied calls, redaction, CLI JSON output, and library
-decision results.
+discovery inspection, allowed calls, denied calls, approval-required calls, path traversal
+denials, shell denials, network decisions, redaction, CLI JSON output, and library decision
+results.
 
 - Expose policy parser.
 - Expose tool classifier.
@@ -57,7 +58,8 @@ decision results.
 - Expose stable optional decision evidence codes for audit consumers.
 - Expose an approval hook API for embedding hosts.
 - Maintain fixture-backed compatibility evidence for discovery, allowed calls, denied calls,
-  redaction, CLI JSON output, and library decision results.
+  approval-required calls, matcher denials, redaction, CLI JSON output, and library decision
+  results.
 
 ## Milestone 3: Host Integration Hardening
 
@@ -68,6 +70,8 @@ decision results.
 - Add transport compatibility plan for HTTP.
 - Add audit export guidance.
 - Add broader MCP client/server compatibility fixtures.
+  Current evidence covers the local stdio MVP fixture corpus; broader real client/server fixtures
+  still require selected host targets.
 
 ## Deferred
 

@@ -1,0 +1,8 @@
+{
+  "method": "tools/call",
+  "toolName": "run_workflow",
+  "capabilities": [
+    "workflow"
+  ],
+  "argumentFacts": []
+}
