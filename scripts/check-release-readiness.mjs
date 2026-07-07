@@ -105,11 +105,20 @@ function checkReleaseRecordObject(path, record) {
     failures.push(`${path}: publishCredentialsOwner must be recorded`);
   }
   checkReleaseScope(path, record.releaseScope);
+  const artifactNames = new Set();
+  if (Array.isArray(record.artifacts)) {
+    for (const item of record.artifacts) {
+      if (isNonPlaceholder(item?.name)) {
+        artifactNames.add(item.name);
+      }
+    }
+  }
   if (!Array.isArray(record.publicPackages) || record.publicPackages.length === 0) {
     failures.push(`${path}: publicPackages must contain at least one package`);
   } else {
     const seenPackageNames = new Set();
     const seenPackagePaths = new Set();
+    const seenPackageArtifactNames = new Set();
     for (const [index, item] of record.publicPackages.entries()) {
       if (!item || typeof item !== "object") {
         failures.push(`${path}: publicPackages[${index}] must be an object`);
@@ -130,8 +139,15 @@ function checkReleaseRecordObject(path, record) {
       if (seenPackagePaths.has(item.workspacePath)) {
         failures.push(`${path}: duplicate public package workspacePath ${item.workspacePath}`);
       }
+      if (seenPackageArtifactNames.has(item.artifactName)) {
+        failures.push(`${path}: duplicate public package artifactName ${item.artifactName}`);
+      }
       seenPackageNames.add(item.name);
       seenPackagePaths.add(item.workspacePath);
+      seenPackageArtifactNames.add(item.artifactName);
+      if (isNonPlaceholder(item.artifactName) && !artifactNames.has(item.artifactName)) {
+        failures.push(`${path}: publicPackages[${index}].artifactName must match an artifact name`);
+      }
       const packageManifestPath = `${item.workspacePath}/package.json`;
       if (!existsSync(join(root, packageManifestPath))) {
         failures.push(`${path}: publicPackages[${index}].workspacePath must contain package.json`);
@@ -288,7 +304,7 @@ function checkReleaseRecordValidator() {
     failures.push(`release-readiness self-test untracked artifact source was not rejected: ${untrackedArtifactFailures.join("; ")}`);
   }
 
-  const duplicatePackageNameFailures = collectReleaseRecordFailures("<release-readiness-self-test-duplicate-package-name>", {
+  const duplicatePackageArtifactNameFailures = collectReleaseRecordFailures("<release-readiness-self-test-duplicate-package-artifact-name>", {
     ...validRecord,
     publicPackages: [
       {
@@ -296,12 +312,26 @@ function checkReleaseRecordValidator() {
       },
       {
         ...validRecord.publicPackages[0],
+        name: "another-cli-package",
         workspacePath: "packages/core"
       }
     ]
   });
-  if (!duplicatePackageNameFailures.some((item) => item.includes("duplicate public package name"))) {
-    failures.push(`release-readiness self-test duplicate package name was not rejected: ${duplicatePackageNameFailures.join("; ")}`);
+  if (!duplicatePackageArtifactNameFailures.some((item) => item.includes("duplicate public package artifactName"))) {
+    failures.push(`release-readiness self-test duplicate package artifact name was not rejected: ${duplicatePackageArtifactNameFailures.join("; ")}`);
+  }
+
+  const missingPackageArtifactFailures = collectReleaseRecordFailures("<release-readiness-self-test-missing-package-artifact>", {
+    ...validRecord,
+    publicPackages: [
+      {
+        ...validRecord.publicPackages[0],
+        artifactName: "missing-package-artifact"
+      }
+    ]
+  });
+  if (!missingPackageArtifactFailures.some((item) => item.includes("publicPackages[0].artifactName must match an artifact name"))) {
+    failures.push(`release-readiness self-test missing package artifact was not rejected: ${missingPackageArtifactFailures.join("; ")}`);
   }
 
   const missingValidationFailures = collectReleaseRecordFailures("<release-readiness-self-test-missing-validation>", {
@@ -415,8 +445,8 @@ function createReleaseRecordSelfTestFixture() {
     ],
     artifacts: [
       {
-        name: "readme",
-        source: "README.md"
+        name: "mcp-security-proxy-cli",
+        source: "packages/cli/package.json"
       }
     ],
     releaseScope: {

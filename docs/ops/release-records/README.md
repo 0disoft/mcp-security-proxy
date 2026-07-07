@@ -32,4 +32,5 @@ exclusion with tracked fixture and validation evidence.
 Use `public-release.template.json` as the starting shape. Do not put credentials, tokens, private
 audit logs, private policy files, or raw incident evidence in release records. Release artifact
 `source` paths must point at tracked repository files so release recovery does not depend on local,
-untracked state.
+untracked state. Each `publicPackages[].artifactName` must be unique and must match an entry in
+`artifacts[].name`.
