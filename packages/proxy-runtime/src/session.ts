@@ -53,6 +53,7 @@ const defaultMaxJsonDepth = 64;
 
 export class ProxySession {
   private readonly pendingRequestMethods = new Map<string, string>();
+  private readonly pendingServerOriginMethods = new Map<string, string>();
   private readonly visibleTools = new Map<string, ToolMetadata>();
   private readonly maxFrameBytes: number;
   private readonly maxJsonDepth: number;
@@ -95,6 +96,20 @@ export class ProxySession {
 
     const envelope = parsed.value;
     if (!isJsonRpcRequest(envelope)) {
+      if (!this.takePendingServerOriginMethod(envelope)) {
+        return {
+          kind: "result",
+          result: {
+            auditEvents: [
+              this.createAudit(
+                "error",
+                denyDecision("client JSON-RPC response did not match a pending upstream server request", { code: "jsonrpc.unmatched_response" })
+              )
+            ]
+          }
+        };
+      }
+
       return {
         kind: "result",
         result: {
@@ -260,6 +275,7 @@ export class ProxySession {
         return this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied");
       }
 
+      this.rememberPendingServerOriginRequest(envelope);
       return {
         forwardLine: line,
         auditEvents: []
@@ -336,6 +352,23 @@ export class ProxySession {
       return;
     }
     this.pendingRequestMethods.set(requestIdKey(envelope.id), envelope.method);
+  }
+
+  private takePendingServerOriginMethod(envelope: JsonRpcEnvelope): string | undefined {
+    if (envelope.id === undefined) {
+      return undefined;
+    }
+    const key = requestIdKey(envelope.id);
+    const method = this.pendingServerOriginMethods.get(key);
+    this.pendingServerOriginMethods.delete(key);
+    return method;
+  }
+
+  private rememberPendingServerOriginRequest(envelope: JsonRpcEnvelope): void {
+    if (envelope.id === undefined || typeof envelope.method !== "string") {
+      return;
+    }
+    this.pendingServerOriginMethods.set(requestIdKey(envelope.id), envelope.method);
   }
 
   private denyEnvelope(

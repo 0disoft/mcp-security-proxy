@@ -230,6 +230,40 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("drops client responses that do not match a pending upstream server request", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "unmatched-client-response",
+        result: {
+          marker: "RAW_CLIENT_RESPONSE_MARKER"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_CLIENT_RESPONSE_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "jsonrpc.unmatched_response",
+            reason: "client JSON-RPC response did not match a pending upstream server request"
+          }
+        ]
+      }
+    });
+  });
+
   it("drops unmatched upstream error responses after redacting sensitive error fields", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -873,6 +907,31 @@ describe("proxy runtime session", () => {
     const result = session.handleServerLine(line);
 
     expect(result.forwardLine).toBe(line);
+    expect(result.responseLine).toBeUndefined();
+    expect(result.auditEvents).toHaveLength(0);
+  });
+
+  it("forwards client responses only after a matching upstream server ping request", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    const pingLine = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "server-ping-match",
+      method: "ping"
+    });
+    const responseLine = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "server-ping-match",
+      result: {}
+    });
+
+    expect(session.handleServerLine(pingLine).forwardLine).toBe(pingLine);
+
+    const result = session.handleClientLine(responseLine);
+
+    expect(result.forwardLine).toBe(responseLine);
     expect(result.responseLine).toBeUndefined();
     expect(result.auditEvents).toHaveLength(0);
   });

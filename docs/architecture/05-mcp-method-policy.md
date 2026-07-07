@@ -71,6 +71,9 @@ include the proxy's own redacted decision data.
 Valid upstream responses are forwarded only when their JSON-RPC `id` exactly matches a pending
 client request, including the original id type. Responses that do not match a pending request are
 dropped with a redacted audit event instead of being treated as unsolicited server messages.
+Client responses are forwarded upstream only when their JSON-RPC `id` exactly matches a pending
+upstream server-origin request that the proxy already forwarded to the client. A client response
+without a matching server-origin request is dropped with a redacted audit event.
 
 ## Discovery Policy
 
