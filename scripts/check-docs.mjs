@@ -14,6 +14,7 @@ const requiredFiles = [
   "docs/architecture/06-data-flow-and-privacy.md",
   "docs/architecture/07-http-transport-plan.md",
   "docs/architecture/08-host-approval-ux-plan.md",
+  "docs/architecture/09-external-mcp-compatibility-plan.md",
   "docs/adr/0001-initial-architecture-boundaries.md",
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
@@ -59,7 +60,8 @@ const cliContractFailures = [
   ...checkOpsOwnerDocs(),
   ...checkAuditExportDocs(),
   ...checkHttpTransportPlanDocs(),
-  ...checkHostApprovalUxPlanDocs()
+  ...checkHostApprovalUxPlanDocs(),
+  ...checkExternalMcpCompatibilityPlanDocs()
 ];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
@@ -238,6 +240,27 @@ function checkHostApprovalUxPlanDocs() {
   ]) {
     if (!text.includes(phrase)) {
       failures.push(`${path}: missing host approval UX plan phrase: ${phrase}`);
+    }
+  }
+  return failures;
+}
+
+function checkExternalMcpCompatibilityPlanDocs() {
+  const failures = [];
+  const path = "docs/architecture/09-external-mcp-compatibility-plan.md";
+  const text = readFileSync(join(root, path), "utf8");
+  for (const phrase of [
+    "does not yet claim external MCP client/server compatibility",
+    "does not select an MCP SDK",
+    "Do not treat the repository fixture server as an external MCP server",
+    "request and response ids are correlated by exact JSON-RPC value and type",
+    "malformed, unmatched, oversized, or too-deep messages are dropped or denied without leaking raw",
+    "compatibility fixtures are registered in `fixtures/compatibility/manifest.json`",
+    "release record names external MCP compatibility fixtures as included or explicitly excluded",
+    "External MCP compatibility fixtures are not implemented"
+  ]) {
+    if (!text.includes(phrase)) {
+      failures.push(`${path}: missing external MCP compatibility plan phrase: ${phrase}`);
     }
   }
   return failures;

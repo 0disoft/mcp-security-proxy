@@ -382,7 +382,7 @@ function createReleaseRecordSelfTestFixture() {
       },
       externalMcpFixture: {
         status: "excluded",
-        evidence: "docs/ops/release.md"
+        evidence: "docs/architecture/09-external-mcp-compatibility-plan.md"
       }
     },
     validation: Object.fromEntries(requiredValidations.map((name) => [name, "self-test recorded"])),
