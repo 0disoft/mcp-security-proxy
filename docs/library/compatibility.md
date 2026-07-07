@@ -28,9 +28,12 @@ This repository type owns public API surface, package compatibility, semantic ve
 - MCP stdio transport first.
 - TypeScript project references and pnpm workspace checks are the current local compatibility
   baseline.
+- Node.js `>=24.0.0` is the current package manifest floor and must stay consistent across the
+  workspace until a release readiness record changes it.
 - HTTP transport support is deferred until stdio behavior is proven.
 - Client compatibility must be fixture-backed, not claimed from schema reading alone.
 - Policy and audit schemas must remain deterministic across supported runtimes.
+- Public registry compatibility is not claimed while all packages remain private.
 
 ## Compatibility Evidence Required
 
@@ -46,3 +49,4 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Public exports change without semver and migration notes.
 - Compatibility claims lack runtime or consumer evidence.
 - Package artifacts drift from documented public API.
+- Package manifest compatibility drifts from `docs/library/package-surface.md`.

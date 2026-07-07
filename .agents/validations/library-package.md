@@ -16,6 +16,7 @@ This document owns stable validation names for this scaffold.
 - migration-check
 - smoke
 - docs
+- package-surface
 - check
 
 ## Required Final Report
@@ -40,4 +41,3 @@ general validation routes must stay stack-neutral unless a runner file explicitl
 ## Repository Shape
 
 library validation must stay repository-shape focused and must not imply generated application source code.
-

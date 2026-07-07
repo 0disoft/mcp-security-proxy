@@ -22,6 +22,22 @@ This repository type owns public API surface, package compatibility, semantic ve
   artifacts remain UNDECIDED.
 - Deprecation and migration policy: docs/library/migration-guide.md
 
+## Current Package Posture
+
+This repository is not ready for public npm publication. The current package boundary is a private
+pnpm workspace used to validate implementation ownership and internal imports.
+
+Until release readiness records public package names and artifacts:
+
+- the root workspace and every `packages/*` manifest must keep `private: true`;
+- versions must remain `0.0.0`;
+- package names must stay under `@0disoft/mcp-security-proxy-*`;
+- Node.js compatibility must stay `>=24.0.0`;
+- package entrypoints must expose `./src/index.ts` types and `./dist/index.js` runtime output;
+- the CLI package must keep the `mcp-security-proxy` bin pointing at `./dist/main.js`.
+
+`pnpm run package-surface` enforces this private package posture.
+
 ## Expected Package Surfaces
 
 - `packages/contracts`: policy, decision, audit event types, and JSON schema files.
@@ -45,3 +61,4 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Public exports change without semver and migration notes.
 - Compatibility claims lack runtime or consumer evidence.
 - Package artifacts drift from documented public API.
+- `pnpm run package-surface` fails.
