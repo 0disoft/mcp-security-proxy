@@ -11,6 +11,7 @@ const auditWarnPolicyPath = join(tempDir, "audit-warn-and-continue-policy.json")
 const auditWarnPath = join(tempDir, "audit-warn-directory");
 const malformedDiscoveryAuditLog = join(tempDir, "malformed-discovery-audit.jsonl");
 const noisyDiscoveryAuditLog = join(tempDir, "noisy-discovery-audit.jsonl");
+const duplicateDiscoveryAuditLog = join(tempDir, "duplicate-discovery-audit.jsonl");
 const upstreamErrorAuditLog = join(tempDir, "upstream-error-audit.jsonl");
 const pingAuditLog = join(tempDir, "ping-audit.jsonl");
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
@@ -303,6 +304,105 @@ try {
   const noisyDiscoveryAudit = readFileSync(noisyDiscoveryAuditLog, "utf8");
   if (noisyDiscoveryAudit.includes("RAW_NOISY_DISCOVERY") || noisyDiscoveryAudit.includes("RAW_STDERR_MARKER")) {
     throw new Error("raw noisy discovery or stderr marker leaked into audit log");
+  }
+
+  const duplicateDiscoveryChild = spawn(
+    process.execPath,
+    [
+      "packages/cli/dist/main.js",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      duplicateDiscoveryAuditLog,
+      "--",
+      process.execPath,
+      "scripts/fixture-mcp-server.mjs",
+      "--duplicate-tools-list"
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    }
+  );
+  const duplicateDiscoveryStdoutChunks = [];
+  const duplicateDiscoveryStderrChunks = [];
+  const duplicateDiscoveryOutputLines = [];
+  duplicateDiscoveryChild.stdout.on("data", (chunk) => duplicateDiscoveryStdoutChunks.push(chunk));
+  duplicateDiscoveryChild.stderr.on("data", (chunk) => duplicateDiscoveryStderrChunks.push(chunk));
+  const waitForDuplicateTools = waitForJsonLine(duplicateDiscoveryChild.stdout, (line) => {
+    duplicateDiscoveryOutputLines.push(line);
+    return line.id === "duplicate-tools";
+  });
+  duplicateDiscoveryChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "duplicate-tools", method: "tools/list" })}\n`);
+  await waitForDuplicateTools;
+  duplicateDiscoveryChild.stdin.write(
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: "duplicate-call",
+      method: "tools/call",
+      params: {
+        name: "read_file",
+        arguments: {
+          path: "workspace/public/readme.md"
+        }
+      }
+    })}\n`
+  );
+  duplicateDiscoveryChild.stdin.end();
+  const duplicateDiscoveryExitCode = await new Promise((resolve, reject) => {
+    duplicateDiscoveryChild.once("error", reject);
+    duplicateDiscoveryChild.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (duplicateDiscoveryExitCode !== 0) {
+    throw new Error(
+      `expected duplicate discovery live run smoke to exit 0, got ${duplicateDiscoveryExitCode}: ${Buffer.concat(duplicateDiscoveryStderrChunks).toString("utf8")}`
+    );
+  }
+  for (const line of Buffer.concat(duplicateDiscoveryStdoutChunks)
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line))) {
+    if (!duplicateDiscoveryOutputLines.some((item) => item.id === line.id)) {
+      duplicateDiscoveryOutputLines.push(line);
+    }
+  }
+  const duplicateDiscoveryToolsResult = duplicateDiscoveryOutputLines.find((line) => line.id === "duplicate-tools");
+  const duplicateDiscoveryCallResult = duplicateDiscoveryOutputLines.find((line) => line.id === "duplicate-call");
+  const duplicateTools = duplicateDiscoveryToolsResult?.result?.tools;
+  if (
+    !Array.isArray(duplicateTools) ||
+    duplicateTools.length !== 1 ||
+    duplicateTools[0].name !== "read_file" ||
+    duplicateTools[0].title !== "Read File" ||
+    duplicateTools[0].description !== "Read a file from a caller-provided path."
+  ) {
+    throw new Error(`unexpected duplicate discovery sanitized response: ${JSON.stringify(duplicateDiscoveryToolsResult)}`);
+  }
+  if (duplicateDiscoveryCallResult?.error || !duplicateDiscoveryCallResult?.result) {
+    throw new Error(`expected duplicate discovery to preserve first visible tool callability: ${JSON.stringify(duplicateDiscoveryCallResult)}`);
+  }
+  const duplicateDiscoveryOutputText = duplicateDiscoveryOutputLines.map((line) => JSON.stringify(line)).join("\n");
+  for (const marker of [
+    "RAW_DUPLICATE_DESCRIPTOR_TITLE_MARKER",
+    "RAW_DUPLICATE_DESCRIPTOR_DESC_MARKER",
+    "RAW_DUPLICATE_DESCRIPTOR_SCHEMA_MARKER",
+    "RAW_DUPLICATE_DESCRIPTOR_META_MARKER"
+  ]) {
+    if (duplicateDiscoveryOutputText.includes(marker)) {
+      throw new Error(`raw duplicate discovery marker leaked into client output: ${marker}`);
+    }
+  }
+  const duplicateDiscoveryAudit = readFileSync(duplicateDiscoveryAuditLog, "utf8");
+  if (duplicateDiscoveryAudit.includes("RAW_DUPLICATE_DESCRIPTOR") || duplicateDiscoveryAudit.includes("RAW_STDERR_MARKER")) {
+    throw new Error("raw duplicate discovery or stderr marker leaked into audit log");
+  }
+  if (!duplicateDiscoveryAudit.includes('"code":"discovery.filtered"')) {
+    throw new Error(`expected duplicate discovery filtered audit event, got ${duplicateDiscoveryAudit}`);
   }
 
   const child = spawn(

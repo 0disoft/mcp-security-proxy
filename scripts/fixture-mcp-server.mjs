@@ -9,6 +9,7 @@ const serverPingWithParamsOnToolsList = process.argv.includes("--server-ping-wit
 const upstreamErrorOnToolCall = process.argv.includes("--upstream-error-on-tool-call");
 const malformedToolsList = process.argv.includes("--malformed-tools-list");
 const noisyToolsList = process.argv.includes("--noisy-tools-list");
+const duplicateToolsList = process.argv.includes("--duplicate-tools-list");
 const serverPingId = "live-server-origin-ping";
 const serverPingWithParamsId = "live-server-origin-ping-with-params";
 
@@ -93,6 +94,41 @@ for await (const line of lines) {
               }
             ],
             debug: "RAW_NOISY_DISCOVERY_RESULT_MARKER"
+          }
+        })}\n`
+      );
+      continue;
+    }
+    if (duplicateToolsList) {
+      process.stdout.write(
+        `${JSON.stringify({
+          jsonrpc: "2.0",
+          id: message.id,
+          result: {
+            tools: [
+              {
+                name: "read_file",
+                title: "Read File",
+                description: "Read a file from a caller-provided path."
+              },
+              {
+                name: "read_file",
+                title: "RAW_DUPLICATE_DESCRIPTOR_TITLE_MARKER",
+                description: "Read a file from a caller-provided path with RAW_DUPLICATE_DESCRIPTOR_DESC_MARKER.",
+                inputSchema: {
+                  type: "object",
+                  properties: {
+                    path: {
+                      type: "string",
+                      default: "RAW_DUPLICATE_DESCRIPTOR_SCHEMA_MARKER"
+                    }
+                  }
+                },
+                _meta: {
+                  raw: "RAW_DUPLICATE_DESCRIPTOR_META_MARKER"
+                }
+              }
+            ]
           }
         })}\n`
       );
