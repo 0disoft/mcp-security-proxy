@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "msp.decision.v1",
+  "action": "allow",
+  "evidence": [
+    {
+      "ruleId": "allow-public-files",
+      "capability": "file-read",
+      "reason": "matched allow rule"
+    }
+  ]
+}

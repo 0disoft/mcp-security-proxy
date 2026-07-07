@@ -36,6 +36,40 @@
       ]
     },
     {
+      "id": "cli-inspect-tools-local",
+      "kind": "cli.json.inspect-tools",
+      "path": "fixtures/compatibility/cli-inspect-tools.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "inspect-tools",
+        "--input",
+        "fixtures/mcp/tools-list-basic.json",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--json"
+      ]
+    },
+    {
+      "id": "cli-eval-call-allowed-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-allowed.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-file-read-allowed.json",
+        "--json"
+      ]
+    },
+    {
       "id": "cli-eval-call-denied-local",
       "kind": "cli.json.eval-call",
       "path": "fixtures/compatibility/cli-eval-call-denied.local.json",
@@ -51,6 +85,14 @@
         "fixtures/mcp/call-file-read-denied.json",
         "--json"
       ]
+    },
+    {
+      "id": "library-decision-file-read-allowed",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-file-read-allowed.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "call": "fixtures/mcp/call-file-read-allowed.json",
+      "profile": "local"
     },
     {
       "id": "library-decision-file-read-denied",

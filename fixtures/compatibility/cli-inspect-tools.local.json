@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "command": "inspect-tools",
+  "input": "fixtures/mcp/tools-list-basic.json",
+  "profile": "local",
+  "tools": [
+    {
+      "name": "read_file",
+      "capabilities": [
+        "file-read"
+      ],
+      "evidence": [
+        {
+          "capability": "file-read",
+          "source": "name",
+          "reason": "tool text mentions file or path"
+        }
+      ],
+      "policyCovered": true
+    },
+    {
+      "name": "run_command",
+      "capabilities": [
+        "shell"
+      ],
+      "evidence": [
+        {
+          "capability": "shell",
+          "source": "description",
+          "reason": "tool text mentions shell or command"
+        }
+      ],
+      "policyCovered": true
+    },
+    {
+      "name": "unknown_tool",
+      "capabilities": [
+        "unknown"
+      ],
+      "evidence": [
+        {
+          "capability": "unknown",
+          "source": "fallback",
+          "reason": "no safe capability could be inferred"
+        }
+      ],
+      "policyCovered": false
+    }
+  ]
+}

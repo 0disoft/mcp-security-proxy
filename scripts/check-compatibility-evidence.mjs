@@ -10,6 +10,7 @@ const requiredKinds = new Set([
   "mcp.call.denied",
   "audit.redaction",
   "cli.json.check-policy",
+  "cli.json.inspect-tools",
   "cli.json.eval-call",
   "library.decision-result"
 ]);

@@ -45,7 +45,9 @@ Status: implemented for the current stdio-only boundary.
 
 ## Milestone 2: Embeddable Library
 
-Status: partially implemented.
+Status: partially implemented with fixture-backed dry-run evidence for policy validation,
+discovery inspection, allowed calls, denied calls, redaction, CLI JSON output, and library
+decision results.
 
 - Expose policy parser.
 - Expose tool classifier.
@@ -59,7 +61,9 @@ Status: partially implemented.
 
 ## Milestone 3: Host Integration Hardening
 
-- Add policy dry-run workflows.
+- Add policy dry-run workflows. Current local workflows cover policy validation, discovery
+  inspection, allowed call evaluation, and denied call evaluation through fixture-backed CLI JSON
+  evidence.
 - Add host-specific approval UX integrations.
 - Add transport compatibility plan for HTTP.
 - Add audit export guidance.
