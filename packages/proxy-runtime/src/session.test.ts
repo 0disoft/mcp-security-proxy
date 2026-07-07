@@ -3035,6 +3035,57 @@ describe("proxy runtime session", () => {
       }
     });
   });
+
+  it("fails closed per call when the runtime approval hook times out", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local",
+      approvalTimeoutMs: 1
+    });
+    primeShellDiscovery(session);
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-hook-timeout",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      () => new Promise(() => undefined)
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "approval-hook-timeout",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "policy.approval_hook_failed",
+                ruleId: "approval-shell",
+                reason: "approval hook timed out"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "call-decision",
+      toolName: "run_command",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "policy.approval_hook_failed", ruleId: "approval-shell", reason: "approval hook timed out" }]
+      }
+    });
+  });
 });
 
 function primeToolDiscovery(session: ReturnType<typeof createProxySession>): void {

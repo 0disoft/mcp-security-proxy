@@ -58,8 +58,10 @@ returns forward lines, denial response lines, and redacted audit events. Subproc
 stdio wiring, and CLI output routing belong to the CLI/runtime bridge, not the core evaluator.
 Approval hooks receive normalized call facts and policy decision evidence, not raw MCP payloads.
 Hosts own the user experience and final approval source. Hook rejection reasons are treated as
-host-owned input and are not forwarded or stored verbatim by the proxy runtime. Host-specific
-approval UX acceptance criteria are documented in docs/architecture/08-host-approval-ux-plan.md.
+host-owned input and are not forwarded or stored verbatim by the proxy runtime. Embedders may set
+an optional approval timeout on the runtime session or stdio bridge; timed-out hooks fail closed
+without forwarding the call. Host-specific approval UX acceptance criteria are documented in
+docs/architecture/08-host-approval-ux-plan.md.
 
 ## Review Blockers
 

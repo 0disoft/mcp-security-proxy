@@ -50,6 +50,8 @@ policy, audit, CLI, or API contracts.
 - Current draft schema versions: `msp.policy.v1`, `msp.decision.v1`, and `msp.audit-event.v1`.
 - Current draft decision note: decision evidence may include a stable `code` field. The
   `decision.v1.schema.json` asset accepts the same code values exported by the contracts package.
+- Current draft runtime API note: proxy session and stdio bridge options may include an optional
+  approval timeout. Existing embedders that omit it keep the previous no-runtime-timeout behavior.
 - `pnpm run migration-check` verifies that current schema versions and migration-note blockers stay
   represented here before release validation passes.
 

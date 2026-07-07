@@ -16,6 +16,7 @@ export interface ProxySessionOptions {
   readonly policy: PolicyDocument;
   readonly profileId: string;
   readonly approvalHookAvailable?: boolean;
+  readonly approvalTimeoutMs?: number;
   readonly maxFrameBytes?: number;
   readonly maxJsonDepth?: number;
 }
@@ -63,10 +64,12 @@ export class ProxySession {
   private readonly visibleTools = new Map<string, ToolMetadata>();
   private readonly maxFrameBytes: number;
   private readonly maxJsonDepth: number;
+  private readonly approvalTimeoutMs: number | undefined;
 
   constructor(private readonly options: ProxySessionOptions) {
     this.maxFrameBytes = resolvePositiveInteger(options.maxFrameBytes, defaultMaxFrameBytes);
     this.maxJsonDepth = resolvePositiveInteger(options.maxJsonDepth, defaultMaxJsonDepth);
+    this.approvalTimeoutMs = resolveOptionalPositiveInteger(options.approvalTimeoutMs);
   }
 
   handleClientLine(line: string): ProxyFrameResult {
@@ -293,13 +296,14 @@ export class ProxySession {
 
     let approval: ApprovalResult;
     try {
-      approval = await approvalHook({ call: normalized, decision });
-    } catch {
+      approval = await this.callApprovalHook(approvalHook, normalized, decision);
+    } catch (error) {
+      const reason = error instanceof ApprovalHookTimeout ? "approval hook timed out" : "approval hook failed closed";
       return this.withPrependedAuditEvents(
         preparedAuditEvents,
         this.denyEnvelope(
           envelope,
-          denyDecision("approval hook failed closed", {
+          denyDecision(reason, {
             code: "policy.approval_hook_failed",
             ...approvalEvidence(decision)
           }),
@@ -331,6 +335,14 @@ export class ProxySession {
         normalized.toolName
       )
     );
+  }
+
+  private async callApprovalHook(approvalHook: ApprovalHook, call: NormalizedToolCall, decision: PolicyDecision): Promise<ApprovalResult> {
+    const approval = approvalHook({ call, decision });
+    if (this.approvalTimeoutMs === undefined) {
+      return await approval;
+    }
+    return await withApprovalTimeout(approval, this.approvalTimeoutMs);
   }
 
   handleServerLine(line: string): ProxyFrameResult {
@@ -1162,6 +1174,31 @@ function resolvePositiveInteger(value: number | undefined, fallback: number): nu
   }
   return value;
 }
+
+function resolveOptionalPositiveInteger(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isSafeInteger(value) || value < 1) {
+    return undefined;
+  }
+  return value;
+}
+
+async function withApprovalTimeout(approval: ApprovalResult | Promise<ApprovalResult>, timeoutMs: number): Promise<ApprovalResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      approval,
+      new Promise<ApprovalResult>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new ApprovalHookTimeout()), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+class ApprovalHookTimeout extends Error {}
 
 function noRedaction(): RedactionSummary {
   return {

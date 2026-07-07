@@ -27,6 +27,7 @@ export interface StdioProxyOptions {
   readonly writeAuditEvent: (event: AuditEvent) => void | Promise<void>;
   readonly approvalHookAvailable?: boolean;
   readonly approveToolCall?: ApprovalHook;
+  readonly approvalTimeoutMs?: number;
   readonly shutdownGraceMs?: number;
   readonly maxFrameBytes?: number;
   readonly maxJsonDepth?: number;
@@ -57,6 +58,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     policy: options.policy,
     profileId: options.profileId,
     approvalHookAvailable: Boolean(options.approveToolCall ?? options.approvalHookAvailable),
+    ...(options.approvalTimeoutMs !== undefined ? { approvalTimeoutMs: options.approvalTimeoutMs } : {}),
     ...(options.maxFrameBytes !== undefined ? { maxFrameBytes: options.maxFrameBytes } : {}),
     ...(options.maxJsonDepth !== undefined ? { maxJsonDepth: options.maxJsonDepth } : {})
   });

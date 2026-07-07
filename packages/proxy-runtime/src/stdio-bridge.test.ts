@@ -287,6 +287,71 @@ describe("stdio proxy bridge", () => {
     );
   });
 
+  it("fails closed when the embedding approval hook times out", async () => {
+    const harness = createHarness();
+    const resultPromise = runHarness(harness, {
+      policy: readApprovalPolicy(),
+      approveToolCall: () => new Promise(() => undefined),
+      approvalTimeoutMs: 1
+    });
+
+    const toolsRequest = JSON.stringify({ jsonrpc: "2.0", id: "approval-timeout-tools", method: "tools/list" });
+    harness.clientInput.write(`${toolsRequest}\n`);
+    await nextTick();
+    harness.upstream.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-timeout-tools",
+        result: {
+          tools: [{ name: "run_command", description: "Run a shell command." }]
+        }
+      })}\n`
+    );
+    await nextTick();
+    harness.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-call-timeout",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      })}\n`
+    );
+    await sleep(10);
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(0);
+    expect(readLines(harness.upstreamInputCapture)).toEqual([toolsRequest]);
+    expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({
+        id: "approval-call-timeout",
+        error: expect.objectContaining({
+          data: expect.objectContaining({
+            decision: expect.objectContaining({
+              action: "deny",
+              evidence: [expect.objectContaining({ code: "policy.approval_hook_failed", reason: "approval hook timed out" })]
+            })
+          })
+        })
+      })
+    );
+    expect(harness.auditEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "call-decision",
+        toolName: "run_command",
+        decision: expect.objectContaining({
+          action: "deny",
+          evidence: [expect.objectContaining({ code: "policy.approval_hook_failed", reason: "approval hook timed out" })]
+        })
+      })
+    );
+  });
+
   it("fails closed when audit writing fails under fail_closed policy", async () => {
     const harness = createHarness({ failAuditWrites: true });
     const resultPromise = runHarness(harness);
@@ -441,6 +506,7 @@ function runHarness(
     readonly auditOnFailure?: PolicyDocument["profiles"][number]["audit"]["onFailure"];
     readonly policy?: PolicyDocument;
     readonly approveToolCall?: ApprovalHook;
+    readonly approvalTimeoutMs?: number;
   } = {}
 ): Promise<{ readonly exitCode: number }> {
   return runStdioProxy({
@@ -454,6 +520,7 @@ function runHarness(
     clientOutput: harness.clientOutput,
     spawnUpstream: () => harness.upstream,
     ...(options.approveToolCall ? { approveToolCall: options.approveToolCall } : {}),
+    ...(options.approvalTimeoutMs !== undefined ? { approvalTimeoutMs: options.approvalTimeoutMs } : {}),
     ...(options.shutdownGraceMs !== undefined ? { shutdownGraceMs: options.shutdownGraceMs } : {}),
     writeAuditEvent: (event) => {
       if (harness.failAuditWrites) {
@@ -555,6 +622,10 @@ function readApprovalPolicy(): PolicyDocument {
 
 function nextTick(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve));
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function readLines(chunks: readonly Buffer[]): readonly string[] {

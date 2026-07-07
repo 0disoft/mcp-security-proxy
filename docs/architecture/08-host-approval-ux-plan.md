@@ -34,6 +34,7 @@ A host approval UX must preserve these runtime invariants:
 - raw hook rejection reasons are not forwarded or stored verbatim;
 - the prompt shown to a user is derived from normalized call facts and decision evidence, not raw
   MCP payloads;
+- optional runtime approval timeouts fail closed without forwarding the call;
 - a stale approval must not approve a different JSON-RPC request id, tool name, capability, or
   argument-fact summary;
 - deny, timeout, close, dismiss, and navigation-away states must all resolve to deny.
