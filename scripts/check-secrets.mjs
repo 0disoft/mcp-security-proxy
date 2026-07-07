@@ -33,19 +33,52 @@ const findings = [];
 for (const file of trackedFiles) {
   const normalized = file.replaceAll("\\", "/");
   const text = readFileSync(join(root, file), "utf8");
-  const lines = text.split(/\r?\n/);
-  for (const [index, line] of lines.entries()) {
-    for (const detector of detectors) {
-      if (detector.pattern.test(line)) {
-        findings.push(`${normalized}:${index + 1}: secret-like match (${detector.name})`);
-      }
-    }
-  }
+  findings.push(...scanTextForSecrets(normalized, text));
 }
+
+checkSecretScanValidator();
 
 if (findings.length > 0) {
   for (const finding of findings) {
     console.error(finding);
   }
   process.exit(1);
+}
+
+function scanTextForSecrets(label, text) {
+  const matches = [];
+  const lines = text.split(/\r?\n/);
+  for (const [index, line] of lines.entries()) {
+    for (const detector of detectors) {
+      if (detector.pattern.test(line)) {
+        matches.push(`${label}:${index + 1}: secret-like match (${detector.name})`);
+      }
+    }
+  }
+  return matches;
+}
+
+function checkSecretScanValidator() {
+  const detectorFixtures = [
+    ["openai-sk", "sk-abcdefghijklmnopqrstuvwxyz"],
+    ["github-token", "ghp_abcdefghijklmnopqrstuvwxyz"],
+    ["private-key-block", "-----BEGIN PRIVATE KEY-----"],
+    ["token-assignment", "TOKEN_EXAMPLE: value"],
+    ["private-assignment", "PRIVATE_EXAMPLE=value"],
+    ["credential-assignment", "CREDENTIAL_EXAMPLE=value"],
+    ["password-assignment", "password: value"],
+    ["api-key-assignment", "api_key=value"]
+  ];
+
+  for (const [name, sample] of detectorFixtures) {
+    const sampleFindings = scanTextForSecrets(`<secret-scan-self-test-${name}>`, sample);
+    if (!sampleFindings.some((item) => item.includes(`secret-like match (${name})`))) {
+      findings.push(`secret-scan self-test detector ${name} did not match its synthetic fixture`);
+    }
+  }
+
+  const safeFindings = scanTextForSecrets("<secret-scan-self-test-safe>", "policy id: local-development");
+  if (safeFindings.length > 0) {
+    findings.push(`secret-scan self-test safe fixture produced findings: ${safeFindings.join("; ")}`);
+  }
 }
