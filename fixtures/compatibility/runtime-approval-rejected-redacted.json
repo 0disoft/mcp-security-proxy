@@ -1,0 +1,50 @@
+{
+  "forwarded": false,
+  "response": {
+    "jsonrpc": "2.0",
+    "id": "approval-rejected-redacted-call",
+    "error": {
+      "code": -32001,
+      "message": "MCP tool call denied by policy",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "policy.approval_denied",
+              "ruleId": "approval-shell",
+              "capability": "shell",
+              "reason": "approval required call rejected by approval hook"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "auditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "call-decision",
+      "profileId": "local",
+      "toolName": "run_command",
+      "method": "tools/call",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "policy.approval_denied",
+            "ruleId": "approval-shell",
+            "capability": "shell",
+            "reason": "approval required call rejected by approval hook"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}

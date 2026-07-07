@@ -61,6 +61,8 @@ const requiredEvidenceIds = new Set([
   "library-decision-workflow-no-hook",
   "library-decision-workflow-approval-hook",
   "runtime-live-stdio-smoke",
+  "runtime-approval-rejected-redacted",
+  "runtime-approval-hook-error",
   "runtime-approval-timeout",
   "runtime-server-origin-ping-invalid-response"
 ]);
@@ -299,13 +301,25 @@ async function checkRuntimeSessionFixture(id, path, item) {
     failures.push(`${id}: runtime session evidence must include policy, profile, and scenario`);
     return;
   }
-  const supportedScenarios = new Set(["approval-timeout", "server-origin-ping-invalid-response"]);
+  const supportedScenarios = new Set([
+    "approval-hook-error",
+    "approval-rejected-redacted",
+    "approval-timeout",
+    "server-origin-ping-invalid-response"
+  ]);
   if (!supportedScenarios.has(item.scenario)) {
     failures.push(`${id}: unsupported runtime session scenario ${item.scenario}`);
     return;
   }
 
   const { createProxySession } = await import("../packages/proxy-runtime/dist/index.js");
+  if (item.scenario.startsWith("approval-")) {
+    const actual = await collectApprovalRuntimeSessionResult(createProxySession, item, id);
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
   if (item.scenario === "server-origin-ping-invalid-response") {
     const session = createProxySession({
       policy: readJson(item.policy),
@@ -339,17 +353,20 @@ async function checkRuntimeSessionFixture(id, path, item) {
     assertJsonEqual(id, actual, expected);
     return;
   }
+}
 
+async function collectApprovalRuntimeSessionResult(createProxySession, item, id) {
+  const approvalScenario = approvalRuntimeScenario(item.scenario);
   const session = createProxySession({
     policy: readJson(item.policy),
     profileId: item.profile,
-    approvalTimeoutMs: 1
+    ...(approvalScenario.approvalTimeoutMs !== undefined ? { approvalTimeoutMs: approvalScenario.approvalTimeoutMs } : {})
   });
-  session.handleClientLine(JSON.stringify({ jsonrpc: "2.0", id: "approval-timeout-tools", method: "tools/list" }));
+  session.handleClientLine(JSON.stringify({ jsonrpc: "2.0", id: approvalScenario.discoveryRequestId, method: "tools/list" }));
   session.handleServerLine(
     JSON.stringify({
       jsonrpc: "2.0",
-      id: "approval-timeout-tools",
+      id: approvalScenario.discoveryRequestId,
       result: {
         tools: [
           {
@@ -364,22 +381,51 @@ async function checkRuntimeSessionFixture(id, path, item) {
   const result = await session.handleClientLineWithApproval(
     JSON.stringify({
       jsonrpc: "2.0",
-      id: "approval-timeout-call",
+      id: approvalScenario.callRequestId,
       method: "tools/call",
       params: {
         name: "run_command",
         arguments: {}
       }
     }),
-    () => new Promise(() => undefined)
+    approvalScenario.hook
   );
-  const actual = {
+  return {
     forwarded: result.forwardLine !== undefined,
     response: result.responseLine ? parseJsonText(result.responseLine, `${id}: responseLine`) : undefined,
     auditEvents: result.auditEvents
   };
-  const expected = readJson(path);
-  assertJsonEqual(id, actual, expected);
+}
+
+function approvalRuntimeScenario(scenario) {
+  if (scenario === "approval-timeout") {
+    return {
+      approvalTimeoutMs: 1,
+      discoveryRequestId: "approval-timeout-tools",
+      callRequestId: "approval-timeout-call",
+      hook: () => new Promise(() => undefined)
+    };
+  }
+  if (scenario === "approval-rejected-redacted") {
+    return {
+      discoveryRequestId: "approval-rejected-redacted-tools",
+      callRequestId: "approval-rejected-redacted-call",
+      hook: () => ({
+        approved: false,
+        reason: "denied because RAW_APPROVAL_DENIAL_REASON_MARKER touched workspace/private/secret.txt"
+      })
+    };
+  }
+  if (scenario === "approval-hook-error") {
+    return {
+      discoveryRequestId: "approval-hook-error-tools",
+      callRequestId: "approval-hook-error-call",
+      hook: () => {
+        throw new Error("RAW_APPROVAL_HOOK_FAILURE_MARKER");
+      }
+    };
+  }
+  throw new Error(`unsupported approval runtime scenario ${scenario}`);
 }
 
 function assertJsonEqual(id, actual, expected) {

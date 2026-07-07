@@ -386,6 +386,22 @@
       "scenario": "approval-timeout"
     },
     {
+      "id": "runtime-approval-rejected-redacted",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-approval-rejected-redacted.json",
+      "policy": "fixtures/policies/approval-shell.json",
+      "profile": "local",
+      "scenario": "approval-rejected-redacted"
+    },
+    {
+      "id": "runtime-approval-hook-error",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-approval-hook-error.json",
+      "policy": "fixtures/policies/approval-shell.json",
+      "profile": "local",
+      "scenario": "approval-hook-error"
+    },
+    {
       "id": "runtime-server-origin-ping-invalid-response",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-server-origin-ping-invalid-response.json",

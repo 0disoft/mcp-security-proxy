@@ -53,8 +53,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - CLI JSON output fixture.
 - Library decision-result fixture.
 - Runtime live stdio smoke command evidence for the implemented local proxy path.
-- Runtime session-result fixtures for approval timeout fail-closed behavior and invalid
-  server-origin ping response denial.
+- Runtime session-result fixtures for approval rejection, approval hook error, approval timeout
+  fail-closed behavior, and invalid server-origin ping response denial.
 
 The current evidence registry is `fixtures/compatibility/manifest.json`. `pnpm run compatibility`
 builds the workspace, verifies every manifest entry, compares the captured CLI, library, and

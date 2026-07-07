@@ -1,0 +1,50 @@
+{
+  "forwarded": false,
+  "response": {
+    "jsonrpc": "2.0",
+    "id": "approval-hook-error-call",
+    "error": {
+      "code": -32001,
+      "message": "MCP tool call denied by policy",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "policy.approval_hook_failed",
+              "ruleId": "approval-shell",
+              "capability": "shell",
+              "reason": "approval hook failed closed"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "auditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "call-decision",
+      "profileId": "local",
+      "toolName": "run_command",
+      "method": "tools/call",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "policy.approval_hook_failed",
+            "ruleId": "approval-shell",
+            "capability": "shell",
+            "reason": "approval hook failed closed"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}
