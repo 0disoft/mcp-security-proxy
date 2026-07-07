@@ -27,7 +27,8 @@ The required release scope keys are `mcpSdkDependency`, `httpTransport`, `hostAp
 
 Use `docs/architecture/09-external-mcp-compatibility-plan.md` as the release-scope evidence when
 external MCP client/server fixtures are excluded. A release that includes them must replace that
-exclusion with tracked fixture and validation evidence.
+exclusion with tracked fixture and validation evidence. While `fixtures/compatibility/manifest.json`
+targets only `local-stdio-mvp`, `externalMcpFixture.status` must remain `excluded`.
 
 Use `public-release.template.json` as the starting shape. Do not put credentials, tokens, private
 audit logs, private policy files, or raw incident evidence in release records. Release artifact

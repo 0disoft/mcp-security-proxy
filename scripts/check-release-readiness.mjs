@@ -26,6 +26,8 @@ const requiredValidations = [
 const requiredReleaseScopeDecisions = ["mcpSdkDependency", "httpTransport", "hostApprovalUx", "externalMcpFixture"];
 const releaseScopeStatuses = new Set(["included", "excluded"]);
 const releaseScopeEvidencePrefixes = ["docs/adr/", "docs/architecture/", "docs/ops/"];
+const localCompatibilityTarget = "local-stdio-mvp";
+const compatibilityManifestPath = "fixtures/compatibility/manifest.json";
 const trackedFiles = new Set(
   execFileSync("git", ["ls-files"], {
     cwd: root,
@@ -230,6 +232,14 @@ function checkReleaseScope(path, releaseScope) {
       failures.push(`${path}: releaseScope.${name}.evidence must be a docs/adr, docs/architecture, or docs/ops path`);
     }
   }
+  if (releaseScope.externalMcpFixture?.status === "included") {
+    const compatibilityManifest = readJson(compatibilityManifestPath);
+    if (compatibilityManifest.target === localCompatibilityTarget) {
+      failures.push(
+        `${path}: releaseScope.externalMcpFixture.status cannot be included while ${compatibilityManifestPath} target is ${localCompatibilityTarget}`
+      );
+    }
+  }
 }
 
 function checkReleaseRecordValidator() {
@@ -424,6 +434,26 @@ function checkReleaseRecordValidator() {
   ) {
     failures.push(
       `release-readiness self-test wrong scope evidence location fixture was not rejected: ${wrongScopeEvidenceLocationFailures.join("; ")}`
+    );
+  }
+
+  const includedExternalMcpFixtureFailures = collectReleaseRecordFailures("<release-readiness-self-test-external-mcp-included>", {
+    ...validRecord,
+    releaseScope: {
+      ...validRecord.releaseScope,
+      externalMcpFixture: {
+        ...validRecord.releaseScope.externalMcpFixture,
+        status: "included"
+      }
+    }
+  });
+  if (
+    !includedExternalMcpFixtureFailures.some((item) =>
+      item.includes(`releaseScope.externalMcpFixture.status cannot be included while ${compatibilityManifestPath} target is ${localCompatibilityTarget}`)
+    )
+  ) {
+    failures.push(
+      `release-readiness self-test included external MCP fixture was not rejected: ${includedExternalMcpFixtureFailures.join("; ")}`
     );
   }
 }
