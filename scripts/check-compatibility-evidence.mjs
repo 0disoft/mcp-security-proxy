@@ -23,6 +23,16 @@ const cliCommandByKind = new Map([
   ["cli.json.eval-call", "eval-call"]
 ]);
 const runtimeCommandByKind = new Map([["runtime.live-smoke", ["node", "scripts/smoke-live-run.mjs"]]]);
+const trackedFiles = new Set(
+  execFileSync("git", ["ls-files"], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  })
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((file) => file.replaceAll("\\", "/"))
+);
 const requiredEvidenceIds = new Set([
   "mcp-discovery-basic",
   "mcp-call-file-read-allowed",
@@ -119,6 +129,9 @@ async function checkEvidenceEntry(item) {
   const id = typeof item.id === "string" ? item.id : "";
   const kind = typeof item.kind === "string" ? item.kind : "";
   const path = typeof item.path === "string" ? item.path : "";
+  checkEvidenceReference(id || manifestPath, "path", item.path);
+  checkEvidenceReference(id || manifestPath, "policy", item.policy);
+  checkEvidenceReference(id || manifestPath, "call", item.call);
 
   if (!id) {
     failures.push(`${manifestPath}: evidence entry is missing id`);
@@ -282,7 +295,37 @@ function checkRuntimeCommandShape(id, kind, command) {
     failures.push(`${id}: runtime evidence kind ${kind} must run ${expectedCommand.join(" ")}`);
     return false;
   }
+  const scriptPath = command[1];
+  if (typeof scriptPath !== "string" || !trackedFiles.has(scriptPath)) {
+    failures.push(`${id}: runtime evidence command script must be tracked`);
+    return false;
+  }
   return true;
+}
+
+function checkEvidenceReference(id, field, value) {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value !== "string") {
+    failures.push(`${id}: evidence ${field} must be a string path when present`);
+    return;
+  }
+  if (!isSafeRepoPath(value)) {
+    failures.push(`${id}: evidence ${field} must be a safe repo-relative POSIX path`);
+    return;
+  }
+  if (!trackedFiles.has(value)) {
+    failures.push(`${id}: evidence ${field} must reference a tracked file`);
+  }
+}
+
+function isSafeRepoPath(value) {
+  if (value.length === 0 || value.includes("\\") || value.startsWith("/") || /^[A-Za-z]:/.test(value)) {
+    return false;
+  }
+  const segments = value.split("/");
+  return segments.every((segment) => segment.length > 0 && segment !== "." && segment !== "..");
 }
 
 async function checkLibraryDecisionFixture(id, path, item) {
@@ -549,6 +592,19 @@ async function checkCompatibilityEvidenceValidator() {
   });
   if (!invalidRuntimeCommandFailures.some((item) => item.includes("must run node scripts/smoke-live-run.mjs"))) {
     failures.push(`compatibility self-test runtime command mismatch was not rejected: ${invalidRuntimeCommandFailures.join("; ")}`);
+  }
+
+  const untrackedEvidenceReferenceFailures = collectCompatibilityFailures(() => {
+    checkEvidenceReference("<compatibility-self-test-untracked-evidence-reference>", "path", "fixtures/compatibility/local-only.json");
+    checkEvidenceReference("<compatibility-self-test-unsafe-evidence-reference>", "policy", "../fixtures/policies/local-dev.json");
+  });
+  if (
+    !untrackedEvidenceReferenceFailures.some((item) => item.includes("evidence path must reference a tracked file")) ||
+    !untrackedEvidenceReferenceFailures.some((item) => item.includes("evidence policy must be a safe repo-relative POSIX path"))
+  ) {
+    failures.push(
+      `compatibility self-test unsafe or untracked evidence reference was not rejected: ${untrackedEvidenceReferenceFailures.join("; ")}`
+    );
   }
 
   const missingDecisionCodeFailures = collectCompatibilityFailures(() => {
