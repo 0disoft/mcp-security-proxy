@@ -371,11 +371,22 @@ function evaluateServerOriginMethod(envelope: JsonRpcEnvelope & { readonly metho
     return policyDecision;
   }
 
-  if (upstreamServerOriginAllowedMethods.has(envelope.method)) {
-    return policyDecision;
+  if (!upstreamServerOriginAllowedMethods.has(envelope.method)) {
+    return denyDecision("MCP method is not allowed from upstream server", { method: envelope.method });
   }
 
-  return denyDecision("MCP method is not allowed from upstream server", { method: envelope.method });
+  if (envelope.method === "ping" && !hasNoParamsOrEmptyObjectParams(envelope)) {
+    return denyDecision("server-origin ping must not carry params", { method: envelope.method });
+  }
+
+  return policyDecision;
+}
+
+function hasNoParamsOrEmptyObjectParams(envelope: JsonRpcEnvelope): boolean {
+  if (envelope.params === undefined) {
+    return true;
+  }
+  return isRecord(envelope.params) && Object.keys(envelope.params).length === 0;
 }
 
 function denyDecision(reason: string, evidence?: Omit<DecisionEvidence, "reason">): PolicyDecision {

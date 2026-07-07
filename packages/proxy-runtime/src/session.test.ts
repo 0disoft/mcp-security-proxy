@@ -231,6 +231,97 @@ describe("proxy runtime session", () => {
     expect(result.auditEvents).toHaveLength(0);
   });
 
+  it("forwards upstream server ping requests with empty params only", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    const line = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "server-ping-empty",
+      method: "ping",
+      params: {}
+    });
+
+    const result = session.handleServerLine(line);
+
+    expect(result.forwardLine).toBe(line);
+    expect(result.responseLine).toBeUndefined();
+    expect(result.auditEvents).toHaveLength(0);
+  });
+
+  it("denies upstream server ping requests that carry params", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "server-ping-payload",
+        method: "ping",
+        params: {
+          marker: "RAW_PING_PAYLOAD_MARKER"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "server-ping-payload",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ method: "ping", reason: "server-origin ping must not carry params" }]
+          }
+        }
+      }
+    });
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_PING_PAYLOAD_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "method-denied",
+      method: "ping",
+      decision: { action: "deny" }
+    });
+  });
+
+  it("denies upstream server ping requests with non-object params", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "server-ping-array",
+        method: "ping",
+        params: []
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "server-ping-array",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ method: "ping", reason: "server-origin ping must not carry params" }]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents).toHaveLength(1);
+  });
+
   it("denies unsupported client methods without forwarding upstream", () => {
     const session = createProxySession({
       policy: readPolicy(),
