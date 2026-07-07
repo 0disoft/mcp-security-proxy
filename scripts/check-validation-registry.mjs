@@ -18,6 +18,7 @@ for (const file of readdirSync(join(root, ".agents", "validations")).filter((nam
 checkPackageScripts();
 checkReleaseReadinessScript();
 checkReleaseTemplate();
+checkReleaseRecordsReadme();
 checkRequiredValidationMentions();
 
 if (failures.length > 0) {
@@ -91,6 +92,20 @@ function checkReleaseTemplate() {
   const validationKeys = Object.keys(template.validation ?? {});
   const releaseRequired = extractStringArray("scripts/check-release-readiness.mjs", "requiredValidations");
   assertArrayEqual("docs/ops/release-records/public-release.template.json: validation keys", validationKeys, releaseRequired);
+}
+
+function checkReleaseRecordsReadme() {
+  const path = "docs/ops/release-records/README.md";
+  const text = readText(path);
+  const releaseRequired = extractStringArray("scripts/check-release-readiness.mjs", "requiredValidations");
+  for (const name of releaseRequired) {
+    if (!text.includes(`\`${name}\``)) {
+      failures.push(`${path}: missing release validation evidence mention for ${name}`);
+    }
+  }
+  if (!text.includes("pnpm run check")) {
+    failures.push(`${path}: must mention pnpm run check as the release validation aggregate`);
+  }
 }
 
 function checkRequiredValidationMentions() {
