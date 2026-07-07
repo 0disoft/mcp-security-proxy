@@ -23,6 +23,11 @@
       "path": "fixtures/mcp/call-network-ambiguous.json"
     },
     {
+      "id": "mcp-call-secret-denied",
+      "kind": "mcp.call.denied",
+      "path": "fixtures/mcp/call-secret-denied.json"
+    },
+    {
       "id": "mcp-call-workflow-approval",
       "kind": "mcp.call.approval-required",
       "path": "fixtures/mcp/call-workflow-approval.json"
@@ -182,6 +187,23 @@
       ]
     },
     {
+      "id": "cli-eval-call-secret-denied-local",
+      "kind": "cli.json.eval-call",
+      "path": "fixtures/compatibility/cli-eval-call-secret-denied.local.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "eval-call",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--input",
+        "fixtures/mcp/call-secret-denied.json",
+        "--json"
+      ]
+    },
+    {
       "id": "cli-eval-call-workflow-no-hook-local",
       "kind": "cli.json.eval-call",
       "path": "fixtures/compatibility/cli-eval-call-workflow-no-hook.local.json",
@@ -270,6 +292,14 @@
       "path": "fixtures/compatibility/library-decision-shell-denied.json",
       "policy": "fixtures/policies/local-dev.json",
       "call": "fixtures/mcp/call-shell-denied.json",
+      "profile": "local"
+    },
+    {
+      "id": "library-decision-secret-denied",
+      "kind": "library.decision-result",
+      "path": "fixtures/compatibility/library-decision-secret-denied.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "call": "fixtures/mcp/call-secret-denied.json",
       "profile": "local"
     },
     {

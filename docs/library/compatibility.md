@@ -47,6 +47,7 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Captured matcher-denial fixtures for ambiguous paths, ambiguous network targets, and free-form
   shell commands.
 - Captured network allow and deny fixtures.
+- Captured secret-sensitive denial fixture that uses labels only and contains no raw secret value.
 - Captured redaction fixture.
 - CLI JSON output fixture.
 - Library decision-result fixture.
