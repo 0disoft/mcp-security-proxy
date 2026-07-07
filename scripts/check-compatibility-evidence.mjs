@@ -92,6 +92,8 @@ for (const id of requiredEvidenceIds) {
   }
 }
 
+checkCompatibilityEvidenceValidator();
+
 if (failures.length > 0) {
   for (const failure of failures) {
     console.error(failure);
@@ -181,8 +183,7 @@ function checkAuditRedactionFixture(id, path) {
 }
 
 function checkCliFixture(id, path, command) {
-  if (!Array.isArray(command) || command.length < 2 || command[0] !== "node") {
-    failures.push(`${id}: CLI evidence command must start with node`);
+  if (!checkCliCommandShape(id, command)) {
     return;
   }
   const output = execFileSync(process.execPath, command.slice(1), {
@@ -193,6 +194,22 @@ function checkCliFixture(id, path, command) {
   const actual = parseJsonText(output, `${id}: stdout`);
   const expected = readJson(path);
   assertJsonEqual(id, actual, expected);
+}
+
+function checkCliCommandShape(id, command) {
+  if (!Array.isArray(command) || command.length < 3) {
+    failures.push(`${id}: CLI evidence command must invoke the built CLI entrypoint`);
+    return false;
+  }
+  if (command.some((arg) => typeof arg !== "string")) {
+    failures.push(`${id}: CLI evidence command arguments must be strings`);
+    return false;
+  }
+  if (command[0] !== "node" || command[1] !== "packages/cli/dist/main.js") {
+    failures.push(`${id}: CLI evidence command must invoke node packages/cli/dist/main.js`);
+    return false;
+  }
+  return true;
 }
 
 async function checkLibraryDecisionFixture(id, path, item) {
@@ -253,4 +270,19 @@ function stableJson(value) {
       .join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+function checkCompatibilityEvidenceValidator() {
+  const invalidCliCommandFailures = collectCompatibilityFailures(() => {
+    checkCliCommandShape("<compatibility-self-test-invalid-cli-command>", ["node", "scripts/not-the-cli.js", "eval-call"]);
+  });
+  if (!invalidCliCommandFailures.some((item) => item.includes("must invoke node packages/cli/dist/main.js"))) {
+    failures.push(`compatibility self-test invalid CLI command was not rejected: ${invalidCliCommandFailures.join("; ")}`);
+  }
+}
+
+function collectCompatibilityFailures(fn) {
+  const before = failures.length;
+  fn();
+  return failures.splice(before);
 }
