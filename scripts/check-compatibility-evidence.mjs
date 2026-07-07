@@ -15,6 +15,11 @@ const requiredKinds = new Set([
   "cli.json.eval-call",
   "library.decision-result"
 ]);
+const cliCommandByKind = new Map([
+  ["cli.json.check-policy", "check-policy"],
+  ["cli.json.inspect-tools", "inspect-tools"],
+  ["cli.json.eval-call", "eval-call"]
+]);
 const requiredEvidenceIds = new Set([
   "mcp-discovery-basic",
   "mcp-call-file-read-allowed",
@@ -132,7 +137,7 @@ async function checkEvidenceEntry(item) {
     checkAuditRedactionFixture(id, path);
   }
   if (kind.startsWith("cli.")) {
-    checkCliFixture(id, path, item.command);
+    checkCliFixture(id, kind, path, item.command);
   }
   if (kind === "library.decision-result") {
     await checkLibraryDecisionFixture(id, path, item);
@@ -182,8 +187,8 @@ function checkAuditRedactionFixture(id, path) {
   }
 }
 
-function checkCliFixture(id, path, command) {
-  if (!checkCliCommandShape(id, command)) {
+function checkCliFixture(id, kind, path, command) {
+  if (!checkCliCommandShape(id, kind, command)) {
     return;
   }
   const output = execFileSync(process.execPath, command.slice(1), {
@@ -196,7 +201,7 @@ function checkCliFixture(id, path, command) {
   assertJsonEqual(id, actual, expected);
 }
 
-function checkCliCommandShape(id, command) {
+function checkCliCommandShape(id, kind, command) {
   if (!Array.isArray(command) || command.length < 3) {
     failures.push(`${id}: CLI evidence command must invoke the built CLI entrypoint`);
     return false;
@@ -207,6 +212,15 @@ function checkCliCommandShape(id, command) {
   }
   if (command[0] !== "node" || command[1] !== "packages/cli/dist/main.js") {
     failures.push(`${id}: CLI evidence command must invoke node packages/cli/dist/main.js`);
+    return false;
+  }
+  const expectedCommand = cliCommandByKind.get(kind);
+  if (!expectedCommand) {
+    failures.push(`${id}: CLI evidence kind ${kind || "<missing>"} is not mapped to a command`);
+    return false;
+  }
+  if (command[2] !== expectedCommand) {
+    failures.push(`${id}: CLI evidence kind ${kind} must run ${expectedCommand}`);
     return false;
   }
   return true;
@@ -274,10 +288,25 @@ function stableJson(value) {
 
 function checkCompatibilityEvidenceValidator() {
   const invalidCliCommandFailures = collectCompatibilityFailures(() => {
-    checkCliCommandShape("<compatibility-self-test-invalid-cli-command>", ["node", "scripts/not-the-cli.js", "eval-call"]);
+    checkCliCommandShape("<compatibility-self-test-invalid-cli-command>", "cli.json.eval-call", [
+      "node",
+      "scripts/not-the-cli.js",
+      "eval-call"
+    ]);
   });
   if (!invalidCliCommandFailures.some((item) => item.includes("must invoke node packages/cli/dist/main.js"))) {
     failures.push(`compatibility self-test invalid CLI command was not rejected: ${invalidCliCommandFailures.join("; ")}`);
+  }
+
+  const mismatchedCliKindFailures = collectCompatibilityFailures(() => {
+    checkCliCommandShape("<compatibility-self-test-cli-kind-mismatch>", "cli.json.check-policy", [
+      "node",
+      "packages/cli/dist/main.js",
+      "eval-call"
+    ]);
+  });
+  if (!mismatchedCliKindFailures.some((item) => item.includes("must run check-policy"))) {
+    failures.push(`compatibility self-test CLI kind mismatch was not rejected: ${mismatchedCliKindFailures.join("; ")}`);
   }
 }
 
