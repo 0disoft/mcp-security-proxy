@@ -32,6 +32,7 @@ interface ToolMetadata {
 const policyDeniedErrorCode = -32001;
 const invalidRequestErrorCode = -32600;
 const upstreamServerOriginAllowedMethods = new Set(["ping"]);
+const redactedUpstreamErrorMessage = "upstream error message redacted";
 
 export class ProxySession {
   private readonly pendingRequestMethods = new Map<string, string>();
@@ -125,19 +126,19 @@ export class ProxySession {
       };
     }
 
-    const sanitized = stripUpstreamErrorData(envelope);
-    const sanitizeAuditEvents = sanitized.redacted
+    const sanitized = sanitizeUpstreamError(envelope);
+    const sanitizeAuditEvents = sanitized.redaction.applied
       ? [
           this.createAudit(
             "error",
-            denyDecision("upstream JSON-RPC error data removed before forwarding"),
+            denyDecision(upstreamErrorRedactionReason(sanitized.redaction)),
             undefined,
             undefined,
-            { applied: true, counts: { jsonrpc_error_data: 1 } }
+            sanitized.redaction
           )
         ]
       : [];
-    const responseLine = sanitized.redacted ? JSON.stringify(sanitized.envelope) : line;
+    const responseLine = sanitized.redaction.applied ? JSON.stringify(sanitized.envelope) : line;
 
     const requestMethod = this.takePendingMethod(sanitized.envelope);
     if (requestMethod !== "tools/list") {
@@ -264,19 +265,49 @@ function isJsonRpcErrorObject(value: unknown): boolean {
   return isRecord(value) && typeof value["code"] === "number" && typeof value["message"] === "string";
 }
 
-function stripUpstreamErrorData(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redacted: boolean } {
-  if (!isRecord(envelope.error) || !("data" in envelope.error)) {
-    return { envelope, redacted: false };
+function sanitizeUpstreamError(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
+  if (!isRecord(envelope.error)) {
+    return { envelope, redaction: noRedaction() };
   }
 
-  const errorWithoutData = Object.fromEntries(Object.entries(envelope.error).filter(([key]) => key !== "data"));
+  const error = { ...envelope.error };
+  const counts: Record<string, number> = {};
+  if ("data" in error) {
+    delete error["data"];
+    counts["jsonrpc_error_data"] = 1;
+  }
+
+  if (typeof error["message"] === "string" && looksSensitiveErrorMessage(error["message"])) {
+    error["message"] = redactedUpstreamErrorMessage;
+    counts["jsonrpc_error_message"] = 1;
+  }
+
+  if (Object.keys(counts).length === 0) {
+    return { envelope, redaction: noRedaction() };
+  }
+
   return {
     envelope: {
       ...envelope,
-      error: errorWithoutData
+      error
     },
-    redacted: true
+    redaction: {
+      applied: true,
+      counts
+    }
   };
+}
+
+function upstreamErrorRedactionReason(redaction: RedactionSummary): string {
+  const removedData = redaction.counts["jsonrpc_error_data"] !== undefined;
+  const redactedMessage = redaction.counts["jsonrpc_error_message"] !== undefined;
+  if (removedData && redactedMessage) {
+    return "upstream JSON-RPC error data removed and message redacted before forwarding";
+  }
+  if (redactedMessage) {
+    return "upstream JSON-RPC error message redacted before forwarding";
+  }
+  return "upstream JSON-RPC error data removed before forwarding";
 }
 
 function readToolCallName(envelope: JsonRpcEnvelope): string {
@@ -469,6 +500,18 @@ function looksLikePath(value: string): boolean {
 
 function looksLikeUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
+}
+
+function looksSensitiveErrorMessage(value: string): boolean {
+  return looksLikeUrl(value) || looksLikePathInMessage(value) || /REDACT_ME[A-Z0-9_]*/.test(value);
+}
+
+function looksLikePathInMessage(value: string): boolean {
+  return (
+    /(?:^|\s)[A-Za-z]:[\\/]\S+/.test(value) ||
+    /(?:^|\s)(?:\.{1,2}|~|workspace|home|users?|tmp|temp|private|secrets?)[\\/]\S+/i.test(value) ||
+    /(?:^|\s)\S+[\\/]\S*\.[A-Za-z0-9]{1,12}(?:\s|$)/.test(value)
+  );
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {

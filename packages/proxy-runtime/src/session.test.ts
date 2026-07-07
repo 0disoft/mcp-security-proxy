@@ -305,6 +305,161 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("forwards benign upstream JSON-RPC error messages unchanged", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    const line = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "benign-error-message",
+      error: {
+        code: -32000,
+        message: "upstream failure"
+      }
+    });
+
+    const result = session.handleServerLine(line);
+
+    expect(result.forwardLine).toBe(line);
+    expect(result.responseLine).toBeUndefined();
+    expect(result.auditEvents).toHaveLength(0);
+  });
+
+  it("redacts upstream JSON-RPC error messages that look path-sensitive", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "path-error-message",
+        error: {
+          code: -32000,
+          message: "failed to read workspace/hidden/secret.txt"
+        }
+      })
+    );
+
+    const forwarded = JSON.parse(result.forwardLine ?? "{}") as {
+      readonly error?: { readonly code?: number; readonly message?: string; readonly data?: unknown };
+    };
+    expect(forwarded).toMatchObject({
+      jsonrpc: "2.0",
+      id: "path-error-message",
+      error: {
+        code: -32000,
+        message: "upstream error message redacted"
+      }
+    });
+    expect(forwarded.error?.data).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(result.forwardLine).not.toContain("workspace/hidden/secret.txt");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("workspace/hidden/secret.txt");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ reason: "upstream JSON-RPC error message redacted before forwarding" }]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_error_message: 1
+        }
+      }
+    });
+  });
+
+  it("redacts upstream JSON-RPC error messages that look secret-sensitive", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "marker-error-message",
+        error: {
+          code: -32000,
+          message: "upstream leaked REDACT_ME_ERROR_VALUE_123"
+        }
+      })
+    );
+
+    const forwarded = JSON.parse(result.forwardLine ?? "{}") as {
+      readonly error?: { readonly code?: number; readonly message?: string };
+    };
+    expect(forwarded.error?.message).toBe("upstream error message redacted");
+    expect(result.forwardLine).not.toContain("REDACT_ME_ERROR_VALUE_123");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("REDACT_ME_ERROR_VALUE_123");
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_error_message: 1
+        }
+      }
+    });
+  });
+
+  it("redacts both upstream JSON-RPC error data and sensitive messages", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "error-with-data-and-sensitive-message",
+        error: {
+          code: -32000,
+          message: "failed at workspace/hidden/secret.txt",
+          data: {
+            marker: "RAW_ERROR_DATA_AND_MESSAGE_MARKER"
+          }
+        }
+      })
+    );
+
+    const forwarded = JSON.parse(result.forwardLine ?? "{}") as {
+      readonly error?: { readonly code?: number; readonly message?: string; readonly data?: unknown };
+    };
+    expect(forwarded).toMatchObject({
+      jsonrpc: "2.0",
+      id: "error-with-data-and-sensitive-message",
+      error: {
+        code: -32000,
+        message: "upstream error message redacted"
+      }
+    });
+    expect(forwarded.error?.data).toBeUndefined();
+    expect(result.forwardLine).not.toContain("workspace/hidden/secret.txt");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("workspace/hidden/secret.txt");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_ERROR_DATA_AND_MESSAGE_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ reason: "upstream JSON-RPC error data removed and message redacted before forwarding" }]
+      },
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_error_data: 1,
+          jsonrpc_error_message: 1
+        }
+      }
+    });
+  });
+
   it("removes error data from failed tool discovery responses and clears visible tools", () => {
     const session = createProxySession({
       policy: readPolicy(),
