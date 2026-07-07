@@ -17,6 +17,7 @@ This document owns stable validation names for this scaffold.
 - smoke
 - docs
 - package-surface
+- secret-scan
 - check
 
 ## Required Final Report

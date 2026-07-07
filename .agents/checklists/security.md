@@ -17,5 +17,5 @@ Auth bypass, authorization gaps, tenant leakage, unsafe inputs or outputs, secre
 
 ## Validation
 
-- Required validation names: lint, test, smoke, check
+- Required validation names: lint, test, smoke, secret-scan, check
 - Skipped validation must include a reason and remaining risk.
