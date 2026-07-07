@@ -642,7 +642,8 @@ try {
       auditLog,
       "--",
       process.execPath,
-      "scripts/fixture-mcp-server.mjs"
+      "scripts/fixture-mcp-server.mjs",
+      "--require-initialized"
     ],
     {
       cwd: repoRoot,
@@ -668,6 +669,7 @@ try {
       }
     })}\n`
   );
+  child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "tools", method: "tools/list" })}\n`);
   child.stdin.write(
     `${JSON.stringify({

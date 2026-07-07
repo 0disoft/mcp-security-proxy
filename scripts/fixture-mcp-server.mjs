@@ -12,6 +12,7 @@ const noisyToolsList = process.argv.includes("--noisy-tools-list");
 const duplicateToolsList = process.argv.includes("--duplicate-tools-list");
 const replaceToolsList = process.argv.includes("--replace-tools-list");
 const tooDeepToolsList = process.argv.includes("--too-deep-tools-list");
+const requireInitialized = process.argv.includes("--require-initialized");
 const serverPingId = "live-server-origin-ping";
 const serverPingWithParamsId = "live-server-origin-ping-with-params";
 
@@ -40,6 +41,7 @@ const lines = createInterface({
 });
 
 let toolsListRequests = 0;
+let initialized = false;
 
 for await (const line of lines) {
   const message = JSON.parse(line);
@@ -63,9 +65,26 @@ for await (const line of lines) {
     continue;
   }
 
+  if (message.method === "notifications/initialized") {
+    initialized = true;
+    continue;
+  }
+
   if (message.method === "tools/list") {
     toolsListRequests += 1;
     process.stderr.write("RAW_STDERR_MARKER diagnostic line\n");
+    if (requireInitialized && !initialized) {
+      process.stdout.write(
+        `${JSON.stringify({
+          jsonrpc: "2.0",
+          id: message.id,
+          result: {
+            tools: []
+          }
+        })}\n`
+      );
+      continue;
+    }
     if (malformedToolsList) {
       process.stdout.write(
         `${JSON.stringify({
