@@ -138,6 +138,13 @@ const checkPackageSurfaceValidator = () => {
   if (!workspaceGlobFailures.some((item) => item.includes("workspace package globs"))) {
     failures.push(`package-surface self-test workspace glob drift was not rejected: ${workspaceGlobFailures.join("; ")}`);
   }
+
+  const workspaceDirectoryFailures = collectPackageSurfaceFailures(() => {
+    checkWorkspacePackageDirectoryNames("<package-surface-self-test-workspace-directories>", ["cli", "scratch"], ["cli"]);
+  });
+  if (!workspaceDirectoryFailures.some((item) => item.includes("workspace package directories"))) {
+    failures.push(`package-surface self-test workspace directory drift was not rejected: ${workspaceDirectoryFailures.join("; ")}`);
+  }
 };
 
 const collectPackageSurfaceFailures = (fn) => {
@@ -160,6 +167,12 @@ const packagesDir = join(root, "packages");
 assertEqual(existsSync(packagesDir), "packages/: workspace packages directory is missing");
 
 if (existsSync(packagesDir)) {
+  const actualPackageDirectories = readdirSync(packagesDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort((left, right) => left.localeCompare(right));
+  checkWorkspacePackageDirectoryNames("packages/", actualPackageDirectories, expectedWorkspacePackages);
+
   const packageManifestPaths = readdirSync(packagesDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => join(packagesDir, entry.name, "package.json"))
@@ -225,5 +238,12 @@ function checkWorkspacePackageGlobNames(label, workspaceGlobs, expectedGlobs = e
   assertEqual(
     JSON.stringify(workspaceGlobs) === JSON.stringify(expectedGlobs),
     `${label}: workspace package globs must match ${expectedGlobs.join(", ")}`
+  );
+}
+
+function checkWorkspacePackageDirectoryNames(label, directories, expectedPackages = expectedWorkspacePackages) {
+  assertEqual(
+    JSON.stringify(directories) === JSON.stringify(expectedPackages),
+    `${label}: workspace package directories must match ${expectedPackages.join(", ")}`
   );
 }
