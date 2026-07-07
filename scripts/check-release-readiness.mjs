@@ -25,6 +25,7 @@ const requiredValidations = [
 ];
 const requiredReleaseScopeDecisions = ["mcpSdkDependency", "httpTransport", "hostApprovalUx"];
 const releaseScopeStatuses = new Set(["included", "excluded"]);
+const releaseScopeEvidencePrefixes = ["docs/adr/", "docs/architecture/", "docs/ops/"];
 const trackedFiles = new Set(
   execFileSync("git", ["ls-files"], {
     cwd: root,
@@ -207,6 +208,8 @@ function checkReleaseScope(path, releaseScope) {
       failures.push(`${path}: releaseScope.${name}.evidence must exist`);
     } else if (!trackedFiles.has(item.evidence)) {
       failures.push(`${path}: releaseScope.${name}.evidence must be tracked`);
+    } else if (!isReleaseScopeEvidencePath(item.evidence)) {
+      failures.push(`${path}: releaseScope.${name}.evidence must be a docs/adr, docs/architecture, or docs/ops path`);
     }
   }
 }
@@ -312,6 +315,26 @@ function checkReleaseRecordValidator() {
   ) {
     failures.push(`release-readiness self-test invalid scope evidence fixture was not rejected: ${invalidScopeEvidenceFailures.join("; ")}`);
   }
+
+  const wrongScopeEvidenceLocationFailures = collectReleaseRecordFailures("<release-readiness-self-test-wrong-scope-evidence-location>", {
+    ...validRecord,
+    releaseScope: {
+      ...validRecord.releaseScope,
+      mcpSdkDependency: {
+        ...validRecord.releaseScope.mcpSdkDependency,
+        evidence: "README.md"
+      }
+    }
+  });
+  if (
+    !wrongScopeEvidenceLocationFailures.some((item) =>
+      item.includes("releaseScope.mcpSdkDependency.evidence must be a docs/adr, docs/architecture, or docs/ops path")
+    )
+  ) {
+    failures.push(
+      `release-readiness self-test wrong scope evidence location fixture was not rejected: ${wrongScopeEvidenceLocationFailures.join("; ")}`
+    );
+  }
 }
 
 function createReleaseRecordSelfTestFixture() {
@@ -377,4 +400,8 @@ function isSafeRelativeRepoPath(value) {
   }
   const segments = value.split("/");
   return segments.every((segment) => segment.length > 0 && segment !== "." && segment !== "..");
+}
+
+function isReleaseScopeEvidencePath(value) {
+  return releaseScopeEvidencePrefixes.some((prefix) => value.startsWith(prefix));
 }
