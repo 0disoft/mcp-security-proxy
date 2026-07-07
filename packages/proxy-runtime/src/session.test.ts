@@ -196,6 +196,84 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("drops valid upstream responses that do not match a pending client request", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "unmatched-response",
+        result: {
+          marker: "RAW_UNMATCHED_RESULT_MARKER"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_UNMATCHED_RESULT_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "jsonrpc.unmatched_response",
+            reason: "upstream JSON-RPC response did not match a pending client request"
+          }
+        ]
+      }
+    });
+  });
+
+  it("drops unmatched upstream error responses after redacting sensitive error fields", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "unmatched-error",
+        error: {
+          code: -32000,
+          message: "failed at workspace/hidden/secret.txt",
+          data: {
+            marker: "RAW_UNMATCHED_ERROR_DATA_MARKER"
+          }
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("workspace/hidden/secret.txt");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_UNMATCHED_ERROR_DATA_MARKER");
+    expect(result.auditEvents).toHaveLength(2);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_error_data: 1,
+          jsonrpc_error_message: 1
+        }
+      }
+    });
+    expect(result.auditEvents[1]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.unmatched_response" }]
+      }
+    });
+  });
+
   it("drops upstream error responses with invalid error object fields", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -258,6 +336,13 @@ describe("proxy runtime session", () => {
       policy: readPolicy(),
       profileId: "local"
     });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "error-with-data",
+        method: "ping"
+      })
+    );
 
     const result = session.handleServerLine(
       JSON.stringify({
@@ -310,6 +395,13 @@ describe("proxy runtime session", () => {
       policy: readPolicy(),
       profileId: "local"
     });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "benign-error-message",
+        method: "ping"
+      })
+    );
     const line = JSON.stringify({
       jsonrpc: "2.0",
       id: "benign-error-message",
@@ -331,6 +423,13 @@ describe("proxy runtime session", () => {
       policy: readPolicy(),
       profileId: "local"
     });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "path-error-message",
+        method: "ping"
+      })
+    );
 
     const result = session.handleServerLine(
       JSON.stringify({
@@ -379,6 +478,13 @@ describe("proxy runtime session", () => {
       policy: readPolicy(),
       profileId: "local"
     });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "marker-error-message",
+        method: "ping"
+      })
+    );
 
     const result = session.handleServerLine(
       JSON.stringify({
@@ -413,6 +519,13 @@ describe("proxy runtime session", () => {
       policy: readPolicy(),
       profileId: "local"
     });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "error-with-data-and-sensitive-message",
+        method: "ping"
+      })
+    );
 
     const result = session.handleServerLine(
       JSON.stringify({
@@ -569,6 +682,73 @@ describe("proxy runtime session", () => {
       }
     });
     expect(result.auditEvents).toHaveLength(1);
+  });
+
+  it("rejects client messages that exceed the configured frame byte limit", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local",
+      maxFrameBytes: 32
+    });
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "too-large",
+        method: "ping"
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32600,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ code: "jsonrpc.frame_too_large" }]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        evidence: [{ code: "jsonrpc.frame_too_large" }]
+      }
+    });
+  });
+
+  it("drops upstream messages that exceed the configured JSON depth limit", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local",
+      maxJsonDepth: 3
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "too-deep",
+        result: {
+          nested: {
+            value: true
+          }
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        evidence: [{ code: "jsonrpc.too_deep" }]
+      }
+    });
   });
 
   it("denies unsupported upstream server requests before response correlation", () => {
@@ -1061,13 +1241,15 @@ describe("proxy runtime session", () => {
       })
     );
 
-    const unfiltered = JSON.parse(numericIdResponse.forwardLine ?? "{}") as {
-      readonly id?: string | number;
-      readonly result?: { readonly tools?: readonly { readonly name: string }[] };
-    };
-    expect(unfiltered.id).toBe(1);
-    expect(unfiltered.result?.tools?.map((tool) => tool.name)).toEqual(["read_file", "run_command", "unknown_tool"]);
-    expect(numericIdResponse.auditEvents).toHaveLength(0);
+    expect(numericIdResponse.forwardLine).toBeUndefined();
+    expect(numericIdResponse.responseLine).toBeUndefined();
+    expect(numericIdResponse.auditEvents).toHaveLength(1);
+    expect(numericIdResponse.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        evidence: [{ code: "jsonrpc.unmatched_response" }]
+      }
+    });
 
     const deniedBeforeMatchingDiscovery = session.handleClientLine(
       JSON.stringify({

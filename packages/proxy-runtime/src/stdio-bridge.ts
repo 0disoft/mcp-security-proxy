@@ -27,6 +27,8 @@ export interface StdioProxyOptions {
   readonly writeAuditEvent: (event: AuditEvent) => void | Promise<void>;
   readonly approvalHookAvailable?: boolean;
   readonly shutdownGraceMs?: number;
+  readonly maxFrameBytes?: number;
+  readonly maxJsonDepth?: number;
 }
 
 export interface StdioProxyResult {
@@ -53,7 +55,9 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
   const session = createProxySession({
     policy: options.policy,
     profileId: options.profileId,
-    ...(options.approvalHookAvailable !== undefined ? { approvalHookAvailable: options.approvalHookAvailable } : {})
+    ...(options.approvalHookAvailable !== undefined ? { approvalHookAvailable: options.approvalHookAvailable } : {}),
+    ...(options.maxFrameBytes !== undefined ? { maxFrameBytes: options.maxFrameBytes } : {}),
+    ...(options.maxJsonDepth !== undefined ? { maxJsonDepth: options.maxJsonDepth } : {})
   });
 
   const clientLines = createInterface({ input: options.clientInput, crlfDelay: Number.POSITIVE_INFINITY });
@@ -178,6 +182,7 @@ async function normalizeUpstreamExit(
         action: "deny",
         evidence: [
           {
+            code: "runtime.upstream_exit",
             reason:
               exitCode === -2
                 ? "upstream process did not exit after client input closed"
@@ -226,6 +231,7 @@ async function observeUpstreamStderr(
         action: "deny",
         evidence: [
           {
+            code: "runtime.upstream_stderr",
             reason: `upstream stderr produced ${lineCount} line(s); content redacted`
           }
         ]

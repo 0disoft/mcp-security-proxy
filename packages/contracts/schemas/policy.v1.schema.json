@@ -14,6 +14,7 @@
         "allowedMethods": {
           "type": "array",
           "minItems": 1,
+          "uniqueItems": true,
           "items": {
             "enum": ["initialize", "notifications/initialized", "ping", "tools/list", "tools/call"]
           }
@@ -25,6 +26,7 @@
     "profiles": {
       "type": "array",
       "minItems": 1,
+      "uniqueItems": true,
       "items": { "$ref": "#/$defs/profile" }
     },
     "redaction": {
@@ -33,6 +35,7 @@
       "properties": {
         "detectors": {
           "type": "array",
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/redactionDetector" }
         }
       },
@@ -49,6 +52,7 @@
         "defaultAction": { "const": "deny" },
         "rules": {
           "type": "array",
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/rule" }
         },
         "audit": { "$ref": "#/$defs/auditPolicy" }
@@ -63,10 +67,12 @@
         "action": { "enum": ["allow", "deny", "approval_required"] },
         "tools": {
           "type": "array",
+          "minItems": 1,
           "items": { "type": "string", "minLength": 1 }
         },
         "capabilities": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "enum": [
               "file-read",
@@ -83,18 +89,29 @@
         },
         "methods": {
           "type": "array",
+          "minItems": 1,
           "items": { "enum": ["tools/call"] }
         },
         "paths": { "$ref": "#/$defs/pathRule" },
         "commands": {
           "type": "array",
+          "minItems": 1,
           "items": { "$ref": "#/$defs/commandRule" }
         },
         "networks": {
           "type": "array",
+          "minItems": 1,
           "items": { "$ref": "#/$defs/networkRule" }
         }
       },
+      "anyOf": [
+        { "required": ["tools"] },
+        { "required": ["capabilities"] },
+        { "required": ["methods"] },
+        { "required": ["paths"] },
+        { "required": ["commands"] },
+        { "required": ["networks"] }
+      ],
       "additionalProperties": false
     },
     "pathRule": {
@@ -102,13 +119,16 @@
       "properties": {
         "allowedRoots": {
           "type": "array",
+          "minItems": 1,
           "items": { "type": "string", "minLength": 1 }
         },
         "deniedRoots": {
           "type": "array",
+          "minItems": 1,
           "items": { "type": "string", "minLength": 1 }
         }
       },
+      "anyOf": [{ "required": ["allowedRoots"] }, { "required": ["deniedRoots"] }],
       "additionalProperties": false
     },
     "commandRule": {
@@ -128,13 +148,16 @@
       "properties": {
         "domains": {
           "type": "array",
+          "minItems": 1,
           "items": { "type": "string", "minLength": 1 }
         },
         "ips": {
           "type": "array",
+          "minItems": 1,
           "items": { "type": "string", "minLength": 1 }
         }
       },
+      "anyOf": [{ "required": ["domains"] }, { "required": ["ips"] }],
       "additionalProperties": false
     },
     "auditPolicy": {
@@ -147,7 +170,17 @@
         "includeRawArguments": { "const": false },
         "includeFullPaths": { "type": "boolean" }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "destination": { "const": "file" } }, "required": ["destination"] },
+          "then": { "required": ["path"] }
+        },
+        {
+          "if": { "properties": { "destination": { "const": "stdout" } }, "required": ["destination"] },
+          "then": { "not": { "required": ["path"] } }
+        }
+      ]
     },
     "redactionDetector": {
       "type": "object",

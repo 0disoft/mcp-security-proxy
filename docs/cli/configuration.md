@@ -20,6 +20,7 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 - Upstream stdio server command after `--`
 - Audit output file path
 - Optional shutdown grace window in milliseconds
+- Optional frame byte and JSON depth limits for live MCP stdio messages
 - Optional dry-run input file
 - Optional JSON output flag for non-`run` commands
 
@@ -46,6 +47,9 @@ Proposed precedence:
 - CLI `run` audit output: JSON Lines file selected by `--audit-log`
 - CLI `run` shutdown grace: 1000 ms unless `--shutdown-grace-ms` supplies an integer between
   0 and 2147483647
+- CLI `run` frame size: 1048576 bytes unless `--max-frame-bytes` supplies an integer between
+  1 and 16777216
+- CLI `run` JSON depth: 64 unless `--max-json-depth` supplies an integer between 1 and 256
 
 ## Review Blockers
 

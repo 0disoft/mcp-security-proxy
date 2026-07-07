@@ -25,6 +25,8 @@ describe("dry-run CLI commands", () => {
     expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy run");
     expect(output.stdout.join("\n")).toContain("--audit-log <path>");
     expect(output.stdout.join("\n")).toContain("--shutdown-grace-ms <0..2147483647>");
+    expect(output.stdout.join("\n")).toContain("--max-frame-bytes <1..16777216>");
+    expect(output.stdout.join("\n")).toContain("--max-json-depth <1..256>");
     expect(output.stdout.join("\n")).not.toContain("not implemented");
     expect(output.stderr).toEqual([]);
   });
@@ -153,6 +155,116 @@ describe("dry-run CLI commands", () => {
     expect(output.auditLines()).toHaveLength(1);
   });
 
+  it("redacts upstream JSON-RPC error fields on the async stdio proxy path", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "audit.jsonl",
+      "--",
+      "fixture-server"
+    ]);
+    const request = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "redacted-error",
+      method: "ping"
+    });
+
+    output.clientInput.write(`${request}\n`);
+    await nextTick();
+    output.upstream.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "redacted-error",
+        error: {
+          code: -32000,
+          message: "failed at workspace/hidden/secret.txt",
+          data: {
+            marker: "RAW_CLI_ERROR_DATA_MARKER"
+          }
+        }
+      })}\n`
+    );
+    output.clientInput.end();
+    output.upstream.stdout.end();
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(0);
+    expect(output.stdout).toEqual([]);
+    expect(output.upstreamInputLines()).toEqual([request]);
+    expect(output.mcpOutputJson()).toMatchObject({
+      jsonrpc: "2.0",
+      id: "redacted-error",
+      error: {
+        code: -32000,
+        message: "upstream error message redacted"
+      }
+    });
+    expect(output.mcpOutputLines().join("\n")).not.toContain("workspace/hidden/secret.txt");
+    expect(output.mcpOutputLines().join("\n")).not.toContain("RAW_CLI_ERROR_DATA_MARKER");
+    expect(output.auditLines().join("\n")).not.toContain("workspace/hidden/secret.txt");
+    expect(output.auditLines().join("\n")).not.toContain("RAW_CLI_ERROR_DATA_MARKER");
+    expect(output.auditLines().map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({
+        kind: "error",
+        redaction: {
+          applied: true,
+          counts: {
+            jsonrpc_error_data: 1,
+            jsonrpc_error_message: 1
+          }
+        }
+      })
+    );
+  });
+
+  it("applies configured live frame limits before forwarding client input", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "audit.jsonl",
+      "--max-frame-bytes",
+      "32",
+      "--",
+      "fixture-server"
+    ]);
+
+    output.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "too-large-for-cli",
+        method: "ping"
+      })}\n`
+    );
+    output.clientInput.end();
+    output.upstream.stdout.end();
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(0);
+    expect(output.stdout).toEqual([]);
+    expect(output.upstreamInputLines()).toEqual([]);
+    expect(output.mcpOutputJson()).toMatchObject({
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32600,
+        data: {
+          decision: {
+            evidence: [{ code: "jsonrpc.frame_too_large" }]
+          }
+        }
+      }
+    });
+    expect(output.auditLines()).toHaveLength(1);
+  });
+
   it("passes a configured shutdown grace window to the live run path", async () => {
     const output = await invokeAsync(
       [
@@ -243,9 +355,9 @@ describe("dry-run CLI commands", () => {
   });
 
   it.each([
-    ["abc", "--shutdown-grace-ms must be a non-negative integer between 0 and 2147483647"],
-    ["-1", "--shutdown-grace-ms must be a non-negative integer between 0 and 2147483647"],
-    ["2147483648", "--shutdown-grace-ms must be a non-negative integer between 0 and 2147483647"]
+    ["abc", "--shutdown-grace-ms must be an integer between 0 and 2147483647"],
+    ["-1", "--shutdown-grace-ms must be an integer between 0 and 2147483647"],
+    ["2147483648", "--shutdown-grace-ms must be an integer between 0 and 2147483647"]
   ])("rejects invalid shutdown grace values: %s", async (value, message) => {
     const output = await invokeAsync([
       "run",
@@ -265,6 +377,33 @@ describe("dry-run CLI commands", () => {
     expect(result.exitCode).toBe(2);
     expect(output.mcpOutputLines()).toEqual([]);
     expect(output.stderr).toEqual([message]);
+  });
+
+  it.each([
+    ["--max-frame-bytes", "0", "--max-frame-bytes must be an integer between 1 and 16777216"],
+    ["--max-frame-bytes", "16777217", "--max-frame-bytes must be an integer between 1 and 16777216"],
+    ["--max-json-depth", "0", "--max-json-depth must be an integer between 1 and 256"],
+    ["--max-json-depth", "257", "--max-json-depth must be an integer between 1 and 256"]
+  ])("rejects invalid live frame guard values: %s %s", async (flag, value, message) => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "audit.jsonl",
+      flag,
+      value,
+      "--",
+      "fixture-server"
+    ]);
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(2);
+    expect(output.mcpOutputLines()).toEqual([]);
+    expect(output.stderr).toEqual([message]);
+    expect(output.spawned).toBe(false);
   });
 
   it("rejects a missing shutdown grace value", async () => {
@@ -419,4 +558,8 @@ function readLines(chunks: readonly Buffer[]): readonly string[] {
     .toString("utf8")
     .split("\n")
     .filter((line) => line.length > 0);
+}
+
+function nextTick(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
 }

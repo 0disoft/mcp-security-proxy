@@ -44,6 +44,9 @@ Optional inputs:
 
 - `--shutdown-grace-ms <0..2147483647>` controls how long `run` waits after client input closes
   before killing the upstream process. The default is 1000 ms.
+- `--max-frame-bytes <1..16777216>` controls the maximum UTF-8 byte length of one JSON-RPC line.
+  The default is 1048576 bytes.
+- `--max-json-depth <1..256>` controls the maximum parsed JSON nesting depth. The default is 64.
 
 ### `mcp-security-proxy check-policy`
 
@@ -71,6 +74,7 @@ prints the decision without forwarding it.
 - `--approval-hook` marks approval hook availability for dry-run call evaluation.
 - `--audit-log` selects JSON Lines audit output for live proxy behavior.
 - `--shutdown-grace-ms` selects the live proxy shutdown grace window in milliseconds.
+- `--max-frame-bytes` and `--max-json-depth` select live proxy frame guards.
 - `--dry-run` never forwards a tool call.
 
 `run` does not support `--json` because stdout is reserved for MCP protocol messages after the live

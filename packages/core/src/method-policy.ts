@@ -21,6 +21,7 @@ export function evaluateMcpMethod(method: string, policy: PolicyDocument): Polic
       action: "allow",
       evidence: [
         {
+          code: "method.supported",
           method,
           reason: "method is explicitly supported by policy"
         }
@@ -33,6 +34,7 @@ export function evaluateMcpMethod(method: string, policy: PolicyDocument): Polic
     action: "deny",
     evidence: [
       {
+        code: "method.unsupported",
         method,
         reason: policy.methodPolicy.denyUnsupported
           ? "unsupported MCP method denied by default"

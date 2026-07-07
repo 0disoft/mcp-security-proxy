@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import {
   createDenyByDefaultPolicy,
   type NormalizedToolCall,
-  type PolicyDocument
+  type PolicyDocument,
+  validatePolicyDocument
 } from "@0disoft/mcp-security-proxy-contracts";
 import { createAuditEvent } from "./audit.js";
 import { evaluateToolCall } from "./evaluator.js";
@@ -152,6 +153,69 @@ describe("MCP Security Proxy core", () => {
     expect(snapshot).toContain('"action":"deny"');
     expect(snapshot).toContain('"secret_like":1');
     expect(snapshot).not.toContain("REDACT_ME_VALUE_123");
+  });
+
+  it("rejects policy documents with ambiguous duplicate identifiers and empty matchers", () => {
+    const policy = readFixture<PolicyDocument>("fixtures/policies/local-dev.json");
+    const profile = policy.profiles[0];
+    if (!profile) {
+      throw new Error("local-dev fixture must include a profile");
+    }
+    const invalid = {
+      ...policy,
+      methodPolicy: {
+        ...policy.methodPolicy,
+        allowedMethods: [...policy.methodPolicy.allowedMethods, "ping"]
+      },
+      profiles: [
+        {
+          ...profile,
+          rules: [
+            ...profile.rules,
+            {
+              id: "allow-public-files",
+              action: "allow",
+              capabilities: []
+            },
+            {
+              id: "empty-matcher",
+              action: "deny",
+              networks: [{}]
+            }
+          ]
+        },
+        {
+          ...profile
+        }
+      ],
+      redaction: {
+        detectors: [
+          {
+            id: "same-detector",
+            kind: "secret_like",
+            replacement: "[REDACTED_VALUE]"
+          },
+          {
+            id: "same-detector",
+            kind: "not-real",
+            replacement: "[REDACTED_VALUE]"
+          }
+        ]
+      }
+    };
+
+    const result = validatePolicyDocument(invalid);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors).toContain("duplicate method in methodPolicy.allowedMethods: ping");
+      expect(result.errors).toContain("duplicate profile id: local");
+      expect(result.errors).toContain("profiles[0].rules[5].id must be unique within the profile");
+      expect(result.errors).toContain("profiles[0].rules[5].capabilities must be a non-empty array");
+      expect(result.errors).toContain("profiles[0].rules[6].networks[0] must include domains or ips");
+      expect(result.errors).toContain("redaction.detectors[1].id must be unique");
+      expect(result.errors).toContain("redaction.detectors[1].kind is unsupported");
+    }
   });
 });
 

@@ -60,11 +60,17 @@ only JSON-RPC 2.0 objects whose `id`, when present, is a string, number, or `nul
 `error`. Response envelopes must include an `id` and exactly one of `result` or `error`; an `error`
 member must be an object with numeric `code` and string `message` fields. Invalid client messages
 return `-32600`; invalid upstream server messages are dropped with a redacted audit event.
+Each newline-delimited frame is bounded before parsing. The default maximum frame size is 1 MiB,
+and the default parsed JSON depth limit is 64. Hosts may configure stricter or looser limits within
+the CLI-supported bounds, but oversized or overly deep frames fail closed before forwarding.
 Valid upstream error responses are forwarded with `code` and a message. Any upstream `error.data`
 member is removed before forwarding and recorded as a redaction event. If the upstream
 `error.message` looks sensitive, such as a path, URL, or redaction marker, the proxy replaces the
 message with a generic redacted message and records that redaction. Proxy-generated errors may
 include the proxy's own redacted decision data.
+Valid upstream responses are forwarded only when their JSON-RPC `id` exactly matches a pending
+client request, including the original id type. Responses that do not match a pending request are
+dropped with a redacted audit event instead of being treated as unsolicited server messages.
 
 ## Discovery Policy
 
@@ -90,4 +96,5 @@ must be denied instead of being allowed by name-based classifier heuristics.
 
 Every denied unsupported method, filtered discovery result, approval-required decision, and denied
 call should create a redacted audit event. Audit events must not contain raw tool arguments or raw
-MCP payloads.
+MCP payloads. Decision evidence should include a stable `code` alongside the human-readable
+`reason` so downstream audit consumers do not have to parse reason strings as an API.

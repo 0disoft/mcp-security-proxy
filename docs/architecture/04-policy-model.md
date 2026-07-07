@@ -29,6 +29,10 @@ A policy contains:
 The default action must be deny. Unknown capabilities, unsupported MCP methods, ambiguous matcher
 inputs, and missing approval hooks must resolve to deny unless a future ADR records a narrower
 exception.
+Policy validation must reject ambiguous configuration before runtime use. This includes duplicate
+profile ids, duplicate rule ids within a profile, duplicate method allowlist entries, empty
+selector arrays, empty path/network matchers, unsupported rule method entries, invalid redaction
+detectors, and audit destinations whose `path` setting contradicts the selected destination.
 
 ## Decision Order
 
@@ -42,6 +46,8 @@ Decision order is:
 
 The evaluator must return rule evidence for the winning decision. Classifier output may explain why
 a rule matched, but classifier output alone must not grant permission.
+Decision evidence includes a stable machine-readable code and a human-readable reason. The reason
+is for operators; the code is for tests, audit consumers, and future integrations.
 
 ## Path Matching
 
@@ -89,4 +95,3 @@ metadata endpoints unless an explicit policy permits them.
 Audit policy controls event destination, content limits, retention hints, and failure behavior.
 Audit events must receive redacted summaries, not raw prompts, raw environment values, raw secrets,
 or full sensitive tool arguments.
-

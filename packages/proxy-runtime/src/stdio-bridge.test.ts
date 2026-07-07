@@ -231,15 +231,16 @@ describe("stdio proxy bridge", () => {
     expect(harness.auditEvents).toContainEqual(
       expect.objectContaining({
         kind: "error",
-        decision: {
+        decision: expect.objectContaining({
           schemaVersion: "msp.decision.v1",
           action: "deny",
           evidence: [
-            {
+            expect.objectContaining({
+              code: "runtime.upstream_exit",
               reason: "upstream process exited with code 19"
-            }
+            })
           ]
-        }
+        })
       })
     );
   });
@@ -260,9 +261,10 @@ describe("stdio proxy bridge", () => {
         kind: "error",
         decision: expect.objectContaining({
           evidence: [
-            {
+            expect.objectContaining({
+              code: "runtime.upstream_exit",
               reason: "upstream process did not exit after client input closed"
-            }
+            })
           ]
         })
       })
@@ -284,9 +286,10 @@ describe("stdio proxy bridge", () => {
         kind: "error",
         decision: expect.objectContaining({
           evidence: [
-            {
+            expect.objectContaining({
+              code: "runtime.upstream_exit",
               reason: "upstream process did not exit after stdout closed"
-            }
+            })
           ]
         })
       })

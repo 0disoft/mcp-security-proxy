@@ -2,6 +2,7 @@ import {
   type AuditEvent,
   type Capability,
   type DecisionEvidence,
+  type DecisionReasonCode,
   type NormalizedToolCall,
   type PolicyDecision,
   type PolicyDocument,
@@ -15,6 +16,8 @@ export interface ProxySessionOptions {
   readonly policy: PolicyDocument;
   readonly profileId: string;
   readonly approvalHookAvailable?: boolean;
+  readonly maxFrameBytes?: number;
+  readonly maxJsonDepth?: number;
 }
 
 export interface ProxyFrameResult {
@@ -33,17 +36,24 @@ const policyDeniedErrorCode = -32001;
 const invalidRequestErrorCode = -32600;
 const upstreamServerOriginAllowedMethods = new Set(["ping"]);
 const redactedUpstreamErrorMessage = "upstream error message redacted";
+const defaultMaxFrameBytes = 1_048_576;
+const defaultMaxJsonDepth = 64;
 
 export class ProxySession {
   private readonly pendingRequestMethods = new Map<string, string>();
   private readonly visibleTools = new Map<string, ToolMetadata>();
+  private readonly maxFrameBytes: number;
+  private readonly maxJsonDepth: number;
 
-  constructor(private readonly options: ProxySessionOptions) {}
+  constructor(private readonly options: ProxySessionOptions) {
+    this.maxFrameBytes = resolvePositiveInteger(options.maxFrameBytes, defaultMaxFrameBytes);
+    this.maxJsonDepth = resolvePositiveInteger(options.maxJsonDepth, defaultMaxJsonDepth);
+  }
 
   handleClientLine(line: string): ProxyFrameResult {
-    const parsed = parseJsonLine(line);
+    const parsed = parseJsonLine(line, this.maxFrameBytes, this.maxJsonDepth);
     if (!parsed.ok) {
-      const decision = denyDecision(parsed.reason);
+      const decision = denyDecision(parsed.reason, { code: parsed.code });
       return {
         responseLine: encodeJsonRpcError(null, invalidRequestErrorCode, "invalid MCP JSON-RPC message", decision),
         auditEvents: [this.createAudit("error", decision)]
@@ -79,7 +89,7 @@ export class ProxySession {
     if (!visibleTool) {
       return this.denyEnvelope(
         envelope,
-        denyDecision("tool was not visible in filtered discovery"),
+        denyDecision("tool was not visible in filtered discovery", { code: "tool.not_visible" }),
         "MCP tool call denied by policy",
         "call-decision",
         toolName || undefined
@@ -105,9 +115,9 @@ export class ProxySession {
   }
 
   handleServerLine(line: string): ProxyFrameResult {
-    const parsed = parseJsonLine(line);
+    const parsed = parseJsonLine(line, this.maxFrameBytes, this.maxJsonDepth);
     if (!parsed.ok) {
-      const decision = denyDecision(parsed.reason);
+      const decision = denyDecision(parsed.reason, { code: parsed.code });
       return {
         auditEvents: [this.createAudit("error", decision)]
       };
@@ -131,7 +141,7 @@ export class ProxySession {
       ? [
           this.createAudit(
             "error",
-            denyDecision(upstreamErrorRedactionReason(sanitized.redaction)),
+            denyDecision(upstreamErrorRedactionReason(sanitized.redaction), { code: upstreamErrorRedactionCode(sanitized.redaction) }),
             undefined,
             undefined,
             sanitized.redaction
@@ -141,6 +151,18 @@ export class ProxySession {
     const responseLine = sanitized.redaction.applied ? JSON.stringify(sanitized.envelope) : line;
 
     const requestMethod = this.takePendingMethod(sanitized.envelope);
+    if (!requestMethod) {
+      return {
+        auditEvents: [
+          ...sanitizeAuditEvents,
+          this.createAudit(
+            "error",
+            denyDecision("upstream JSON-RPC response did not match a pending client request", { code: "jsonrpc.unmatched_response" })
+          )
+        ]
+      };
+    }
+
     if (requestMethod !== "tools/list") {
       return {
         forwardLine: responseLine,
@@ -160,7 +182,10 @@ export class ProxySession {
         result.filteredCount > 0
           ? [
               ...sanitizeAuditEvents,
-              this.createAudit("discovery-filtered", denyDecision(`${result.filteredCount} tool(s) hidden by discovery policy`))
+              this.createAudit(
+                "discovery-filtered",
+                denyDecision(`${result.filteredCount} tool(s) hidden by discovery policy`, { code: "discovery.filtered" })
+              )
             ]
           : sanitizeAuditEvents
     };
@@ -218,43 +243,75 @@ export function createProxySession(options: ProxySessionOptions): ProxySession {
   return new ProxySession(options);
 }
 
-function parseJsonLine(line: string): { readonly ok: true; readonly value: JsonRpcEnvelope } | { readonly ok: false; readonly reason: string } {
+function parseJsonLine(
+  line: string,
+  maxFrameBytes: number,
+  maxJsonDepth: number
+):
+  | { readonly ok: true; readonly value: JsonRpcEnvelope }
+  | { readonly ok: false; readonly reason: string; readonly code: DecisionReasonCode } {
+  if (Buffer.byteLength(line, "utf8") > maxFrameBytes) {
+    return { ok: false, reason: `JSON-RPC frame exceeds maximum size of ${maxFrameBytes} bytes`, code: "jsonrpc.frame_too_large" };
+  }
   if (line.includes("\n") || line.includes("\r")) {
-    return { ok: false, reason: "stdio MCP messages must be newline-delimited without embedded newlines" };
+    return { ok: false, reason: "stdio MCP messages must be newline-delimited without embedded newlines", code: "jsonrpc.invalid" };
   }
 
   try {
     const parsed = JSON.parse(line) as unknown;
+    if (jsonDepthExceeds(parsed, maxJsonDepth)) {
+      return { ok: false, reason: `JSON-RPC message exceeds maximum depth of ${maxJsonDepth}`, code: "jsonrpc.too_deep" };
+    }
     if (!isRecord(parsed) || parsed["jsonrpc"] !== "2.0") {
-      return { ok: false, reason: "message is not a JSON-RPC 2.0 object" };
+      return { ok: false, reason: "message is not a JSON-RPC 2.0 object", code: "jsonrpc.invalid" };
     }
     if ("id" in parsed && !isJsonRpcId(parsed["id"])) {
-      return { ok: false, reason: "JSON-RPC id must be a string, number, null, or absent" };
+      return { ok: false, reason: "JSON-RPC id must be a string, number, null, or absent", code: "jsonrpc.invalid" };
     }
     if ("method" in parsed && typeof parsed["method"] !== "string") {
-      return { ok: false, reason: "JSON-RPC method must be a string when present" };
+      return { ok: false, reason: "JSON-RPC method must be a string when present", code: "jsonrpc.invalid" };
     }
     const hasMethod = "method" in parsed;
     const hasResult = "result" in parsed;
     const hasError = "error" in parsed;
     if (hasMethod && (hasResult || hasError)) {
-      return { ok: false, reason: "JSON-RPC request or notification must not include result or error" };
+      return { ok: false, reason: "JSON-RPC request or notification must not include result or error", code: "jsonrpc.invalid" };
     }
     if (!hasMethod) {
       if (!("id" in parsed)) {
-        return { ok: false, reason: "JSON-RPC response must include an id" };
+        return { ok: false, reason: "JSON-RPC response must include an id", code: "jsonrpc.invalid" };
       }
       if (hasResult === hasError) {
-        return { ok: false, reason: "JSON-RPC response must include exactly one of result or error" };
+        return { ok: false, reason: "JSON-RPC response must include exactly one of result or error", code: "jsonrpc.invalid" };
       }
       if (hasError && !isJsonRpcErrorObject(parsed["error"])) {
-        return { ok: false, reason: "JSON-RPC error must include numeric code and string message" };
+        return { ok: false, reason: "JSON-RPC error must include numeric code and string message", code: "jsonrpc.invalid" };
       }
     }
     return { ok: true, value: parsed as unknown as JsonRpcEnvelope };
   } catch {
-    return { ok: false, reason: "message is not valid JSON" };
+    return { ok: false, reason: "message is not valid JSON", code: "jsonrpc.invalid" };
   }
+}
+
+function jsonDepthExceeds(value: unknown, maxDepth: number): boolean {
+  const stack: { readonly value: unknown; readonly depth: number }[] = [{ value, depth: 1 }];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+    if (current.depth > maxDepth) {
+      return true;
+    }
+    if (!isRecord(current.value) && !Array.isArray(current.value)) {
+      continue;
+    }
+    for (const child of Array.isArray(current.value) ? current.value : Object.values(current.value)) {
+      stack.push({ value: child, depth: current.depth + 1 });
+    }
+  }
+  return false;
 }
 
 function isJsonRpcId(value: unknown): value is string | number | null {
@@ -308,6 +365,18 @@ function upstreamErrorRedactionReason(redaction: RedactionSummary): string {
     return "upstream JSON-RPC error message redacted before forwarding";
   }
   return "upstream JSON-RPC error data removed before forwarding";
+}
+
+function upstreamErrorRedactionCode(redaction: RedactionSummary): DecisionReasonCode {
+  const removedData = redaction.counts["jsonrpc_error_data"] !== undefined;
+  const redactedMessage = redaction.counts["jsonrpc_error_message"] !== undefined;
+  if (removedData && redactedMessage) {
+    return "jsonrpc.upstream_error_redacted";
+  }
+  if (redactedMessage) {
+    return "jsonrpc.upstream_error_message_redacted";
+  }
+  return "jsonrpc.upstream_error_data_redacted";
 }
 
 function readToolCallName(envelope: JsonRpcEnvelope): string {
@@ -462,11 +531,17 @@ function evaluateServerOriginMethod(envelope: JsonRpcEnvelope & { readonly metho
   }
 
   if (!upstreamServerOriginAllowedMethods.has(envelope.method)) {
-    return denyDecision("MCP method is not allowed from upstream server", { method: envelope.method });
+    return denyDecision("MCP method is not allowed from upstream server", {
+      code: "method.server_origin_disallowed",
+      method: envelope.method
+    });
   }
 
   if (envelope.method === "ping" && !hasNoParamsOrEmptyObjectParams(envelope)) {
-    return denyDecision("server-origin ping must not carry params", { method: envelope.method });
+    return denyDecision("server-origin ping must not carry params", {
+      code: "method.server_origin_ping_params",
+      method: envelope.method
+    });
   }
 
   return policyDecision;
@@ -485,6 +560,13 @@ function denyDecision(reason: string, evidence?: Omit<DecisionEvidence, "reason"
     action: "deny",
     evidence: [{ ...evidence, reason }]
   };
+}
+
+function resolvePositiveInteger(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isSafeInteger(value) || value < 1) {
+    return fallback;
+  }
+  return value;
 }
 
 function noRedaction(): RedactionSummary {

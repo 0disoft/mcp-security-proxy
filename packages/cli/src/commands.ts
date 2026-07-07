@@ -47,6 +47,8 @@ interface ParsedArgs {
 }
 
 const maximumShutdownGraceMs = 2_147_483_647;
+const maximumFrameBytes = 16_777_216;
+const maximumJsonDepth = 256;
 
 export function createCommandRegistry(): readonly CommandContract[] {
   return [
@@ -373,6 +375,10 @@ function commandHelp(command: CommandName): string {
       "  --approval-hook                mark approval hook availability",
       "  --shutdown-grace-ms <0..2147483647>",
       "                                 milliseconds to wait before killing upstream after client input closes",
+      "  --max-frame-bytes <1..16777216>",
+      "                                 maximum UTF-8 bytes per JSON-RPC line, default: 1048576",
+      "  --max-json-depth <1..256>",
+      "                                 maximum parsed JSON nesting depth, default: 64",
       "  --help                         show this help",
       "",
       "Stdout is reserved for MCP protocol messages after the live proxy starts."
@@ -464,7 +470,23 @@ function readOptionalStringFlag(flags: Readonly<Record<string, string | true>>, 
 }
 
 function readOptionalShutdownGraceMsFlag(flags: Readonly<Record<string, string | true>>): number | undefined {
-  const name = "shutdown-grace-ms";
+  return readOptionalIntegerFlag(flags, "shutdown-grace-ms", 0, maximumShutdownGraceMs);
+}
+
+function readOptionalFrameBytesFlag(flags: Readonly<Record<string, string | true>>): number | undefined {
+  return readOptionalIntegerFlag(flags, "max-frame-bytes", 1, maximumFrameBytes);
+}
+
+function readOptionalJsonDepthFlag(flags: Readonly<Record<string, string | true>>): number | undefined {
+  return readOptionalIntegerFlag(flags, "max-json-depth", 1, maximumJsonDepth);
+}
+
+function readOptionalIntegerFlag(
+  flags: Readonly<Record<string, string | true>>,
+  name: string,
+  minimum: number,
+  maximum: number
+): number | undefined {
   const value = flags[name];
   if (value === undefined) {
     return undefined;
@@ -473,11 +495,11 @@ function readOptionalShutdownGraceMsFlag(flags: Readonly<Record<string, string |
     throw new CliError(2, `missing required --${name} value`);
   }
   if (!/^\d+$/.test(value)) {
-    throw new CliError(2, `--${name} must be a non-negative integer between 0 and ${maximumShutdownGraceMs}`);
+    throw new CliError(2, `--${name} must be an integer between ${minimum} and ${maximum}`);
   }
   const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed > maximumShutdownGraceMs) {
-    throw new CliError(2, `--${name} must be a non-negative integer between 0 and ${maximumShutdownGraceMs}`);
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new CliError(2, `--${name} must be an integer between ${minimum} and ${maximum}`);
   }
   return parsed;
 }
@@ -495,6 +517,8 @@ async function runProxy(
   const profileId = readRequiredStringFlag(flags, "profile");
   const auditLogPath = readRequiredStringFlag(flags, "audit-log");
   const shutdownGraceMs = readOptionalShutdownGraceMsFlag(flags);
+  const maxFrameBytes = readOptionalFrameBytesFlag(flags);
+  const maxJsonDepth = readOptionalJsonDepthFlag(flags);
   if (auditLogPath === "-") {
     throw new CliError(2, "run requires --audit-log to be a file path; stdout is reserved for MCP messages");
   }
@@ -526,7 +550,9 @@ async function runProxy(
     spawnUpstream: io.spawnUpstream,
     writeAuditEvent: (event) => io.appendTextFile(auditLogPath, `${JSON.stringify(event)}\n`),
     approvalHookAvailable: flags["approval-hook"] === true,
-    ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {})
+    ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {}),
+    ...(maxFrameBytes !== undefined ? { maxFrameBytes } : {}),
+    ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {})
   });
 }
 

@@ -4,8 +4,28 @@ export const DECISION_SCHEMA_VERSION = "msp.decision.v1" as const;
 
 export type DecisionSchemaVersion = typeof DECISION_SCHEMA_VERSION;
 export type DecisionAction = PolicyAction;
+export type DecisionReasonCode =
+  | "jsonrpc.invalid"
+  | "jsonrpc.frame_too_large"
+  | "jsonrpc.too_deep"
+  | "jsonrpc.unmatched_response"
+  | "jsonrpc.upstream_error_data_redacted"
+  | "jsonrpc.upstream_error_message_redacted"
+  | "jsonrpc.upstream_error_redacted"
+  | "method.supported"
+  | "method.unsupported"
+  | "method.server_origin_disallowed"
+  | "method.server_origin_ping_params"
+  | "tool.not_visible"
+  | "discovery.filtered"
+  | "policy.profile_not_found"
+  | "policy.default_deny"
+  | "policy.approval_hook_missing"
+  | "runtime.upstream_exit"
+  | "runtime.upstream_stderr";
 
 export interface DecisionEvidence {
+  readonly code?: DecisionReasonCode;
   readonly ruleId?: string;
   readonly capability?: Capability;
   readonly method?: string;
@@ -41,4 +61,3 @@ export type ArgumentFact =
   | { readonly kind: "command"; readonly executable: string; readonly argv: readonly string[] }
   | { readonly kind: "network"; readonly value: string }
   | { readonly kind: "secret"; readonly label: string };
-

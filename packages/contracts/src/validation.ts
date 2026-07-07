@@ -56,10 +56,16 @@ export function validatePolicyDocument(value: unknown): ValidationResult<PolicyD
     if (!Array.isArray(allowedMethods) || allowedMethods.length === 0) {
       errors.push("methodPolicy.allowedMethods must be a non-empty array");
     } else {
+      const seenMethods = new Set<string>();
       for (const method of allowedMethods) {
         if (typeof method !== "string" || !MVP_ALLOWED_METHODS.includes(method as never)) {
           errors.push(`unsupported method in methodPolicy.allowedMethods: ${String(method)}`);
+          continue;
         }
+        if (seenMethods.has(method)) {
+          errors.push(`duplicate method in methodPolicy.allowedMethods: ${method}`);
+        }
+        seenMethods.add(method);
       }
     }
     if (methodPolicy["denyUnsupported"] !== true) {
@@ -71,6 +77,7 @@ export function validatePolicyDocument(value: unknown): ValidationResult<PolicyD
   if (!Array.isArray(profiles) || profiles.length === 0) {
     errors.push("profiles must be a non-empty array");
   } else {
+    const seenProfileIds = new Set<string>();
     for (const [profileIndex, profile] of profiles.entries()) {
       if (!isRecord(profile)) {
         errors.push(`profiles[${profileIndex}] must be an object`);
@@ -78,6 +85,10 @@ export function validatePolicyDocument(value: unknown): ValidationResult<PolicyD
       }
       if (!isNonEmptyString(profile["id"])) {
         errors.push(`profiles[${profileIndex}].id must be a non-empty string`);
+      } else if (seenProfileIds.has(profile["id"])) {
+        errors.push(`duplicate profile id: ${profile["id"]}`);
+      } else {
+        seenProfileIds.add(profile["id"]);
       }
       if (profile["defaultAction"] !== "deny") {
         errors.push(`profiles[${profileIndex}].defaultAction must be deny`);
@@ -86,6 +97,8 @@ export function validatePolicyDocument(value: unknown): ValidationResult<PolicyD
       validateAudit(profile["audit"], `profiles[${profileIndex}].audit`, errors);
     }
   }
+
+  validateRedaction(value["redaction"], "redaction", errors);
 
   return errors.length === 0 ? valid(value as unknown as PolicyDocument) : invalid(...errors);
 }
@@ -167,6 +180,7 @@ function validateRules(value: unknown, path: string, errors: string[]): void {
     return;
   }
 
+  const seenRuleIds = new Set<string>();
   for (const [index, rule] of value.entries()) {
     const rulePath = `${path}[${index}]`;
     if (!isRecord(rule)) {
@@ -175,26 +189,57 @@ function validateRules(value: unknown, path: string, errors: string[]): void {
     }
     if (!isNonEmptyString(rule["id"])) {
       errors.push(`${rulePath}.id must be a non-empty string`);
+    } else if (seenRuleIds.has(rule["id"])) {
+      errors.push(`${rulePath}.id must be unique within the profile`);
+    } else {
+      seenRuleIds.add(rule["id"]);
     }
     if (!["allow", "deny", "approval_required"].includes(String(rule["action"]))) {
       errors.push(`${rulePath}.action must be allow, deny, or approval_required`);
     }
-    validateStringArray(rule["tools"], `${rulePath}.tools`, errors, false);
+    validateNonEmptyStringArray(rule["tools"], `${rulePath}.tools`, errors, false);
     validateCapabilityArray(rule["capabilities"], `${rulePath}.capabilities`, errors);
-    validateStringArray(rule["methods"], `${rulePath}.methods`, errors, false);
+    validateRuleMethodArray(rule["methods"], `${rulePath}.methods`, errors);
     validateRuleMatchers(rule as unknown as PolicyRule, rulePath, errors);
+    validateRuleHasSelector(rule, rulePath, errors);
   }
 }
 
 function validateRuleMatchers(rule: PolicyRule, path: string, errors: string[]): void {
-  if (rule.paths !== undefined && !isRecord(rule.paths)) {
-    errors.push(`${path}.paths must be an object`);
+  if (rule.paths !== undefined) {
+    if (!isRecord(rule.paths)) {
+      errors.push(`${path}.paths must be an object`);
+    } else {
+      validateNonEmptyStringArray(rule.paths["allowedRoots"], `${path}.paths.allowedRoots`, errors, false);
+      validateNonEmptyStringArray(rule.paths["deniedRoots"], `${path}.paths.deniedRoots`, errors, false);
+      if (rule.paths["allowedRoots"] === undefined && rule.paths["deniedRoots"] === undefined) {
+        errors.push(`${path}.paths must include allowedRoots or deniedRoots`);
+      }
+    }
   }
-  if (rule.commands !== undefined && !Array.isArray(rule.commands)) {
-    errors.push(`${path}.commands must be an array`);
+  if (rule.commands !== undefined) {
+    if (!Array.isArray(rule.commands)) {
+      errors.push(`${path}.commands must be an array`);
+    } else {
+      if (rule.commands.length === 0) {
+        errors.push(`${path}.commands must be a non-empty array`);
+      }
+      for (const [index, command] of rule.commands.entries()) {
+        validateCommandRule(command, `${path}.commands[${index}]`, errors);
+      }
+    }
   }
-  if (rule.networks !== undefined && !Array.isArray(rule.networks)) {
-    errors.push(`${path}.networks must be an array`);
+  if (rule.networks !== undefined) {
+    if (!Array.isArray(rule.networks)) {
+      errors.push(`${path}.networks must be an array`);
+    } else {
+      if (rule.networks.length === 0) {
+        errors.push(`${path}.networks must be a non-empty array`);
+      }
+      for (const [index, network] of rule.networks.entries()) {
+        validateNetworkRule(network, `${path}.networks[${index}]`, errors);
+      }
+    }
   }
 }
 
@@ -214,6 +259,102 @@ function validateAudit(value: unknown, path: string, errors: string[]): void {
   }
   if (typeof value["includeFullPaths"] !== "boolean") {
     errors.push(`${path}.includeFullPaths must be boolean`);
+  }
+  if (value["destination"] === "file" && !isNonEmptyString(value["path"])) {
+    errors.push(`${path}.path must be a non-empty string when destination is file`);
+  }
+  if (value["destination"] === "stdout" && value["path"] !== undefined) {
+    errors.push(`${path}.path must be absent when destination is stdout`);
+  }
+}
+
+function validateRedaction(value: unknown, path: string, errors: string[]): void {
+  if (value === undefined) {
+    return;
+  }
+  if (!isRecord(value)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  const detectors = value["detectors"];
+  if (!Array.isArray(detectors)) {
+    errors.push(`${path}.detectors must be an array`);
+    return;
+  }
+  const seenDetectorIds = new Set<string>();
+  for (const [index, detector] of detectors.entries()) {
+    const detectorPath = `${path}.detectors[${index}]`;
+    if (!isRecord(detector)) {
+      errors.push(`${detectorPath} must be an object`);
+      continue;
+    }
+    if (!isNonEmptyString(detector["id"])) {
+      errors.push(`${detectorPath}.id must be a non-empty string`);
+    } else if (seenDetectorIds.has(detector["id"])) {
+      errors.push(`${detectorPath}.id must be unique`);
+    } else {
+      seenDetectorIds.add(detector["id"]);
+    }
+    if (!["secret_like", "environment_value", "path", "prompt"].includes(String(detector["kind"]))) {
+      errors.push(`${detectorPath}.kind is unsupported`);
+    }
+    if (typeof detector["replacement"] !== "string") {
+      errors.push(`${detectorPath}.replacement must be a string`);
+    }
+  }
+}
+
+function validateRuleHasSelector(rule: Readonly<Record<string, unknown>>, path: string, errors: string[]): void {
+  if (
+    rule["tools"] === undefined &&
+    rule["capabilities"] === undefined &&
+    rule["methods"] === undefined &&
+    rule["paths"] === undefined &&
+    rule["commands"] === undefined &&
+    rule["networks"] === undefined
+  ) {
+    errors.push(`${path} must include at least one selector or matcher`);
+  }
+}
+
+function validateRuleMethodArray(value: unknown, path: string, errors: string[]): void {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+    errors.push(`${path} must be an array of strings`);
+    return;
+  }
+  if (value.length === 0) {
+    errors.push(`${path} must be a non-empty array`);
+  }
+  for (const method of value) {
+    if (method !== "tools/call") {
+      errors.push(`${path} contains unsupported method: ${method}`);
+    }
+  }
+}
+
+function validateCommandRule(value: unknown, path: string, errors: string[]): void {
+  if (!isRecord(value)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  if (!isNonEmptyString(value["executable"])) {
+    errors.push(`${path}.executable must be a non-empty string`);
+  }
+  validateStringArray(value["argv"], `${path}.argv`, errors, false);
+}
+
+function validateNetworkRule(value: unknown, path: string, errors: string[]): void {
+  if (!isRecord(value)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  validateNonEmptyStringArray(value["domains"], `${path}.domains`, errors, false);
+  validateNonEmptyStringArray(value["ips"], `${path}.ips`, errors, false);
+  if (value["domains"] === undefined && value["ips"] === undefined) {
+    errors.push(`${path} must include domains or ips`);
   }
 }
 
@@ -258,6 +399,16 @@ function validateStringArray(value: unknown, path: string, errors: string[], req
   }
 }
 
+function validateNonEmptyStringArray(value: unknown, path: string, errors: string[], required: boolean): void {
+  if (value === undefined && !required) {
+    return;
+  }
+  validateStringArray(value, path, errors, required);
+  if (Array.isArray(value) && value.length === 0) {
+    errors.push(`${path} must be a non-empty array`);
+  }
+}
+
 function validateCapabilityArray(value: unknown, path: string, errors: string[]): void {
   if (value === undefined) {
     return;
@@ -265,6 +416,9 @@ function validateCapabilityArray(value: unknown, path: string, errors: string[])
   if (!Array.isArray(value)) {
     errors.push(`${path} must be an array`);
     return;
+  }
+  if (value.length === 0) {
+    errors.push(`${path} must be a non-empty array`);
   }
   for (const item of value) {
     if (typeof item !== "string" || !capabilities.has(item as Capability)) {

@@ -25,7 +25,7 @@ export interface EvaluateToolCallOptions {
 export function evaluateToolCall(options: EvaluateToolCallOptions): PolicyDecision {
   const profile = options.policy.profiles.find((item) => item.id === options.profileId);
   if (!profile) {
-    return deny("profile not found");
+    return deny("profile not found", undefined, "policy.profile_not_found");
   }
 
   const blockingIssue = findBlockingArgumentIssue(options.call.argumentFacts);
@@ -53,6 +53,7 @@ export function evaluateToolCall(options: EvaluateToolCallOptions): PolicyDecisi
           evidence: [
             {
               ...evidence,
+              code: "policy.approval_hook_missing",
               reason: "approval required but no approval hook is available"
             }
           ]
@@ -67,7 +68,7 @@ export function evaluateToolCall(options: EvaluateToolCallOptions): PolicyDecisi
     }
   }
 
-  return deny("default deny");
+  return deny("default deny", undefined, "policy.default_deny");
 }
 
 function ruleMatches(rule: PolicyRule, call: NormalizedToolCall): boolean {
@@ -142,10 +143,10 @@ function capabilityForFactKind(kind: "path" | "command" | "network" | "secret"):
   return "secret";
 }
 
-function deny(reason: string, capability?: Capability): PolicyDecision {
+function deny(reason: string, capability?: Capability, code?: DecisionEvidence["code"]): PolicyDecision {
   return {
     schemaVersion: DECISION_SCHEMA_VERSION,
     action: "deny",
-    evidence: [{ ...withCapability(capability), reason }]
+    evidence: [{ ...withCapability(capability), ...(code ? { code } : {}), reason }]
   };
 }
