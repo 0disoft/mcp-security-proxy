@@ -2,6 +2,7 @@
   "schemaVersion": "msp.release-readiness.v1",
   "status": "proposed",
   "releaseVersion": "0.1.0-alpha.0",
+  "targetCommit": "UNRECORDED",
   "registryTarget": "UNDECIDED",
   "publishCredentialsOwner": "UNDECIDED",
   "publicPackages": [

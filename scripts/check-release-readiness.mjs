@@ -34,6 +34,11 @@ const releaseScopeExclusionEvidencePaths = {
 };
 const localCompatibilityTarget = "local-stdio-mvp";
 const compatibilityManifestPath = "fixtures/compatibility/manifest.json";
+const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: root,
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "pipe"]
+}).trim();
 const trackedFiles = new Set(
   execFileSync("git", ["ls-files"], {
     cwd: root,
@@ -109,6 +114,7 @@ function checkReleaseRecordObject(path, record) {
   if (record.status === "approved" && record.releaseVersion === "0.0.0") {
     failures.push(`${path}: approved releaseVersion must not be 0.0.0`);
   }
+  checkTargetCommit(path, record);
   if (!isNonPlaceholder(record.registryTarget)) {
     failures.push(`${path}: registryTarget must be recorded`);
   }
@@ -219,6 +225,22 @@ function checkReleaseRecordObject(path, record) {
     failures.push(`${path}: rollback.procedure must be recorded`);
   } else if (record.status === "approved") {
     checkApprovedRollback(path, record);
+  }
+}
+
+function checkTargetCommit(path, record) {
+  if (!isNonPlaceholder(record.targetCommit)) {
+    if (record.status === "approved") {
+      failures.push(`${path}: targetCommit must be recorded for approved releases`);
+    }
+    return;
+  }
+  if (!isFullCommitSha(record.targetCommit)) {
+    failures.push(`${path}: targetCommit must be a full 40-character Git commit SHA`);
+    return;
+  }
+  if (record.status === "approved" && record.targetCommit !== currentHead) {
+    failures.push(`${path}: targetCommit must match current HEAD for approved releases`);
   }
 }
 
@@ -370,6 +392,34 @@ function checkReleaseRecordValidator() {
   });
   if (!approvedZeroVersionFailures.some((item) => item.includes("approved releaseVersion must not be 0.0.0"))) {
     failures.push(`release-readiness self-test approved zero version was not rejected: ${approvedZeroVersionFailures.join("; ")}`);
+  }
+
+  const approvedMissingTargetCommitFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-missing-target-commit>", {
+    ...validApprovedShapeRecord,
+    targetCommit: "UNRECORDED"
+  });
+  if (!approvedMissingTargetCommitFailures.some((item) => item.includes("targetCommit must be recorded for approved releases"))) {
+    failures.push(
+      `release-readiness self-test approved missing targetCommit was not rejected: ${approvedMissingTargetCommitFailures.join("; ")}`
+    );
+  }
+
+  const invalidTargetCommitFailures = collectReleaseRecordFailures("<release-readiness-self-test-invalid-target-commit>", {
+    ...validRecord,
+    targetCommit: "main"
+  });
+  if (!invalidTargetCommitFailures.some((item) => item.includes("targetCommit must be a full 40-character Git commit SHA"))) {
+    failures.push(`release-readiness self-test invalid targetCommit was not rejected: ${invalidTargetCommitFailures.join("; ")}`);
+  }
+
+  const approvedStaleTargetCommitFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-stale-target-commit>", {
+    ...validApprovedShapeRecord,
+    targetCommit: "0000000000000000000000000000000000000000"
+  });
+  if (!approvedStaleTargetCommitFailures.some((item) => item.includes("targetCommit must match current HEAD"))) {
+    failures.push(
+      `release-readiness self-test approved stale targetCommit was not rejected: ${approvedStaleTargetCommitFailures.join("; ")}`
+    );
   }
 
   const untrackedArtifactFailures = collectReleaseRecordFailures("<release-readiness-self-test-untracked-artifact>", {
@@ -620,6 +670,7 @@ function createReleaseRecordSelfTestFixture() {
     schemaVersion: "msp.release-readiness.v1",
     status: "blocked",
     releaseVersion: cliManifest.version,
+    targetCommit: "UNRECORDED",
     registryTarget: "npm",
     publishCredentialsOwner: "0disoft",
     publicPackages: [
@@ -666,6 +717,7 @@ function createApprovedReleaseRecordSelfTestFixture() {
     ...createReleaseRecordSelfTestFixture(),
     status: "approved",
     releaseVersion: "9.9.9",
+    targetCommit: currentHead,
     validation: Object.fromEntries(requiredValidations.map((name) => [name, createApprovedValidationEvidence(name)]))
   };
 }
@@ -699,6 +751,10 @@ function isSafeRelativeRepoPath(value) {
 
 function isReleaseScopeEvidencePath(value) {
   return releaseScopeEvidencePrefixes.some((prefix) => value.startsWith(prefix));
+}
+
+function isFullCommitSha(value) {
+  return typeof value === "string" && /^[a-f0-9]{40}$/i.test(value);
 }
 
 function escapeRegExp(value) {

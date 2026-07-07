@@ -33,6 +33,7 @@ UNDECIDED. Before publishing any public artifact, a release record must name:
 - the registry target and publish credentials owner;
 - the release artifact list;
 - the package version to publish;
+- the full Git commit SHA being approved for release;
 - the exact validation output for `docs`, `schema-contract`, `migration-check`, `package-surface`,
   `secret-scan`, `artifact-safety`, `repository-hygiene`, `validation-registry`, `ci-contract`,
   `compatibility`, `license-report`, `release-readiness`, `performance-smoke`, `contract`, `test`,
@@ -44,7 +45,8 @@ UNDECIDED. Before publishing any public artifact, a release record must name:
 Until that record exists, package manifests must stay private and versioned as `0.0.0`.
 Proposed or blocked release records may describe a future release version, but they do not permit
 package manifests to leave the `0.0.0` private posture. Approved release records must name a
-non-`0.0.0` release version before package manifests can move to public release posture.
+non-`0.0.0` release version and the current target commit before package manifests can move to
+public release posture.
 Release records live under `docs/ops/release-records/*.release.json`; use
 `docs/ops/release-records/public-release.template.json` as the starting shape. `pnpm run
 release-readiness` validates release records and enforces the private-package posture when no record
