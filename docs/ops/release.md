@@ -57,7 +57,9 @@ release-record templates. `pnpm run ci-contract` checks hosted CI parity with do
 validation and runtime versions. `pnpm run package-surface` keeps non-release packages private and
 only allows release-version public package posture for `packages/*` entries named by an approved
 release record. Approved release records must include the executed validation command and `exit 0`
-for every required validation evidence value.
+for every required validation evidence value. Approved release records must also use a tracked
+`docs/ops` rollback procedure and a last-known-good version that is different from the release
+version being approved.
 
 ## Release Blockers
 

@@ -217,6 +217,8 @@ function checkReleaseRecordObject(path, record) {
   }
   if (!isNonPlaceholder(record.rollback?.procedure)) {
     failures.push(`${path}: rollback.procedure must be recorded`);
+  } else if (record.status === "approved") {
+    checkApprovedRollback(path, record);
   }
 }
 
@@ -267,6 +269,22 @@ function checkApprovedValidationEvidence(path, validation, evidence) {
   }
   if (!/\bexit\s+0\b/i.test(evidence)) {
     failures.push(`${path}: validation.${validation} must include exit 0 evidence`);
+  }
+}
+
+function checkApprovedRollback(path, record) {
+  if (record.rollback.lastKnownGoodVersion === record.releaseVersion) {
+    failures.push(`${path}: rollback.lastKnownGoodVersion must not equal releaseVersion for approved releases`);
+  }
+  const procedure = record.rollback.procedure;
+  if (!isSafeRelativeRepoPath(procedure)) {
+    failures.push(`${path}: rollback.procedure must be a safe repo-relative path for approved releases`);
+  } else if (!procedure.startsWith("docs/ops/")) {
+    failures.push(`${path}: rollback.procedure must be a docs/ops path for approved releases`);
+  } else if (!existsSync(join(root, procedure))) {
+    failures.push(`${path}: rollback.procedure must exist for approved releases`);
+  } else if (!trackedFiles.has(procedure)) {
+    failures.push(`${path}: rollback.procedure must be tracked for approved releases`);
   }
 }
 
@@ -433,6 +451,39 @@ function checkReleaseRecordValidator() {
   ) {
     failures.push(
       `release-readiness self-test approved weak validation evidence was not rejected: ${approvedWeakValidationFailures.join("; ")}`
+    );
+  }
+
+  const approvedWeakRollbackFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-weak-rollback>", {
+    ...validApprovedShapeRecord,
+    rollback: {
+      lastKnownGoodVersion: validApprovedShapeRecord.releaseVersion,
+      procedure: "../rollback.md"
+    }
+  });
+  if (
+    !approvedWeakRollbackFailures.some((item) =>
+      item.includes("rollback.lastKnownGoodVersion must not equal releaseVersion")
+    ) ||
+    !approvedWeakRollbackFailures.some((item) =>
+      item.includes("rollback.procedure must be a safe repo-relative path for approved releases")
+    )
+  ) {
+    failures.push(
+      `release-readiness self-test approved weak rollback evidence was not rejected: ${approvedWeakRollbackFailures.join("; ")}`
+    );
+  }
+
+  const approvedUntrackedRollbackFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-untracked-rollback>", {
+    ...validApprovedShapeRecord,
+    rollback: {
+      lastKnownGoodVersion: "0.0.0",
+      procedure: "docs/ops/release-records"
+    }
+  });
+  if (!approvedUntrackedRollbackFailures.some((item) => item.includes("rollback.procedure must be tracked"))) {
+    failures.push(
+      `release-readiness self-test approved untracked rollback procedure was not rejected: ${approvedUntrackedRollbackFailures.join("; ")}`
     );
   }
 

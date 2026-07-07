@@ -18,6 +18,8 @@ Release records must include validation evidence for: `docs`, `schema-contract`,
 `performance-smoke`, `contract`, `test`, `smoke`, and `check`.
 For `approved` release records, each validation evidence value must include the executed command
 and `exit 0`; for example, `pnpm run docs exit 0` or `pnpm check exit 0`.
+For `approved` release records, `rollback.procedure` must be a safe tracked `docs/ops` path and
+`rollback.lastKnownGoodVersion` must not equal the release version being approved.
 
 Release records must also name whether MCP SDK dependency usage, HTTP transport support,
 host-specific approval UX, and external MCP compatibility fixtures are included or excluded from
