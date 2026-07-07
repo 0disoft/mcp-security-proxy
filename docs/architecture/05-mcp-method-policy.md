@@ -57,9 +57,9 @@ dropped with a redacted audit event.
 Malformed JSON-RPC envelopes must not be forwarded across the proxy boundary. The runtime accepts
 only JSON-RPC 2.0 objects whose `id`, when present, is a string, number, or `null`, and whose
 `method`, when present, is a string. Request or notification envelopes must not include `result` or
-`error`. Response envelopes must include an `id` and exactly one of `result` or `error`. Invalid
-client messages return `-32600`; invalid upstream server messages are dropped with a redacted audit
-event.
+`error`. Response envelopes must include an `id` and exactly one of `result` or `error`; an `error`
+member must be an object with numeric `code` and string `message` fields. Invalid client messages
+return `-32600`; invalid upstream server messages are dropped with a redacted audit event.
 
 ## Discovery Policy
 

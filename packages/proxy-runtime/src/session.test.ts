@@ -196,6 +196,63 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("drops upstream error responses with invalid error object fields", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "invalid-error-fields",
+        error: {
+          code: "not-a-number",
+          message: "RAW_INVALID_ERROR_MESSAGE_MARKER"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_INVALID_ERROR_MESSAGE_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ reason: "JSON-RPC error must include numeric code and string message" }]
+      }
+    });
+  });
+
+  it("drops upstream error responses whose error member is not an object", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "invalid-error-member",
+        error: "RAW_INVALID_ERROR_MEMBER_MARKER"
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_INVALID_ERROR_MEMBER_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ reason: "JSON-RPC error must include numeric code and string message" }]
+      }
+    });
+  });
+
   it("rejects client requests that include response fields", () => {
     const session = createProxySession({
       policy: readPolicy(),

@@ -223,6 +223,9 @@ function parseJsonLine(line: string): { readonly ok: true; readonly value: JsonR
       if (hasResult === hasError) {
         return { ok: false, reason: "JSON-RPC response must include exactly one of result or error" };
       }
+      if (hasError && !isJsonRpcErrorObject(parsed["error"])) {
+        return { ok: false, reason: "JSON-RPC error must include numeric code and string message" };
+      }
     }
     return { ok: true, value: parsed as unknown as JsonRpcEnvelope };
   } catch {
@@ -232,6 +235,10 @@ function parseJsonLine(line: string): { readonly ok: true; readonly value: JsonR
 
 function isJsonRpcId(value: unknown): value is string | number | null {
   return value === null || typeof value === "string" || typeof value === "number";
+}
+
+function isJsonRpcErrorObject(value: unknown): boolean {
+  return isRecord(value) && typeof value["code"] === "number" && typeof value["message"] === "string";
 }
 
 function readToolCallName(envelope: JsonRpcEnvelope): string {
