@@ -273,6 +273,43 @@ function checkReleaseRecordValidator() {
     failures.push(`release-readiness self-test mismatch fixture was not rejected: ${mismatchFailures.join("; ")}`);
   }
 
+  const duplicatePackageNameFailures = collectReleaseRecordFailures("<release-readiness-self-test-duplicate-package-name>", {
+    ...validRecord,
+    publicPackages: [
+      {
+        ...validRecord.publicPackages[0]
+      },
+      {
+        ...validRecord.publicPackages[0],
+        workspacePath: "packages/core"
+      }
+    ]
+  });
+  if (!duplicatePackageNameFailures.some((item) => item.includes("duplicate public package name"))) {
+    failures.push(`release-readiness self-test duplicate package name was not rejected: ${duplicatePackageNameFailures.join("; ")}`);
+  }
+
+  const missingValidationFailures = collectReleaseRecordFailures("<release-readiness-self-test-missing-validation>", {
+    ...validRecord,
+    validation: {
+      ...validRecord.validation,
+      docs: "UNRECORDED"
+    },
+    rollback: {
+      lastKnownGoodVersion: "UNDECIDED",
+      procedure: "UNRECORDED"
+    }
+  });
+  if (
+    !missingValidationFailures.some((item) => item.includes("validation.docs must be recorded")) ||
+    !missingValidationFailures.some((item) => item.includes("rollback.lastKnownGoodVersion must be recorded")) ||
+    !missingValidationFailures.some((item) => item.includes("rollback.procedure must be recorded"))
+  ) {
+    failures.push(
+      `release-readiness self-test missing validation and rollback evidence was not rejected: ${missingValidationFailures.join("; ")}`
+    );
+  }
+
   const missingScopeFailures = collectReleaseRecordFailures("<release-readiness-self-test-missing-scope>", {
     ...validRecord,
     releaseScope: {
