@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "msp.decision.v1",
+  "action": "deny",
+  "evidence": [
+    {
+      "capability": "network",
+      "reason": "ambiguous network target denied by default"
+    }
+  ]
+}

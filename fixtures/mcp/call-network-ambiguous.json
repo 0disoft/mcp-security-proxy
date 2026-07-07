@@ -1,0 +1,13 @@
+{
+  "method": "tools/call",
+  "toolName": "fetch_url",
+  "capabilities": [
+    "network"
+  ],
+  "argumentFacts": [
+    {
+      "kind": "network",
+      "value": "api.example.com status"
+    }
+  ]
+}

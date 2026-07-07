@@ -44,7 +44,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Captured allowed call fixture.
 - Captured denied call fixture.
 - Captured approval-required call fixture.
-- Captured matcher-denial fixtures for ambiguous paths and free-form shell commands.
+- Captured matcher-denial fixtures for ambiguous paths, ambiguous network targets, and free-form
+  shell commands.
 - Captured network allow and deny fixtures.
 - Captured redaction fixture.
 - CLI JSON output fixture.
