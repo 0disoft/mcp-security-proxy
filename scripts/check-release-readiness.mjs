@@ -26,6 +26,12 @@ const requiredValidations = [
 const requiredReleaseScopeDecisions = ["mcpSdkDependency", "httpTransport", "hostApprovalUx", "externalMcpFixture"];
 const releaseScopeStatuses = new Set(["included", "excluded"]);
 const releaseScopeEvidencePrefixes = ["docs/adr/", "docs/architecture/", "docs/ops/"];
+const releaseScopeExclusionEvidencePaths = {
+  mcpSdkDependency: "docs/adr/0004-implementation-stack-direction.md",
+  httpTransport: "docs/architecture/07-http-transport-plan.md",
+  hostApprovalUx: "docs/architecture/08-host-approval-ux-plan.md",
+  externalMcpFixture: "docs/architecture/09-external-mcp-compatibility-plan.md"
+};
 const localCompatibilityTarget = "local-stdio-mvp";
 const compatibilityManifestPath = "fixtures/compatibility/manifest.json";
 const trackedFiles = new Set(
@@ -236,6 +242,10 @@ function checkReleaseScope(path, releaseScope) {
       failures.push(`${path}: releaseScope.${name}.evidence must be tracked`);
     } else if (!isReleaseScopeEvidencePath(item.evidence)) {
       failures.push(`${path}: releaseScope.${name}.evidence must be a docs/adr, docs/architecture, or docs/ops path`);
+    } else if (item.status === "included" && item.evidence === releaseScopeExclusionEvidencePaths[name]) {
+      failures.push(
+        `${path}: releaseScope.${name}.evidence must not use the exclusion evidence path when status is included`
+      );
     }
   }
   if (releaseScope.externalMcpFixture?.status === "included") {
@@ -463,6 +473,40 @@ function checkReleaseRecordValidator() {
   ) {
     failures.push(
       `release-readiness self-test wrong scope evidence location fixture was not rejected: ${wrongScopeEvidenceLocationFailures.join("; ")}`
+    );
+  }
+
+  const includedScopeExclusionEvidenceFailures = collectReleaseRecordFailures("<release-readiness-self-test-included-scope-exclusion-evidence>", {
+    ...validRecord,
+    releaseScope: {
+      ...validRecord.releaseScope,
+      mcpSdkDependency: {
+        ...validRecord.releaseScope.mcpSdkDependency,
+        status: "included"
+      },
+      httpTransport: {
+        ...validRecord.releaseScope.httpTransport,
+        status: "included"
+      },
+      hostApprovalUx: {
+        ...validRecord.releaseScope.hostApprovalUx,
+        status: "included"
+      }
+    }
+  });
+  if (
+    !includedScopeExclusionEvidenceFailures.some((item) =>
+      item.includes("releaseScope.mcpSdkDependency.evidence must not use the exclusion evidence path")
+    ) ||
+    !includedScopeExclusionEvidenceFailures.some((item) =>
+      item.includes("releaseScope.httpTransport.evidence must not use the exclusion evidence path")
+    ) ||
+    !includedScopeExclusionEvidenceFailures.some((item) =>
+      item.includes("releaseScope.hostApprovalUx.evidence must not use the exclusion evidence path")
+    )
+  ) {
+    failures.push(
+      `release-readiness self-test included scope exclusion evidence was not rejected: ${includedScopeExclusionEvidenceFailures.join("; ")}`
     );
   }
 

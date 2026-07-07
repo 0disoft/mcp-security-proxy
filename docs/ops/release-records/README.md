@@ -23,7 +23,10 @@ the release scope, with evidence for each scope decision. Scope evidence values 
 repository-relative paths to tracked decision, architecture, or operational files. Do not imply
 HTTP, hosted control plane, bundled approval UI, SDK compatibility support, or external MCP
 client/server compatibility through package names or release notes when the release record excludes
-it.
+it. When a scope is `excluded`, its current exclusion or planning document may be used as evidence.
+When a scope is `included`, the release record must use different tracked evidence that proves the
+implementation, approval decision, fixture coverage, or operational support for that included
+scope.
 
 The required release scope keys are `mcpSdkDependency`, `httpTransport`, `hostApprovalUx`, and
 `externalMcpFixture`.
