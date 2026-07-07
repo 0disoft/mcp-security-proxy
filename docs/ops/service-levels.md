@@ -10,7 +10,7 @@ runtime expectations for a CLI/library that mediates stdio MCP traffic.
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft
 - Escalation path: repository issues for non-sensitive reliability defects; SECURITY.md for
   reliability defects that expose sensitive data
 

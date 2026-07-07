@@ -11,7 +11,7 @@ because this project does not currently run a hosted service.
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft
 - Escalation path: SECURITY.md for vulnerabilities or sensitive evidence; repository issues for
   non-sensitive defects
 

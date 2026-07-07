@@ -10,7 +10,8 @@ database, migration stream, hosted deployment, or remote control plane to roll b
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft for repository and package rollback; local operators for local policy
+  rollback
 - Escalation path: repository issues for non-sensitive rollback defects; SECURITY.md for rollback
   failures that expose sensitive data
 

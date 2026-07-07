@@ -5,7 +5,7 @@ Status: Draft
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft for repository leak response; secret owners for provider-side rotation
 - Escalation path: SECURITY.md
 
 ## Secret Rules

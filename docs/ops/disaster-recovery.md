@@ -11,7 +11,8 @@ or multi-region service to fail over.
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft for repository and release recovery; local operators for local runtime
+  state
 - Escalation path: SECURITY.md for security disasters; repository issues for non-sensitive release
   recovery
 

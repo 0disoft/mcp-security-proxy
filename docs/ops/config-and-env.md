@@ -11,7 +11,7 @@ non-secret convenience defaults.
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft for documented defaults; local operators for private runtime config
 - Escalation path: repository issues for non-sensitive config defects; SECURITY.md for config paths
   that can leak sensitive values
 

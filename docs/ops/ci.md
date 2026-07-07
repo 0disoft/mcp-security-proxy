@@ -9,7 +9,7 @@ Cover required checks, branch protection, pipeline stages, artifacts, failure po
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft
 - Escalation path: repository issues for non-sensitive failures; SECURITY.md for sensitive failures
 
 ## Local Check Contract

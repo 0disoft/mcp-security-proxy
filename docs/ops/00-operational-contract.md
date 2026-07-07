@@ -21,7 +21,8 @@ Current critical journeys:
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft for repository-owned behavior; local operators for policy and audit
+  retention
 - Escalation path: SECURITY.md for sensitive security issues; repository issues for non-sensitive
   operational defects
 

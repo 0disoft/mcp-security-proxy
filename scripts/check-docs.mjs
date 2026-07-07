@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const requiredFiles = [
@@ -52,7 +52,8 @@ for (const file of requiredFiles) {
 
 const cliContractFailures = [
   ...checkCliCommandDocs(),
-  ...checkCliExitCodeDocs()
+  ...checkCliExitCodeDocs(),
+  ...checkOpsOwnerDocs()
 ];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
@@ -158,4 +159,17 @@ function extractDocumentedExitCodes(markdown) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function checkOpsOwnerDocs() {
+  const failures = [];
+  const opsDir = join(root, "docs", "ops");
+  for (const name of readdirSync(opsDir).filter((item) => item.endsWith(".md")).sort()) {
+    const path = `docs/ops/${name}`;
+    const text = readFileSync(join(root, path), "utf8");
+    if (text.includes("Backup owner: UNASSIGNED")) {
+      failures.push(`${path}: backup owner must name a responsible boundary`);
+    }
+  }
+  return failures;
 }

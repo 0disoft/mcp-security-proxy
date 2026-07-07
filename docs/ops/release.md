@@ -5,7 +5,7 @@ Status: Draft
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft
 - Escalation path: SECURITY.md for security reports; repository issues for non-sensitive release
   issues
 

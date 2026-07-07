@@ -11,7 +11,7 @@ operator.
 ## Owners
 
 - Primary owner: 0disoft for repository source and release artifacts
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft for repository source; local operators for policy and audit backups
 - Escalation path: repository issues for non-sensitive restore defects; SECURITY.md for restore
   paths that expose sensitive data
 

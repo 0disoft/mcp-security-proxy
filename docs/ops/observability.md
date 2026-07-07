@@ -9,7 +9,7 @@ Cover logs, metrics, traces, dashboards, alerts, health checks, sampling, retent
 ## Owners
 
 - Primary owner: 0disoft
-- Backup owner: UNASSIGNED
+- Backup owner: 0disoft for audit-event contracts; local operators for audit-log retention
 - Escalation path: SECURITY.md for sensitive security evidence; repository issues for
   non-sensitive operational defects
 
