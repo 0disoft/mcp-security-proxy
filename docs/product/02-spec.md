@@ -36,6 +36,8 @@ discovery and tool calls through explicit policy, redaction, and audit events.
   request, including the original id type.
 - Forward client responses only when their JSON-RPC `id` exactly matches a pending upstream
   server-origin request that the proxy forwarded to the client.
+- Forward client responses to server-origin `ping` only when the response is an empty `result`
+  object.
 - Filter tool discovery output before the client sees it.
 - Evaluate tool calls before forwarding them.
 - Support embedding-host approval hooks for approval-required calls. Calls must be forwarded only

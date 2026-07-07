@@ -96,7 +96,8 @@ export class ProxySession {
 
     const envelope = parsed.value;
     if (!isJsonRpcRequest(envelope)) {
-      if (!this.takePendingServerOriginMethod(envelope)) {
+      const serverOriginMethod = this.takePendingServerOriginMethod(envelope);
+      if (!serverOriginMethod) {
         return {
           kind: "result",
           result: {
@@ -104,6 +105,22 @@ export class ProxySession {
               this.createAudit(
                 "error",
                 denyDecision("client JSON-RPC response did not match a pending upstream server request", { code: "jsonrpc.unmatched_response" })
+              )
+            ]
+          }
+        };
+      }
+      if (serverOriginMethod === "ping" && !isEmptyPingResponse(envelope)) {
+        return {
+          kind: "result",
+          result: {
+            auditEvents: [
+              this.createAudit(
+                "error",
+                denyDecision("client response to server-origin ping must be an empty result", {
+                  code: "jsonrpc.invalid",
+                  method: serverOriginMethod
+                })
               )
             ]
           }
@@ -762,6 +779,10 @@ function hasNoParamsOrEmptyObjectParams(envelope: JsonRpcEnvelope): boolean {
     return true;
   }
   return isRecord(envelope.params) && Object.keys(envelope.params).length === 0;
+}
+
+function isEmptyPingResponse(envelope: JsonRpcEnvelope): boolean {
+  return isRecord(envelope.result) && Object.keys(envelope.result).length === 0 && envelope.error === undefined;
 }
 
 function denyDecision(reason: string, evidence?: Omit<DecisionEvidence, "reason">): PolicyDecision {

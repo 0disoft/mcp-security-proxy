@@ -1004,6 +1004,85 @@ describe("proxy runtime session", () => {
     expect(result.auditEvents).toHaveLength(0);
   });
 
+  it("drops client ping responses that carry payload data", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    const pingLine = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "server-ping-payload-response",
+      method: "ping"
+    });
+
+    expect(session.handleServerLine(pingLine).forwardLine).toBe(pingLine);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "server-ping-payload-response",
+        result: {
+          marker: "RAW_CLIENT_PING_RESPONSE_MARKER"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_CLIENT_PING_RESPONSE_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [
+          {
+            code: "jsonrpc.invalid",
+            method: "ping",
+            reason: "client response to server-origin ping must be an empty result"
+          }
+        ]
+      }
+    });
+  });
+
+  it("drops client ping error responses without forwarding raw error details", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    const pingLine = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "server-ping-error-response",
+      method: "ping"
+    });
+
+    expect(session.handleServerLine(pingLine).forwardLine).toBe(pingLine);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "server-ping-error-response",
+        error: {
+          code: -32000,
+          message: "RAW_CLIENT_PING_ERROR_MARKER"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(result.responseLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("RAW_CLIENT_PING_ERROR_MARKER");
+    expect(result.auditEvents).toHaveLength(1);
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.invalid", method: "ping" }]
+      }
+    });
+  });
+
   it("denies duplicate pending upstream server request ids without overwriting the original request", () => {
     const session = createProxySession({
       policy: readPolicy(),
