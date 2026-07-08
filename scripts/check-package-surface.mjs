@@ -301,6 +301,19 @@ const checkPackageSurfaceValidator = () => {
   if (!entrypointReExportFailures.some((item) => item.includes("entrypoint re-exports"))) {
     failures.push(`package-surface self-test entrypoint re-export drift was not rejected: ${entrypointReExportFailures.join("; ")}`);
   }
+
+  const distArtifactFailures = collectPackageSurfaceFailures(() => {
+    checkDistArtifactFileNames("<package-surface-self-test-dist-artifacts>", [
+      "dist/index.js",
+      "dist/commands.test.js",
+      "dist/commands.test.d.ts",
+      "dist/commands.test.js.map",
+      "dist/commands.spec.d.ts.map"
+    ]);
+  });
+  if (!distArtifactFailures.some((item) => item.includes("must not contain emitted test artifacts"))) {
+    failures.push(`package-surface self-test dist test artifact was not rejected: ${distArtifactFailures.join("; ")}`);
+  }
 };
 
 const collectPackageSurfaceFailures = (fn) => {
@@ -393,6 +406,7 @@ if (existsSync(packagesDir)) {
     checkWorkspacePackage(manifest, manifestPath);
     checkDependencies(manifest, manifestPath, workspacePackageNames);
     checkWorkspacePackageEntrypointReExports(manifestPath);
+    checkWorkspacePackageDistArtifacts(manifestPath);
   }
 
   const cliManifestPath = join(packagesDir, "cli", "package.json");
@@ -467,4 +481,38 @@ function checkEntrypointReExportNames(label, actualReExports, expectedReExports)
     JSON.stringify(actualReExports) === JSON.stringify(expectedReExports),
     `${label}: entrypoint re-exports must match ${expectedReExports.join(", ")}`
   );
+}
+
+function checkWorkspacePackageDistArtifacts(manifestPath) {
+  const packageName = relative(packagesDir, manifestPath).split(/[\\/]/)[0];
+  const distDir = join(packagesDir, packageName, "dist");
+  if (!existsSync(distDir)) {
+    return;
+  }
+  checkDistArtifactFileNames(
+    formatPath(distDir),
+    collectFiles(distDir).map((path) => formatPath(path))
+  );
+}
+
+function checkDistArtifactFileNames(label, fileNames) {
+  const testArtifacts = fileNames.filter((name) => /\.(?:test|spec)\.(?:js|js\.map|d\.ts|d\.ts\.map)$/u.test(name));
+  if (testArtifacts.length > 0) {
+    failures.push(`${label}: dist must not contain emitted test artifacts: ${testArtifacts.join(", ")}`);
+  }
+}
+
+function collectFiles(directory) {
+  const files = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectFiles(path));
+      continue;
+    }
+    if (entry.isFile()) {
+      files.push(path);
+    }
+  }
+  return files;
 }
