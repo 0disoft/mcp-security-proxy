@@ -40,7 +40,7 @@ export function pathRuleMatches(rule: PathRule, facts: readonly ArgumentFact[], 
   const allowedRoots = normalizeRoots(rule.allowedRoots);
   const deniedRoots = normalizeRoots(rule.deniedRoots);
 
-  return pathFacts.some((fact) => {
+  const factMatches = (fact: Extract<ArgumentFact, { readonly kind: "path" }>): boolean => {
     const normalized = normalizePathValue(fact.value);
     if (!normalized.ok) {
       return mode === "deny";
@@ -50,25 +50,36 @@ export function pathRuleMatches(rule: PathRule, facts: readonly ArgumentFact[], 
     const allowed = allowedRoots.some((root) => isWithinRoot(normalized.value, root));
 
     return mode === "deny" ? denied || (deniedRoots.length === 0 && allowed) : allowed && !denied;
-  });
+  };
+
+  return mode === "deny" ? pathFacts.some(factMatches) : pathFacts.every(factMatches);
 }
 
-export function commandRuleMatches(rules: readonly CommandRule[], facts: readonly ArgumentFact[]): boolean {
+export function commandRuleMatches(
+  rules: readonly CommandRule[],
+  facts: readonly ArgumentFact[],
+  mode: "allow" | "deny"
+): boolean {
   const commandFacts = facts.filter(
     (fact): fact is Extract<ArgumentFact, { readonly kind: "command" }> => fact.kind === "command"
   );
 
-  return commandFacts.some((fact) =>
-    rules.some((rule) => executableMatches(rule.executable, fact.executable) && argvMatches(rule.argv, fact.argv))
-  );
+  const factMatches = (fact: Extract<ArgumentFact, { readonly kind: "command" }>): boolean =>
+    rules.some((rule) => executableMatches(rule.executable, fact.executable) && argvMatches(rule.argv, fact.argv));
+
+  return mode === "deny" ? commandFacts.some(factMatches) : commandFacts.every(factMatches);
 }
 
-export function networkRuleMatches(rules: readonly NetworkRule[], facts: readonly ArgumentFact[]): boolean {
+export function networkRuleMatches(
+  rules: readonly NetworkRule[],
+  facts: readonly ArgumentFact[],
+  mode: "allow" | "deny"
+): boolean {
   const networkFacts = facts.filter(
     (fact): fact is Extract<ArgumentFact, { readonly kind: "network" }> => fact.kind === "network"
   );
 
-  return networkFacts.some((fact) => {
+  const factMatches = (fact: Extract<ArgumentFact, { readonly kind: "network" }>): boolean => {
     const normalized = normalizeNetworkValue(fact.value);
     if (!normalized.ok) {
       return false;
@@ -79,14 +90,17 @@ export function networkRuleMatches(rules: readonly NetworkRule[], facts: readonl
       const ipMatches = normalized.ip ? (rule.ips ?? []).includes(normalized.ip) : false;
       return domainMatches || ipMatches;
     });
-  });
+  };
+
+  return mode === "deny" ? networkFacts.some(factMatches) : networkFacts.every(factMatches);
 }
 
-export function secretRuleMatches(rule: SecretRule, facts: readonly ArgumentFact[]): boolean {
+export function secretRuleMatches(rule: SecretRule, facts: readonly ArgumentFact[], mode: "allow" | "deny"): boolean {
   const secretFacts = facts.filter((fact): fact is Extract<ArgumentFact, { readonly kind: "secret" }> => fact.kind === "secret");
   const labels = new Set(rule.labels.map((label) => normalizeSecretLabel(label)));
+  const factMatches = (fact: Extract<ArgumentFact, { readonly kind: "secret" }>): boolean => labels.has(normalizeSecretLabel(fact.label));
 
-  return secretFacts.some((fact) => labels.has(normalizeSecretLabel(fact.label)));
+  return mode === "deny" ? secretFacts.some(factMatches) : secretFacts.every(factMatches);
 }
 
 export function hasFactKind(facts: readonly ArgumentFact[], kind: ArgumentFact["kind"]): boolean {

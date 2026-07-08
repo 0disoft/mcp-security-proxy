@@ -51,6 +51,27 @@ describe("MCP Security Proxy core", () => {
     expect(decision.evidence[0]?.ruleId).toBe("allow-public-files");
   });
 
+  it("denies file-read when any path fact falls outside the allow root", () => {
+    const decision = evaluateToolCall({
+      policy: readFixture<PolicyDocument>("fixtures/policies/local-dev.json"),
+      profileId: "local",
+      call: {
+        method: "tools/call",
+        toolName: "read_file",
+        capabilities: ["file-read"],
+        argumentFacts: [
+          { kind: "path", value: "workspace/public/readme.md" },
+          { kind: "path", value: "workspace/separate/report.md" }
+        ]
+      }
+    });
+
+    expect(decision).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.default_deny", reason: "default deny" }]
+    });
+  });
+
   it("applies deny rules before allow rules for denied roots", () => {
     const decision = evaluateToolCall({
       policy: readFixture<PolicyDocument>("fixtures/policies/local-dev.json"),
@@ -110,6 +131,28 @@ describe("MCP Security Proxy core", () => {
     ).toMatchObject({
       action: "deny",
       evidence: [{ code: "policy.default_deny" }]
+    });
+  });
+
+  it("denies network calls when any network fact falls outside the allowlist", () => {
+    const policy = readFixture<PolicyDocument>("fixtures/policies/local-dev.json");
+    const decision = evaluateToolCall({
+      policy,
+      profileId: "local",
+      call: {
+        method: "tools/call",
+        toolName: "fetch_url",
+        capabilities: ["network"],
+        argumentFacts: [
+          { kind: "network", value: "https://api.example.com/v1" },
+          { kind: "network", value: "https://outside.example.test/v1" }
+        ]
+      }
+    });
+
+    expect(decision).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.default_deny", reason: "default deny" }]
     });
   });
 
@@ -229,6 +272,36 @@ describe("MCP Security Proxy core", () => {
     });
   });
 
+  it("denies secret calls when any secret label is not explicitly allowed", () => {
+    const policy = policyWithRule({
+      id: "allow-api-key-secret",
+      action: "allow",
+      capabilities: ["secret"],
+      secrets: {
+        labels: ["api-key"]
+      }
+    });
+
+    const decision = evaluateToolCall({
+      policy,
+      profileId: "local",
+      call: {
+        method: "tools/call",
+        toolName: "read_secret",
+        capabilities: ["secret"],
+        argumentFacts: [
+          { kind: "secret", label: "api-key" },
+          { kind: "secret", label: "token" }
+        ]
+      }
+    });
+
+    expect(decision).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.default_deny", reason: "default deny" }]
+    });
+  });
+
   it("classifies secret-like tool descriptors without treating api alone as a secret", () => {
     const secretTool = classifyToolDescriptor({
       name: "read_secret",
@@ -262,6 +335,25 @@ describe("MCP Security Proxy core", () => {
 
     expect(redacted.value).not.toContain("REDACT_ME_VALUE_123");
     expect(event.redaction.counts.secret_like).toBe(1);
+  });
+
+  it("redacts common token and environment assignment shapes", () => {
+    const openAiPrefix = "sk";
+    const redacted = redactText(
+      [
+        `value ${openAiPrefix}-abcdefghijklmnopqrstuvwxyz`,
+        "header Bearer abcdefghijklmnop",
+        `env api${"_"}key=value`,
+        "path workspace/private/secret.txt"
+      ].join(" ")
+    );
+
+    expect(redacted.value).not.toContain(`${openAiPrefix}-abcdefghijklmnopqrstuvwxyz`);
+    expect(redacted.value).not.toContain("Bearer abcdefghijklmnop");
+    expect(redacted.value).not.toContain(`api${"_"}key=value`);
+    expect(redacted.value).not.toContain("workspace/private/secret.txt");
+    expect(redacted.summary.counts.secret_like).toBe(3);
+    expect(redacted.summary.counts.path).toBe(1);
   });
 
   it("formats audit events as one JSON Lines record without reintroducing raw values", () => {

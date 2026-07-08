@@ -9,7 +9,7 @@ import {
   type PolicyRule,
   type RedactionSummary
 } from "@0disoft/mcp-security-proxy-contracts";
-import { classifyToolDescriptor, createAuditEvent, evaluateToolCall } from "@0disoft/mcp-security-proxy-core";
+import { classifyToolDescriptor, createAuditEvent, evaluateToolCall, redactText } from "@0disoft/mcp-security-proxy-core";
 import {
   evaluateEnvelopeMethod,
   isJsonRpcRequest,
@@ -62,6 +62,7 @@ const defaultMaxJsonDepth = 64;
 const discoveryMetadataRedactionKeys = new Set(["default", "example", "examples", "$comment", "_meta"]);
 const jsonRpcRequestEnvelopeKeys = new Set(["jsonrpc", "id", "method", "params"]);
 const jsonRpcResponseEnvelopeKeys = new Set(["jsonrpc", "id", "result", "error"]);
+const toolCallParamKeys = new Set(["name", "arguments"]);
 
 export class ProxySession {
   private readonly pendingRequestMethods = new Map<string, string>();
@@ -198,7 +199,28 @@ export class ProxySession {
       };
     }
 
-    return { kind: "request", line: forwardLine, envelope: requestSanitized.envelope, auditEvents: requestSanitizeAuditEvents };
+    const toolCallParamsSanitized = sanitizeToolCallRequestEnvelope(requestSanitized.envelope);
+    if (!toolCallParamsSanitized.ok) {
+      return {
+        kind: "result",
+        result: this.withPrependedAuditEvents(
+          requestSanitizeAuditEvents,
+          this.denyEnvelope(
+            requestSanitized.envelope,
+            denyDecision(toolCallParamsSanitized.reason, { code: "jsonrpc.invalid", method: "tools/call" }),
+            "MCP tool call denied by proxy protocol state",
+            "error"
+          )
+        )
+      };
+    }
+
+    return {
+      kind: "request",
+      line: JSON.stringify(toolCallParamsSanitized.envelope),
+      envelope: toolCallParamsSanitized.envelope,
+      auditEvents: requestSanitizeAuditEvents
+    };
   }
 
   private handlePreparedClientRequest(line: string, envelope: JsonRpcEnvelope, preparedAuditEvents: readonly AuditEvent[] = []): ProxyFrameResult {
@@ -753,9 +775,12 @@ function sanitizeUpstreamError(envelope: JsonRpcEnvelope): { readonly envelope: 
     counts["jsonrpc_error_extra_fields"] = extraFieldCount;
   }
 
-  if (typeof error["message"] === "string" && looksSensitiveErrorMessage(error["message"])) {
-    error["message"] = redactedUpstreamErrorMessage;
-    counts["jsonrpc_error_message"] = 1;
+  if (typeof error["message"] === "string") {
+    const redacted = redactText(error["message"]);
+    if (redacted.summary.applied) {
+      error["message"] = redactedUpstreamErrorMessage;
+      counts["jsonrpc_error_message"] = 1;
+    }
   }
 
   if (Object.keys(counts).length === 0) {
@@ -800,6 +825,42 @@ function sanitizeJsonRpcRequestEnvelope(envelope: JsonRpcEnvelope): { readonly e
       }
     }
   };
+}
+
+function sanitizeToolCallRequestEnvelope(
+  envelope: JsonRpcEnvelope
+): { readonly ok: true; readonly envelope: JsonRpcEnvelope } | { readonly ok: false; readonly reason: string } {
+  const params = isRecord(envelope.params) ? envelope.params : undefined;
+  if (!params) {
+    return { ok: false, reason: "tools/call params must be an object" };
+  }
+
+  const extraParamCount = Object.keys(params).filter((key) => !toolCallParamKeys.has(key)).length;
+  if (extraParamCount > 0) {
+    return { ok: false, reason: "tools/call params must include only name and arguments" };
+  }
+
+  if (typeof params["name"] !== "string" || params["name"].trim().length === 0) {
+    return { ok: false, reason: "tools/call params.name must be a non-empty string" };
+  }
+
+  const sanitizedParams: Record<string, unknown> = {
+    name: params["name"]
+  };
+  if ("arguments" in params) {
+    sanitizedParams["arguments"] = params["arguments"];
+  }
+
+  const sanitized: Record<string, unknown> = {
+    jsonrpc: "2.0"
+  };
+  if ("id" in envelope) {
+    sanitized["id"] = envelope.id;
+  }
+  sanitized["method"] = "tools/call";
+  sanitized["params"] = sanitizedParams;
+
+  return { ok: true, envelope: sanitized as unknown as JsonRpcEnvelope };
 }
 
 function sanitizeJsonRpcResponseEnvelope(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
@@ -1139,26 +1200,6 @@ function noRedaction(): RedactionSummary {
     applied: false,
     counts: {}
   };
-}
-
-function looksLikePath(value: string): boolean {
-  return value.includes("/") || value.includes("\\");
-}
-
-function looksLikeUrl(value: string): boolean {
-  return /^https?:\/\//i.test(value);
-}
-
-function looksSensitiveErrorMessage(value: string): boolean {
-  return looksLikeUrl(value) || looksLikePathInMessage(value) || /REDACT_ME[A-Z0-9_]*/.test(value);
-}
-
-function looksLikePathInMessage(value: string): boolean {
-  return (
-    /(?:^|\s)[A-Za-z]:[\\/]\S+/.test(value) ||
-    /(?:^|\s)(?:\.{1,2}|~|workspace|home|users?|tmp|temp|private|secrets?)[\\/]\S+/i.test(value) ||
-    /(?:^|\s)\S+[\\/]\S*\.[A-Za-z0-9]{1,12}(?:\s|$)/.test(value)
-  );
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {

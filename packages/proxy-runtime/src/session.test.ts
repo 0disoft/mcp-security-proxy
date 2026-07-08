@@ -977,6 +977,50 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("redacts upstream JSON-RPC error messages that contain common token shapes", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "token-error-message",
+        method: "ping"
+      })
+    );
+    const openAiPrefix = "sk";
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "token-error-message",
+        error: {
+          code: -32000,
+          message: `failed with ${openAiPrefix}-abcdefghijklmnopqrstuvwxyz and Bearer abcdefghijklmnop`
+        }
+      })
+    );
+
+    const forwarded = JSON.parse(result.forwardLine ?? "{}") as {
+      readonly error?: { readonly code?: number; readonly message?: string };
+    };
+    expect(forwarded.error?.message).toBe("upstream error message redacted");
+    expect(result.forwardLine).not.toContain(`${openAiPrefix}-abcdefghijklmnopqrstuvwxyz`);
+    expect(result.forwardLine).not.toContain("Bearer abcdefghijklmnop");
+    expect(JSON.stringify(result.auditEvents)).not.toContain(`${openAiPrefix}-abcdefghijklmnopqrstuvwxyz`);
+    expect(JSON.stringify(result.auditEvents)).not.toContain("Bearer abcdefghijklmnop");
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_error_message: 1
+        }
+      }
+    });
+  });
+
   it("redacts both upstream JSON-RPC error data and sensitive messages", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -2740,7 +2784,17 @@ describe("proxy runtime session", () => {
     });
     const result = session.handleClientLine(line);
 
-    expect(result.forwardLine).toBe(line);
+    expect(JSON.parse(result.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      method: "tools/call",
+      id: 6,
+      params: {
+        name: "read_file",
+        arguments: {
+          path: "workspace/public/readme.md"
+        }
+      }
+    });
     expect(result.responseLine).toBeUndefined();
     expect(result.auditEvents[0]).toMatchObject({
       kind: "call-decision",
@@ -2748,6 +2802,59 @@ describe("proxy runtime session", () => {
       decision: {
         action: "allow",
         evidence: [{ ruleId: "allow-public-files" }]
+      }
+    });
+  });
+
+  it("denies tool calls with params outside the canonical forwarding shape", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+    primeToolDiscovery(session);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-with-extra-param",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          },
+          extraPath: "workspace/private/secret.txt"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.stringify(result.auditEvents)).not.toContain("workspace/private/secret.txt");
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "call-with-extra-param",
+      error: {
+        code: -32001,
+        message: "MCP tool call denied by proxy protocol state",
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                method: "tools/call",
+                reason: "tools/call params must include only name and arguments"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(result.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.invalid", method: "tools/call" }]
       }
     });
   });
@@ -2892,7 +2999,15 @@ describe("proxy runtime session", () => {
       return { approved: true };
     });
 
-    expect(result.forwardLine).toBe(line);
+    expect(JSON.parse(result.forwardLine ?? "{}")).toEqual({
+      jsonrpc: "2.0",
+      method: "tools/call",
+      id: "approval-async",
+      params: {
+        name: "run_command",
+        arguments: {}
+      }
+    });
     expect(result.responseLine).toBeUndefined();
     expect(result.auditEvents[0]).toMatchObject({
       kind: "call-decision",

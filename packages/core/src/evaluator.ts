@@ -121,18 +121,18 @@ function matcherMatches(kind: "path" | "command" | "network" | "secret", rule: P
 
   if (kind === "command") {
     return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "command"), Boolean(rule.commands), () =>
-      rule.commands ? commandRuleMatches(rule.commands, call.argumentFacts) : false
+      rule.commands ? commandRuleMatches(rule.commands, call.argumentFacts, rule.action === "deny" ? "deny" : "allow") : false
     );
   }
 
   if (kind === "network") {
     return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "network"), Boolean(rule.networks), () =>
-      rule.networks ? networkRuleMatches(rule.networks, call.argumentFacts) : false
+      rule.networks ? networkRuleMatches(rule.networks, call.argumentFacts, rule.action === "deny" ? "deny" : "allow") : false
     );
   }
 
   return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "secret"), Boolean(rule.secrets), () =>
-    rule.secrets ? secretRuleMatches(rule.secrets, call.argumentFacts) : false
+    rule.secrets ? secretRuleMatches(rule.secrets, call.argumentFacts, rule.action === "deny" ? "deny" : "allow") : false
   );
 }
 

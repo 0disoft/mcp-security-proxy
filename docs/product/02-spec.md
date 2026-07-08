@@ -39,6 +39,9 @@ discovery and tool calls through explicit policy, redaction, and audit events.
 - Forward JSON-RPC requests and notifications across the proxy boundary only after rebuilding the
   request envelope with `jsonrpc`, `method`, optional `id`, and optional `params`; unknown request
   envelope fields are removed before forwarding.
+- Forward `tools/call` requests only after rebuilding `params` from the canonical evaluated shape:
+  a non-empty string `name` and optional `arguments`. Unknown `tools/call.params` fields are denied
+  instead of forwarded because the evaluator did not inspect them.
 - Forward upstream responses only when their JSON-RPC `id` exactly matches a pending client
   request, including the original id type.
 - Forward client responses only when their JSON-RPC `id` exactly matches a pending upstream
