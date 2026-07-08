@@ -75,7 +75,8 @@ const checkWorkspacePackage = (manifest, manifestPath, packageReleaseVersions = 
   assertEqual(manifest.exports?.["."]?.default === "./dist/index.js", `${file}: exports[.].default must point at ./dist/index.js`);
   assertEqual(existsSync(join(packageRoot, "src", "index.ts")), `${file}: src/index.ts must exist for the exported type surface`);
   assertEqual(existsSync(join(packageRoot, "tsconfig.json")), `${file}: tsconfig.json must exist for package build/typecheck ownership`);
-  assertEqual(manifest.scripts?.build === "tsc -p tsconfig.json", `${file}: build script must use tsc -p tsconfig.json`);
+  assertEqual(existsSync(join(packageRoot, "tsconfig.build.json")), `${file}: tsconfig.build.json must exist for test-excluded package builds`);
+  assertEqual(manifest.scripts?.build === "tsc -p tsconfig.build.json", `${file}: build script must use tsc -p tsconfig.build.json`);
   assertEqual(manifest.scripts?.typecheck === "tsc -p tsconfig.json --noEmit", `${file}: typecheck script must use tsc -p tsconfig.json --noEmit`);
 };
 
@@ -155,7 +156,7 @@ const checkPackageSurfaceValidator = () => {
       }
     },
     scripts: {
-      build: "tsc -p tsconfig.json",
+      build: "tsc -p tsconfig.build.json",
       typecheck: "tsc -p tsconfig.json --noEmit"
     }
   };

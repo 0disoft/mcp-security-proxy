@@ -35,8 +35,11 @@ Until release readiness records public package names and artifacts:
 - package names must stay under `@0disoft/mcp-security-proxy-*`;
 - Node.js compatibility must stay `>=24.0.0`;
 - package entrypoints must expose `./src/index.ts` types and `./dist/index.js` runtime output;
-- every package must keep `src/index.ts`, `tsconfig.json`, `build`, and `typecheck` ownership
-  aligned with the exported entrypoint;
+- every package must keep `src/index.ts`, `tsconfig.json`, `tsconfig.build.json`, `build`, and
+  `typecheck` ownership aligned with the exported entrypoint;
+- every package build must compile with `tsconfig.build.json`, which excludes `src/**/*.test.ts`
+  from emitted `dist/` artifacts while `typecheck` continues to validate the full `tsconfig.json`
+  source set;
 - the CLI package must keep the `mcp-security-proxy` bin pointing at `./dist/main.js` and the
   matching `src/main.ts` source entrypoint;
 - the root workspace must not declare runtime, peer, or optional dependencies until release

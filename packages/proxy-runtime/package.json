@@ -12,7 +12,7 @@
   },
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "pnpm --filter @0disoft/mcp-security-proxy-contracts build && pnpm --filter @0disoft/mcp-security-proxy-core build && pnpm --filter @0disoft/mcp-security-proxy-mcp-adapter build && vitest run src",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

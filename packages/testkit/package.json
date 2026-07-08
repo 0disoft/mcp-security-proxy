@@ -12,7 +12,7 @@
   },
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "pnpm typecheck",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
