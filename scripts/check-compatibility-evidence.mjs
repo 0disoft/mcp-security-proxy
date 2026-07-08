@@ -84,6 +84,7 @@ const requiredEvidenceIds = new Set([
   "runtime-duplicate-server-request-id",
   "runtime-malformed-discovery",
   "runtime-pending-discovery-id-type",
+  "runtime-unmatched-response-denial",
   "runtime-server-envelope-sanitization",
   "runtime-upstream-response-envelope-sanitization",
   "runtime-server-origin-unsupported-method",
@@ -428,6 +429,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "duplicate-server-request-id",
     "malformed-discovery",
     "pending-discovery-id-type",
+    "unmatched-response-denial",
     "server-envelope-sanitization",
     "upstream-response-envelope-sanitization",
     "server-origin-unsupported-method",
@@ -540,6 +542,42 @@ async function checkRuntimeSessionFixture(id, path, item) {
         ? parseJsonText(arrayParams.responseLine, `${id}: arrayParams.responseLine`)
         : undefined,
       arrayParamsAuditEvents: arrayParams.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "unmatched-response-denial") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const upstream = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-unmatched-upstream-response",
+        result: {
+          marker: "RAW_UNMATCHED_UPSTREAM_RESPONSE_MARKER"
+        }
+      })
+    );
+    const client = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-unmatched-client-response",
+        result: {
+          marker: "RAW_UNMATCHED_CLIENT_RESPONSE_MARKER"
+        }
+      })
+    );
+    const actual = {
+      upstreamForwarded: upstream.forwardLine !== undefined,
+      upstreamResponse: upstream.responseLine ? parseJsonText(upstream.responseLine, `${id}: upstream.responseLine`) : null,
+      upstreamAuditEvents: upstream.auditEvents,
+      clientForwarded: client.forwardLine !== undefined,
+      clientResponse: client.responseLine ? parseJsonText(client.responseLine, `${id}: client.responseLine`) : null,
+      clientAuditEvents: client.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

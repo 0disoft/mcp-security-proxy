@@ -484,6 +484,14 @@
       "scenario": "pending-discovery-id-type"
     },
     {
+      "id": "runtime-unmatched-response-denial",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-unmatched-response-denial.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "unmatched-response-denial"
+    },
+    {
       "id": "runtime-server-envelope-sanitization",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-server-envelope-sanitization.json",
