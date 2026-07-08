@@ -1,0 +1,59 @@
+{
+  "firstForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-duplicate-server-id",
+    "method": "ping"
+  },
+  "firstAuditEvents": [],
+  "duplicateForwarded": false,
+  "duplicateResponse": {
+    "jsonrpc": "2.0",
+    "id": "compat-duplicate-server-id",
+    "error": {
+      "code": -32001,
+      "message": "MCP request denied by proxy protocol state",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "jsonrpc.invalid",
+              "method": "ping",
+              "reason": "upstream server JSON-RPC request id already has a pending client response"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "duplicateAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "method": "ping",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "method": "ping",
+            "reason": "upstream server JSON-RPC request id already has a pending client response"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "originalResponseForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-duplicate-server-id",
+    "result": {}
+  },
+  "originalResponseAuditEvents": []
+}

@@ -78,6 +78,7 @@ const requiredEvidenceIds = new Set([
   "runtime-discovery-replacement",
   "runtime-duplicate-client-request-id",
   "runtime-duplicate-discovery",
+  "runtime-duplicate-server-request-id",
   "runtime-malformed-discovery",
   "runtime-pending-discovery-id-type",
   "runtime-server-origin-unsupported-method",
@@ -411,6 +412,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "discovery-replacement",
     "duplicate-client-request-id",
     "duplicate-discovery",
+    "duplicate-server-request-id",
     "malformed-discovery",
     "pending-discovery-id-type",
     "server-origin-unsupported-method",
@@ -542,6 +544,48 @@ async function checkRuntimeSessionFixture(id, path, item) {
         ? parseJsonText(callAfterOriginalResponse.responseLine, `${id}: callAfterOriginalResponse.responseLine`)
         : null,
       callAfterOriginalResponseAuditEvents: callAfterOriginalResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "duplicate-server-request-id") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const first = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-duplicate-server-id",
+        method: "ping"
+      })
+    );
+    const duplicate = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-duplicate-server-id",
+        method: "ping"
+      })
+    );
+    const originalResponse = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-duplicate-server-id",
+        result: {}
+      })
+    );
+    const actual = {
+      firstForwarded: first.forwardLine ? parseJsonText(first.forwardLine, `${id}: first.forwardLine`) : undefined,
+      firstAuditEvents: first.auditEvents,
+      duplicateForwarded: duplicate.forwardLine !== undefined,
+      duplicateResponse: duplicate.responseLine ? parseJsonText(duplicate.responseLine, `${id}: duplicate.responseLine`) : undefined,
+      duplicateAuditEvents: duplicate.auditEvents,
+      originalResponseForwarded: originalResponse.forwardLine
+        ? parseJsonText(originalResponse.forwardLine, `${id}: originalResponse.forwardLine`)
+        : undefined,
+      originalResponseAuditEvents: originalResponse.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

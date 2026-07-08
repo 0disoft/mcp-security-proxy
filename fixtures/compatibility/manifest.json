@@ -436,6 +436,14 @@
       "scenario": "duplicate-discovery"
     },
     {
+      "id": "runtime-duplicate-server-request-id",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-duplicate-server-request-id.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "duplicate-server-request-id"
+    },
+    {
       "id": "runtime-malformed-discovery",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-malformed-discovery.json",
