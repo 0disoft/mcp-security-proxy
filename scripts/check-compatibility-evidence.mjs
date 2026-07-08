@@ -74,6 +74,7 @@ const requiredEvidenceIds = new Set([
   "runtime-approval-rejected-redacted",
   "runtime-approval-hook-error",
   "runtime-approval-timeout",
+  "runtime-client-envelope-sanitization",
   "runtime-client-unsupported-method",
   "runtime-discovery-replacement",
   "runtime-duplicate-client-request-id",
@@ -408,6 +409,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "approval-hook-error",
     "approval-rejected-redacted",
     "approval-timeout",
+    "client-envelope-sanitization",
     "client-unsupported-method",
     "discovery-replacement",
     "duplicate-client-request-id",
@@ -459,6 +461,55 @@ async function checkRuntimeSessionFixture(id, path, item) {
       serverRequestAuditEvents: serverRequest.auditEvents,
       invalidClientResponseForwarded: invalidClientResponse.forwardLine !== undefined,
       invalidClientResponseAuditEvents: invalidClientResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "client-envelope-sanitization") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-envelope-tools",
+        method: "tools/list"
+      })
+    );
+    const discovery = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-envelope-tools",
+        result: readJson("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+    const call = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-call-with-envelope-extra",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        },
+        trace: {
+          marker: "RAW_TOOL_CALL_ENVELOPE_TRACE_MARKER"
+        }
+      })
+    );
+    const actual = {
+      discoveryForwarded: discovery.forwardLine
+        ? parseJsonText(discovery.forwardLine, `${id}: discovery.forwardLine`)
+        : undefined,
+      discoveryAuditEvents: discovery.auditEvents,
+      callForwarded: call.forwardLine ? parseJsonText(call.forwardLine, `${id}: call.forwardLine`) : undefined,
+      callResponse: call.responseLine ? parseJsonText(call.responseLine, `${id}: call.responseLine`) : null,
+      callAuditEvents: call.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

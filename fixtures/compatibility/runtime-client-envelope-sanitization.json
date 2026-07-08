@@ -1,0 +1,92 @@
+{
+  "discoveryForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-envelope-tools",
+    "result": {
+      "tools": [
+        {
+          "name": "read_file",
+          "description": "Read a file from a caller-provided path."
+        }
+      ]
+    }
+  },
+  "discoveryAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "discovery-filtered",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "discovery.filtered",
+            "reason": "3 tool(s) hidden by discovery policy"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "callForwarded": {
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "id": "compat-call-with-envelope-extra",
+    "params": {
+      "name": "read_file",
+      "arguments": {
+        "path": "workspace/public/readme.md"
+      }
+    }
+  },
+  "callResponse": null,
+  "callAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.request_extra_fields_redacted",
+            "reason": "client JSON-RPC request extra fields removed before forwarding"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": true,
+        "counts": {
+          "jsonrpc_request_extra_fields": 1
+        }
+      }
+    },
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "call-decision",
+      "profileId": "local",
+      "toolName": "read_file",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "allow",
+        "evidence": [
+          {
+            "code": "policy.rule_allow",
+            "ruleId": "allow-public-files",
+            "capability": "file-read",
+            "reason": "matched allow rule"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}

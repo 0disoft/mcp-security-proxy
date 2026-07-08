@@ -404,6 +404,14 @@
       "scenario": "approval-hook-error"
     },
     {
+      "id": "runtime-client-envelope-sanitization",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-client-envelope-sanitization.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "client-envelope-sanitization"
+    },
+    {
       "id": "runtime-client-unsupported-method",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-client-unsupported-method.json",
