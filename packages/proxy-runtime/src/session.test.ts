@@ -3294,6 +3294,60 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("keeps pending request capacity enforcement on approval-capable allow paths", async () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local",
+      maxPendingRequests: 1
+    });
+    primeToolDiscovery(session);
+
+    const pending = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-capacity-pending",
+        method: "ping"
+      })
+    );
+    expect(pending.forwardLine).toBeTruthy();
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-capacity-allow",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      }),
+      () => ({ approved: true })
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "approval-capacity-allow",
+      error: {
+        code: -32001,
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                method: "tools/call",
+                reason: "client pending request limit exceeded"
+              }
+            ]
+          }
+        }
+      }
+    });
+  });
+
   it("does not forward or audit raw approval hook rejection reasons", async () => {
     const session = createProxySession({
       policy: readApprovalPolicy(),
@@ -3457,6 +3511,45 @@ describe("proxy runtime session", () => {
       decision: {
         action: "deny",
         evidence: [{ code: "policy.approval_hook_failed", ruleId: "approval-shell", reason: "approval hook timed out" }]
+      }
+    });
+  });
+
+  it("handles approval hook rejection that arrives after timeout", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local",
+      approvalTimeoutMs: 1
+    });
+    primeShellDiscovery(session);
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-late-reject",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      async () => {
+        await sleep(5);
+        throw new Error("late approval failure");
+      }
+    );
+    await sleep(10);
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      id: "approval-late-reject",
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ code: "policy.approval_hook_failed", reason: "approval hook timed out" }]
+          }
+        }
       }
     });
   });

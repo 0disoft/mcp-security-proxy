@@ -158,6 +158,39 @@ describe("MCP Security Proxy core", () => {
     expect(decision.evidence[0]?.reason).toBe("free-form shell command denied by default");
   });
 
+  it("denies interpreter inline-code flags before shell allow rules can match", () => {
+    const policy = policyWithRule({
+      id: "allow-shell",
+      action: "allow",
+      capabilities: ["shell"]
+    });
+    for (const [executable, argv] of [
+      ["python", ["-c", "print(1)"]],
+      ["python3", ["-c", "print(1)"]],
+      ["node", ["-e", "console.log(1)"]],
+      ["ruby", ["-e", "puts 1"]],
+      ["perl", ["-e", "print 1"]],
+      ["php", ["-r", "echo 1;"]],
+      ["lua", ["-e", "print(1)"]]
+    ] as const) {
+      const decision = evaluateToolCall({
+        policy,
+        profileId: "local",
+        call: {
+          method: "tools/call",
+          toolName: "run_command",
+          capabilities: ["shell"],
+          argumentFacts: [{ kind: "command", executable, argv }]
+        }
+      });
+
+      expect(decision, executable).toMatchObject({
+        action: "deny",
+        evidence: [{ code: "policy.free_form_shell" }]
+      });
+    }
+  });
+
   it("matches network facts only through argument-level network policy", () => {
     const policy = readFixture<PolicyDocument>("fixtures/policies/local-dev.json");
 
@@ -217,6 +250,38 @@ describe("MCP Security Proxy core", () => {
       action: "deny",
       evidence: [{ code: "policy.ambiguous_network", reason: "ambiguous network target denied by default" }]
     });
+  });
+
+  it("normalizes alternate localhost IP forms before network rule matching", () => {
+    const policy = policyWithRule({
+      id: "deny-localhost",
+      action: "deny",
+      capabilities: ["network"],
+      networks: [{ ips: ["127.0.0.1"] }]
+    });
+
+    for (const value of [
+      "http://2130706433/admin",
+      "http://0x7f000001/admin",
+      "http://0177.0.0.1/admin",
+      "http://[::ffff:127.0.0.1]/admin"
+    ]) {
+      const decision = evaluateToolCall({
+        policy,
+        profileId: "local",
+        call: {
+          method: "tools/call",
+          toolName: "fetch_url",
+          capabilities: ["network"],
+          argumentFacts: [{ kind: "network", value }]
+        }
+      });
+
+      expect(decision, value).toMatchObject({
+        action: "deny",
+        evidence: [{ code: "policy.rule_deny", ruleId: "deny-localhost" }]
+      });
+    }
   });
 
   it("turns approval-required into deny when no approval hook is available", () => {
@@ -404,6 +469,40 @@ describe("MCP Security Proxy core", () => {
     expect(redacted.value).not.toContain("workspace/private/secret.txt");
     expect(redacted.summary.counts.secret_like).toBe(3);
     expect(redacted.summary.counts.path).toBe(1);
+  });
+
+  it("uses policy redaction detector replacements for configured detector kinds", () => {
+    const redacted = redactText("token=RAW_POLICY_REDACTION_MARKER PROMPT: summarize private notes; WORKSPACE_ID=abc123", {
+      detectors: [
+        {
+          id: "custom-secret",
+          kind: "secret_like",
+          replacement: "[SECRET_VALUE]"
+        },
+        {
+          id: "custom-prompt",
+          kind: "prompt",
+          replacement: "[PROMPT_VALUE]"
+        },
+        {
+          id: "custom-env",
+          kind: "environment_value",
+          replacement: "[ENV_VALUE]"
+        }
+      ]
+    });
+
+    expect(redacted.value).toContain("[SECRET_VALUE]");
+    expect(redacted.value).toContain("[PROMPT_VALUE]");
+    expect(redacted.value).toContain("[ENV_VALUE]");
+    expect(redacted.value).not.toContain("RAW_POLICY_REDACTION_MARKER");
+    expect(redacted.value).not.toContain("private notes");
+    expect(redacted.value).not.toContain("WORKSPACE_ID=abc123");
+    expect(redacted.summary.counts).toMatchObject({
+      secret_like: 1,
+      prompt: 1,
+      environment_value: 1
+    });
   });
 
   it("formats audit events as one JSON Lines record without reintroducing raw values", () => {

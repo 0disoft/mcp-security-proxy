@@ -56,7 +56,9 @@ This repository type owns public API surface, package compatibility, semantic ve
   `policy.secret_capability_required`, and `policy.unknown_capability` instead of relying on
   reason text.
 - Unsupported-method decisions must use the same evidence model as tool-call decisions.
-- Redaction summaries must count replacements without exposing original values.
+- Redaction summaries must count replacements without exposing original values, and `redactText`
+  must honor policy redaction detector kinds and replacement tokens when a policy redaction block
+  is supplied.
 - Policy errors must be value-based and testable.
 - Policy JSON parse errors must not echo the original policy text because policy files can contain
   sensitive local paths, labels, or operational details.

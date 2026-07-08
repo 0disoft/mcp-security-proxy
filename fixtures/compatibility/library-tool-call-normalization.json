@@ -22,6 +22,10 @@
         "script.js",
         "--flag"
       ]
+    },
+    {
+      "kind": "path",
+      "value": "script.js"
     }
   ]
 }

@@ -338,6 +338,10 @@ export class ProxySession {
     });
 
     if (decision.action === "allow") {
+      const pendingDenied = this.denyPendingCapacityExceeded(envelope, this.pendingRequestMethods, "client");
+      if (pendingDenied) {
+        return this.withPrependedAuditEvents(preparedAuditEvents, pendingDenied);
+      }
       this.rememberPendingRequest(envelope);
       return {
         forwardLine: line,
@@ -450,7 +454,7 @@ export class ProxySession {
       };
     }
 
-    const errorSanitized = sanitizeUpstreamError(envelope);
+    const errorSanitized = sanitizeUpstreamError(envelope, this.options.policy.redaction);
     const envelopeSanitized = sanitizeJsonRpcResponseEnvelope(errorSanitized.envelope);
     const sanitized = {
       envelope: envelopeSanitized.envelope,
@@ -854,7 +858,10 @@ function isJsonRpcErrorObject(value: unknown): boolean {
   return isRecord(value) && typeof value["code"] === "number" && typeof value["message"] === "string";
 }
 
-function sanitizeUpstreamError(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
+function sanitizeUpstreamError(
+  envelope: JsonRpcEnvelope,
+  redactionPolicy: PolicyDocument["redaction"]
+): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
   const originalError = isRecord(envelope.error) ? envelope.error : undefined;
   if (!originalError) {
     return { envelope, redaction: noRedaction() };
@@ -875,7 +882,7 @@ function sanitizeUpstreamError(envelope: JsonRpcEnvelope): { readonly envelope: 
   }
 
   if (typeof error["message"] === "string") {
-    const redacted = redactText(error["message"]);
+    const redacted = redactText(error["message"], redactionPolicy);
     if (redacted.summary.applied) {
       error["message"] = redactedUpstreamErrorMessage;
       counts["jsonrpc_error_message"] = 1;
@@ -1293,9 +1300,11 @@ function resolveOptionalPositiveInteger(value: number | undefined): number | und
 
 async function withApprovalTimeout(approval: ApprovalResult | Promise<ApprovalResult>, timeoutMs: number): Promise<ApprovalResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const approvalPromise = Promise.resolve(approval);
+  approvalPromise.catch(() => undefined);
   try {
     return await Promise.race([
-      approval,
+      approvalPromise,
       new Promise<ApprovalResult>((_resolve, reject) => {
         timer = setTimeout(() => reject(new ApprovalHookTimeout()), timeoutMs);
       })

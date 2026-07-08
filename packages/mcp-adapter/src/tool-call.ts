@@ -27,6 +27,11 @@ export function extractArgumentFacts(value: unknown): NormalizedToolCall["argume
 
 function collectArgumentFacts(value: unknown, facts: NormalizedToolCall["argumentFacts"][number][]): void {
   if (typeof value === "string") {
+    const fileUrlPath = pathFromFileUrl(value);
+    if (fileUrlPath) {
+      facts.push({ kind: "path", value: fileUrlPath });
+      return;
+    }
     if (looksLikeUrl(value)) {
       facts.push({ kind: "network", value });
       return;
@@ -84,11 +89,31 @@ function secretLabelForKey(key: string): string | undefined {
 }
 
 function looksLikePath(value: string): boolean {
-  return value.includes("/") || value.includes("\\");
+  return (
+    value.includes("/") ||
+    value.includes("\\") ||
+    /^\.{1,2}(?:$|[/\\])/u.test(value) ||
+    /^\.[A-Za-z0-9_-]+$/u.test(value) ||
+    /\.(?:bat|cert|cmd|conf|config|crt|csv|db|env|go|ini|java|js|json|jsx|key|log|md|pem|ps1|py|rb|rs|sh|sqlite|sql|toml|ts|tsx|txt|ya?ml)$/iu.test(
+      value
+    )
+  );
 }
 
 function looksLikeUrl(value: string): boolean {
-  return /^https?:\/\//i.test(value);
+  return /^[A-Za-z][A-Za-z0-9+.-]*:\/\//u.test(value);
+}
+
+function pathFromFileUrl(value: string): string | undefined {
+  if (!/^file:\/\//iu.test(value)) {
+    return undefined;
+  }
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "file:" && parsed.pathname.length > 0 ? parsed.pathname : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {

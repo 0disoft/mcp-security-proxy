@@ -1,4 +1,7 @@
-import type { RedactionSummary } from "@0disoft/mcp-security-proxy-contracts";
+import type {
+  RedactionPolicy,
+  RedactionSummary
+} from "@0disoft/mcp-security-proxy-contracts";
 
 export interface RedactionResult {
   readonly value: string;
@@ -20,15 +23,30 @@ const pathLikePatterns = [
   /(?:^|\s)(?:\.{1,2}|~|workspace|home|users?|tmp|temp|private|secrets?)[\\/]\S+/gi,
   /(?:^|\s)\S+[\\/]\S*\.[A-Za-z0-9]{1,12}(?=\s|$)/g
 ] as const;
+const environmentValuePatterns = [
+  /\b[A-Z_][A-Z0-9_]{1,}\s*=\s*(?:"[^"]*"|'[^']*'|[^\s;]+)/g
+] as const;
+const promptLikePatterns = [
+  /\bprompt\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\r\n;]+)/gi
+] as const;
 
-export function redactText(value: string, replacement = "[REDACTED]"): RedactionResult {
+type RedactionKind = RedactionPolicy["detectors"][number]["kind"];
+
+const builtInPatternFamilies: Readonly<Record<RedactionKind, readonly RegExp[]>> = {
+  secret_like: secretLikePatterns,
+  environment_value: environmentValuePatterns,
+  path: pathLikePatterns,
+  prompt: promptLikePatterns
+};
+
+export function redactText(value: string, options: RedactionPolicy | string = "[REDACTED]"): RedactionResult {
+  const detectors = resolveDetectors(options);
   const counts: Record<string, number> = {};
   let redacted = value;
-  for (const pattern of secretLikePatterns) {
-    redacted = replaceAndCount(redacted, pattern, replacement, counts, "secret_like");
-  }
-  for (const pattern of pathLikePatterns) {
-    redacted = replaceAndCount(redacted, pattern, replacement, counts, "path");
+  for (const detector of detectors) {
+    for (const pattern of builtInPatternFamilies[detector.kind]) {
+      redacted = replaceAndCount(redacted, pattern, detector.replacement, counts, detector.kind);
+    }
   }
 
   return {
@@ -40,12 +58,40 @@ export function redactText(value: string, replacement = "[REDACTED]"): Redaction
   };
 }
 
+function resolveDetectors(options: RedactionPolicy | string): readonly { readonly kind: RedactionKind; readonly replacement: string }[] {
+  if (typeof options === "string") {
+    return [
+      { kind: "secret_like", replacement: options },
+      { kind: "path", replacement: options }
+    ];
+  }
+
+  const configured = new Map<RedactionKind, string>();
+  for (const detector of options.detectors) {
+    if (!configured.has(detector.kind)) {
+      configured.set(detector.kind, detector.replacement);
+    }
+  }
+
+  const detectors: { readonly kind: RedactionKind; readonly replacement: string }[] = [
+    { kind: "secret_like", replacement: configured.get("secret_like") ?? "[REDACTED]" },
+    { kind: "path", replacement: configured.get("path") ?? "[REDACTED]" }
+  ];
+  for (const kind of ["environment_value", "prompt"] as const) {
+    const replacement = configured.get(kind);
+    if (replacement !== undefined) {
+      detectors.push({ kind, replacement });
+    }
+  }
+  return detectors;
+}
+
 function replaceAndCount(
   value: string,
   pattern: RegExp,
   replacement: string,
   counts: Record<string, number>,
-  label: "path" | "secret_like"
+  label: RedactionKind
 ): string {
   return value.replace(pattern, () => {
     counts[label] = (counts[label] ?? 0) + 1;

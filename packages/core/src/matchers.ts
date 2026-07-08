@@ -168,6 +168,7 @@ function basename(value: string): string {
 function isDeniedShellCommand(fact: Extract<ArgumentFact, { readonly kind: "command" }>): boolean {
   const executable = basename(fact.executable).toLowerCase().replace(/\.exe$/u, "");
   const firstArg = fact.argv[0]?.toLowerCase();
+  const secondArg = fact.argv[1]?.toLowerCase();
 
   if (["sh", "bash", "zsh"].includes(executable)) {
     return firstArg === "-c";
@@ -177,7 +178,23 @@ function isDeniedShellCommand(fact: Extract<ArgumentFact, { readonly kind: "comm
     return firstArg === "-command" || firstArg === "-c";
   }
 
-  return executable === "cmd" && firstArg === "/c";
+  if (executable === "cmd") {
+    return firstArg === "/c";
+  }
+
+  if (/^python(?:\d+(?:\.\d+)?)?$/u.test(executable)) {
+    return firstArg === "-c" || secondArg === "-c";
+  }
+
+  if (["node", "deno", "bun", "ruby", "perl", "lua"].includes(executable)) {
+    return firstArg === "-e";
+  }
+
+  if (executable === "php") {
+    return firstArg === "-r";
+  }
+
+  return false;
 }
 
 function normalizeNetworkValue(
@@ -194,8 +211,9 @@ function normalizeNetworkValue(
       return { ok: false };
     }
 
-    const host = parsed.hostname.toLowerCase();
-    return isIpAddress(host) ? { ok: true, host, ip: host } : { ok: true, host };
+    const host = normalizeHost(parsed.hostname);
+    const ip = normalizeIpAddress(host);
+    return ip ? { ok: true, host: ip, ip } : { ok: true, host };
   } catch {
     return { ok: false };
   }
@@ -210,6 +228,25 @@ function hostMatchesDomain(host: string, domain: string): boolean {
   return host === normalizedDomain || host.endsWith(`.${normalizedDomain}`);
 }
 
-function isIpAddress(value: string): boolean {
-  return /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(value) || value.includes(":");
+function normalizeHost(value: string): string {
+  const host = value.toLowerCase();
+  return host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
+}
+
+function normalizeIpAddress(value: string): string | undefined {
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/u.test(value)) {
+    const octets = value.split(".").map((part) => Number(part));
+    return octets.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) ? octets.join(".") : undefined;
+  }
+
+  const mapped = value.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/iu);
+  if (mapped) {
+    const high = Number.parseInt(mapped[1] ?? "", 16);
+    const low = Number.parseInt(mapped[2] ?? "", 16);
+    if (Number.isInteger(high) && Number.isInteger(low)) {
+      return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+    }
+  }
+
+  return value.includes(":") ? value : undefined;
 }

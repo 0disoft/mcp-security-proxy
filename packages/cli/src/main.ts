@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { appendFileSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { appendFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { runCliAsync, type CliRunIo } from "./commands.js";
@@ -12,7 +13,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     stderr: (line) => console.error(line),
     clientInput: process.stdin,
     mcpOutput: process.stdout,
-    appendTextFile: (path, text) => appendFileSync(path, text, "utf8"),
+    appendTextFile: (path, text) => appendFile(path, text, "utf8"),
     spawnUpstream
   });
   return result.exitCode;
