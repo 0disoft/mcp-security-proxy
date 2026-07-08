@@ -470,16 +470,16 @@ describe("dry-run CLI commands", () => {
 
   it("reports malformed policy files as policy errors", () => {
     const output = invoke(["check-policy", "--policy", "fixtures/policies/broken.json", "--json"], {
-      "fixtures/policies/broken.json": "{"
+      "fixtures/policies/broken.json": '{"schemaVersion":"RAW_POLICY_SECRET_MARKER"'
     });
 
     expect(output.exitCode).toBe(3);
     expect(output.stdoutJson()).toMatchObject({
       ok: false,
-      error: {
-        code: 3
-      }
+      command: "check-policy",
+      errors: ["policy JSON is invalid"]
     });
+    expect(output.stdout.join("\n")).not.toContain("RAW_POLICY_SECRET_MARKER");
   });
 });
 

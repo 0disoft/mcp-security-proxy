@@ -1,7 +1,7 @@
 import {
   knownSchemaVersions,
+  parsePolicyDocumentJson,
   validateNormalizedToolCall,
-  validatePolicyDocument,
   validateToolListCapture,
   type NormalizedToolCall,
   type PolicyDocument
@@ -134,8 +134,7 @@ export async function runCliAsync(argv: readonly string[], io: CliRunIo): Promis
 
 function checkPolicy(flags: Readonly<Record<string, string | true>>, io: CliIo): CliResult {
   const policyPath = readRequiredStringFlag(flags, "policy");
-  const parsed = readJson(io, policyPath, 3);
-  const validation = validatePolicyDocument(parsed);
+  const validation = parsePolicyDocumentJson(readTextFile(io, policyPath, 3));
   if (!validation.ok) {
     writeJsonOrHuman(
       io,
@@ -227,20 +226,7 @@ function evalCall(flags: Readonly<Record<string, string | true>>, io: CliIo): Cl
   const profileId = readOptionalStringFlag(flags, "profile") ?? "default";
   const approvalHookAvailable = flags["approval-hook"] === true;
 
-  const policyValidation = validatePolicyDocument(readJson(io, policyPath, 3));
-  if (!policyValidation.ok) {
-    writeJsonOrHuman(
-      io,
-      flags,
-      {
-        ok: false,
-        command: "eval-call",
-        errors: policyValidation.errors
-      },
-      `policy invalid: ${policyValidation.errors.join("; ")}`
-    );
-    return { exitCode: 3 };
-  }
+  const policy = readRequiredPolicy(io, policyPath);
 
   const callValidation = validateNormalizedToolCall(readJson(io, inputPath, 2));
   if (!callValidation.ok) {
@@ -258,7 +244,7 @@ function evalCall(flags: Readonly<Record<string, string | true>>, io: CliIo): Cl
   }
 
   const decision = evaluateToolCall({
-    policy: policyValidation.value,
+    policy,
     profileId,
     call: callValidation.value,
     approvalHookAvailable
@@ -436,11 +422,28 @@ function writeJsonOrHuman(io: CliIo, flags: Readonly<Record<string, string | tru
 
 function readJson(io: CliIo, path: string, failureExitCode: 2 | 3): unknown {
   try {
-    return JSON.parse(io.readTextFile(path)) as unknown;
+    return JSON.parse(readTextFile(io, path, failureExitCode)) as unknown;
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown JSON read failure";
     throw new CliError(failureExitCode, `failed to read JSON file ${path}: ${message}`);
   }
+}
+
+function readTextFile(io: CliIo, path: string, failureExitCode: 2 | 3): string {
+  try {
+    return io.readTextFile(path);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown file read failure";
+    throw new CliError(failureExitCode, `failed to read file ${path}: ${message}`);
+  }
+}
+
+function readRequiredPolicy(io: CliIo, policyPath: string): PolicyDocument {
+  const validation = parsePolicyDocumentJson(readTextFile(io, policyPath, 3));
+  if (!validation.ok) {
+    throw new CliError(3, `policy invalid: ${validation.errors.join("; ")}`);
+  }
+  return validation.value;
 }
 
 function readOptionalPolicy(flags: Readonly<Record<string, string | true>>, io: CliIo): PolicyDocument | undefined {
@@ -448,11 +451,7 @@ function readOptionalPolicy(flags: Readonly<Record<string, string | true>>, io: 
   if (!policyPath) {
     return undefined;
   }
-  const validation = validatePolicyDocument(readJson(io, policyPath, 3));
-  if (!validation.ok) {
-    throw new CliError(3, `policy invalid: ${validation.errors.join("; ")}`);
-  }
-  return validation.value;
+  return readRequiredPolicy(io, policyPath);
 }
 
 function readRequiredStringFlag(flags: Readonly<Record<string, string | true>>, name: string): string {
@@ -532,16 +531,13 @@ async function runProxy(
     throw new CliError(2, "missing upstream command after --");
   }
 
-  const policyValidation = validatePolicyDocument(readJson(io, policyPath, 3));
-  if (!policyValidation.ok) {
-    throw new CliError(3, `policy invalid: ${policyValidation.errors.join("; ")}`);
-  }
-  if (!policyValidation.value.profiles.some((profile) => profile.id === profileId)) {
+  const policy = readRequiredPolicy(io, policyPath);
+  if (!policy.profiles.some((profile) => profile.id === profileId)) {
     throw new CliError(3, `profile not found: ${profileId}`);
   }
 
   return runStdioProxy({
-    policy: policyValidation.value,
+    policy,
     profileId,
     upstreamCommand: {
       executable,

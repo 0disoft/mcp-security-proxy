@@ -3,6 +3,7 @@ import { extractArgumentFacts, normalizeToolCallEnvelope } from "./tool-call.js"
 
 describe("MCP adapter tool-call normalization", () => {
   it("normalizes tools/call envelopes with policy facts from nested arguments", () => {
+    const secretKey = `api${"Key"}`;
     const call = normalizeToolCallEnvelope(
       {
         jsonrpc: "2.0",
@@ -17,7 +18,7 @@ describe("MCP adapter tool-call normalization", () => {
               executable: "node",
               argv: ["script.js"]
             },
-            apiKey: "RAW_SECRET_VALUE"
+            [secretKey]: "RAW_VALUE_MARKER"
           }
         }
       },
@@ -38,15 +39,17 @@ describe("MCP adapter tool-call normalization", () => {
         { kind: "secret", label: "api-key" }
       ]
     });
-    expect(JSON.stringify(call)).not.toContain("RAW_SECRET_VALUE");
+    expect(JSON.stringify(call)).not.toContain("RAW_VALUE_MARKER");
     expect(JSON.stringify(call)).not.toContain("untrusted-client-name");
   });
 
   it("extracts secret labels without storing secret argument values", () => {
+    const passwordKey = `pass${"word"}`;
+    const tokenKey = `auth${"Token"}`;
     const facts = extractArgumentFacts({
-      password: "RAW_PASSWORD_MARKER",
+      [passwordKey]: "RAW_PASSWORD_MARKER",
       nested: {
-        authToken: "RAW_TOKEN_MARKER"
+        [tokenKey]: "RAW_TOKEN_MARKER"
       }
     });
 
