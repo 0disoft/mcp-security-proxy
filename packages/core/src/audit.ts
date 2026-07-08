@@ -26,3 +26,7 @@ export function createAuditEvent(options: CreateAuditEventOptions): AuditEvent {
     redaction: options.redaction
   };
 }
+
+export function formatAuditEventJsonLine(event: AuditEvent): string {
+  return `${JSON.stringify(event)}\n`;
+}

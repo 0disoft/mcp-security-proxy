@@ -8,7 +8,7 @@ import {
   type PolicyDocument,
   validatePolicyDocument
 } from "@0disoft/mcp-security-proxy-contracts";
-import { createAuditEvent } from "./audit.js";
+import { createAuditEvent, formatAuditEventJsonLine } from "./audit.js";
 import { classifyToolDescriptor } from "./classifier.js";
 import { evaluateToolCall } from "./evaluator.js";
 import { evaluateMcpMethod } from "./method-policy.js";
@@ -262,6 +262,33 @@ describe("MCP Security Proxy core", () => {
 
     expect(redacted.value).not.toContain("REDACT_ME_VALUE_123");
     expect(event.redaction.counts.secret_like).toBe(1);
+  });
+
+  it("formats audit events as one JSON Lines record without reintroducing raw values", () => {
+    const redacted = redactText("value REDACT_ME_AUDIT_JSONL_MARKER");
+    const policy = readFixture<PolicyDocument>("fixtures/policies/local-dev.json");
+    const event = createAuditEvent({
+      kind: "method-denied",
+      profileId: "local",
+      method: "resources/list",
+      decision: evaluateMcpMethod("resources/list", policy),
+      redaction: redacted.summary
+    });
+    const line = formatAuditEventJsonLine(event);
+
+    expect(line.endsWith("\n")).toBe(true);
+    expect(line.slice(0, -1)).not.toContain("\n");
+    expect(line).not.toContain("REDACT_ME_AUDIT_JSONL_MARKER");
+    expect(JSON.parse(line)).toMatchObject({
+      schemaVersion: "msp.audit-event.v1",
+      kind: "method-denied",
+      redaction: {
+        applied: true,
+        counts: {
+          secret_like: 1
+        }
+      }
+    });
   });
 
   it("keeps denied audit event snapshots redacted", () => {
