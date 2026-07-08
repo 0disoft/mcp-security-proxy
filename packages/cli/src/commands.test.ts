@@ -103,6 +103,7 @@ describe("dry-run CLI commands", () => {
       command: "eval-call",
       profile: "local",
       decision: {
+        schemaVersion: "msp.decision.v1",
         action: "deny",
         evidence: [{ ruleId: "deny-private-files" }]
       }

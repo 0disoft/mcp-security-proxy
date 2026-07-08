@@ -257,10 +257,7 @@ function evalCall(flags: Readonly<Record<string, string | true>>, io: CliIo): Cl
       ok: true,
       command: "eval-call",
       profile: profileId,
-      decision: {
-        action: decision.action,
-        evidence: decision.evidence
-      }
+      decision
     },
     `decision: ${decision.action} (${decision.evidence.map((item) => item.reason).join("; ")})`
   );

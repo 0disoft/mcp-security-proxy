@@ -830,7 +830,9 @@ try {
       }
     })}\n`
   );
+  const waitForPreInitializedTools = waitForJsonLine(child.stdout, (line) => line.id === "tools-before-initialized");
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "tools-before-initialized", method: "tools/list" })}\n`);
+  await waitForPreInitializedTools;
   child.stdin.write(
     `${JSON.stringify({
       jsonrpc: "2.0",
