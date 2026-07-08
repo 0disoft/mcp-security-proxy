@@ -633,6 +633,23 @@ async function checkRuntimeSessionFixture(id, path, item) {
         }
       })
     );
+    const requestWithResult = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-request-with-result",
+        method: "tools/list",
+        result: {
+          marker: "RAW_REQUEST_RESULT_MARKER"
+        }
+      })
+    );
+    const initializedWithId = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-initialized-with-id",
+        method: "notifications/initialized"
+      })
+    );
     const actual = {
       invalidIdForwarded: invalidId.forwardLine !== undefined,
       invalidIdResponse: invalidId.responseLine ? parseJsonText(invalidId.responseLine, `${id}: invalidId.responseLine`) : null,
@@ -641,7 +658,17 @@ async function checkRuntimeSessionFixture(id, path, item) {
       invalidMethodResponse: invalidMethod.responseLine
         ? parseJsonText(invalidMethod.responseLine, `${id}: invalidMethod.responseLine`)
         : null,
-      invalidMethodAuditEvents: invalidMethod.auditEvents
+      invalidMethodAuditEvents: invalidMethod.auditEvents,
+      requestWithResultForwarded: requestWithResult.forwardLine !== undefined,
+      requestWithResultResponse: requestWithResult.responseLine
+        ? parseJsonText(requestWithResult.responseLine, `${id}: requestWithResult.responseLine`)
+        : null,
+      requestWithResultAuditEvents: requestWithResult.auditEvents,
+      initializedWithIdForwarded: initializedWithId.forwardLine !== undefined,
+      initializedWithIdResponse: initializedWithId.responseLine
+        ? parseJsonText(initializedWithId.responseLine, `${id}: initializedWithId.responseLine`)
+        : null,
+      initializedWithIdAuditEvents: initializedWithId.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

@@ -82,5 +82,92 @@
         "counts": {}
       }
     }
+  ],
+  "requestWithResultForwarded": false,
+  "requestWithResultResponse": {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+      "code": -32600,
+      "message": "invalid MCP JSON-RPC message",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "jsonrpc.invalid",
+              "reason": "JSON-RPC request or notification must not include result or error"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "requestWithResultAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "reason": "JSON-RPC request or notification must not include result or error"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "initializedWithIdForwarded": false,
+  "initializedWithIdResponse": {
+    "jsonrpc": "2.0",
+    "id": "compat-initialized-with-id",
+    "error": {
+      "code": -32600,
+      "message": "MCP notification denied by proxy protocol state",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "jsonrpc.invalid",
+              "method": "notifications/initialized",
+              "reason": "MCP notification method must not include a JSON-RPC id"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "initializedWithIdAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "method": "notifications/initialized",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "method": "notifications/initialized",
+            "reason": "MCP notification method must not include a JSON-RPC id"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
   ]
 }
