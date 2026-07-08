@@ -84,6 +84,7 @@ const requiredEvidenceIds = new Set([
   "runtime-duplicate-server-request-id",
   "runtime-malformed-discovery",
   "runtime-pending-discovery-id-type",
+  "runtime-invalid-upstream-response-shape",
   "runtime-unmatched-response-denial",
   "runtime-server-envelope-sanitization",
   "runtime-upstream-response-envelope-sanitization",
@@ -429,6 +430,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "duplicate-server-request-id",
     "malformed-discovery",
     "pending-discovery-id-type",
+    "invalid-upstream-response-shape",
     "unmatched-response-denial",
     "server-envelope-sanitization",
     "upstream-response-envelope-sanitization",
@@ -542,6 +544,66 @@ async function checkRuntimeSessionFixture(id, path, item) {
         ? parseJsonText(arrayParams.responseLine, `${id}: arrayParams.responseLine`)
         : undefined,
       arrayParamsAuditEvents: arrayParams.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "invalid-upstream-response-shape") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-invalid-shape-tools",
+        method: "tools/list"
+      })
+    );
+    const both = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-invalid-shape-tools",
+        result: readJson("fixtures/mcp/tools-list-basic.json"),
+        error: {
+          code: -32000,
+          message: "RAW_INVALID_RESPONSE_ERROR_MARKER"
+        }
+      })
+    );
+    const callAfterInvalid = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-call-after-invalid-response-shape",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+    const neither = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-empty-upstream-response"
+      })
+    );
+    const actual = {
+      bothForwarded: both.forwardLine !== undefined,
+      bothResponse: both.responseLine ? parseJsonText(both.responseLine, `${id}: both.responseLine`) : null,
+      bothAuditEvents: both.auditEvents,
+      callAfterInvalidForwarded: callAfterInvalid.forwardLine !== undefined,
+      callAfterInvalidResponse: callAfterInvalid.responseLine
+        ? parseJsonText(callAfterInvalid.responseLine, `${id}: callAfterInvalid.responseLine`)
+        : undefined,
+      callAfterInvalidAuditEvents: callAfterInvalid.auditEvents,
+      neitherForwarded: neither.forwardLine !== undefined,
+      neitherResponse: neither.responseLine ? parseJsonText(neither.responseLine, `${id}: neither.responseLine`) : null,
+      neitherAuditEvents: neither.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

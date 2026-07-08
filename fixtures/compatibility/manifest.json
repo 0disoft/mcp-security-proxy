@@ -484,6 +484,14 @@
       "scenario": "pending-discovery-id-type"
     },
     {
+      "id": "runtime-invalid-upstream-response-shape",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-invalid-upstream-response-shape.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "invalid-upstream-response-shape"
+    },
+    {
       "id": "runtime-unmatched-response-denial",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-unmatched-response-denial.json",

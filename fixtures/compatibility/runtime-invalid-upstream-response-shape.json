@@ -1,0 +1,92 @@
+{
+  "bothForwarded": false,
+  "bothResponse": null,
+  "bothAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "reason": "JSON-RPC response must include exactly one of result or error"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "callAfterInvalidForwarded": false,
+  "callAfterInvalidResponse": {
+    "jsonrpc": "2.0",
+    "id": "compat-call-after-invalid-response-shape",
+    "error": {
+      "code": -32001,
+      "message": "MCP tool call denied by policy",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "tool.not_visible",
+              "reason": "tool was not visible in filtered discovery"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "callAfterInvalidAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "call-decision",
+      "profileId": "local",
+      "toolName": "read_file",
+      "method": "tools/call",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "tool.not_visible",
+            "reason": "tool was not visible in filtered discovery"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "neitherForwarded": false,
+  "neitherResponse": null,
+  "neitherAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "reason": "JSON-RPC response must include exactly one of result or error"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}
