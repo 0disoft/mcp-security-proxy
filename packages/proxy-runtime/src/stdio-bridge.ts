@@ -150,32 +150,51 @@ async function consumeFrames(input: Readable, maxFrameBytes: number, onLine: (li
   let discardingOversizedFrame = false;
 
   const consumeText = async (text: string): Promise<void> => {
-    for (const char of text) {
-      if (char === "\n") {
-        if (!discardingOversizedFrame) {
-          const line = buffer.endsWith("\r") ? buffer.slice(0, -1) : buffer;
-          await onLine(line);
-        }
-        buffer = "";
-        bytes = 0;
-        discardingOversizedFrame = false;
-        continue;
+    let start = 0;
+    while (start <= text.length) {
+      const newline = text.indexOf("\n", start);
+      if (newline === -1) {
+        await consumeFragment(text.slice(start), false);
+        return;
       }
-
-      if (discardingOversizedFrame) {
-        continue;
-      }
-
-      bytes += Buffer.byteLength(char, "utf8");
-      if (bytes > maxFrameBytes) {
-        await onLine("x".repeat(maxFrameBytes + 1));
-        buffer = "";
-        bytes = 0;
-        discardingOversizedFrame = true;
-        continue;
-      }
-      buffer += char;
+      await consumeFragment(text.slice(start, newline), true);
+      start = newline + 1;
     }
+  };
+
+  const consumeFragment = async (fragment: string, hasDelimiter: boolean): Promise<void> => {
+    if (discardingOversizedFrame) {
+      if (hasDelimiter) {
+        resetFrame();
+      }
+      return;
+    }
+
+    const nextBytes = bytes + Buffer.byteLength(fragment, "utf8");
+    if (nextBytes > maxFrameBytes) {
+      await onLine("x".repeat(maxFrameBytes + 1));
+      buffer = "";
+      bytes = 0;
+      discardingOversizedFrame = true;
+      if (hasDelimiter) {
+        resetFrame();
+      }
+      return;
+    }
+
+    buffer += fragment;
+    bytes = nextBytes;
+    if (hasDelimiter) {
+      const line = buffer.endsWith("\r") ? buffer.slice(0, -1) : buffer;
+      resetFrame();
+      await onLine(line);
+    }
+  };
+
+  const resetFrame = (): void => {
+    buffer = "";
+    bytes = 0;
+    discardingOversizedFrame = false;
   };
 
   for await (const chunk of input) {

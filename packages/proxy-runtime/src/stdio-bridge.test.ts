@@ -430,6 +430,37 @@ describe("stdio proxy bridge", () => {
     );
   });
 
+  it("recovers when an oversized frame and follow-up frame arrive in one chunk", async () => {
+    const harness = createHarness();
+    const resultPromise = runHarness(harness, { maxFrameBytes: 64 });
+    const followup = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "same-chunk",
+      method: "ping"
+    });
+
+    harness.clientInput.write(`${"{".padEnd(96, "x")}\n${followup}\n`);
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(0);
+    expect(readLines(harness.upstreamInputCapture)).toEqual([followup]);
+    expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({
+        id: null,
+        error: expect.objectContaining({
+          data: expect.objectContaining({
+            decision: expect.objectContaining({
+              evidence: [expect.objectContaining({ code: "jsonrpc.frame_too_large" })]
+            })
+          })
+        })
+      })
+    );
+  });
+
   it("fails closed when protocol output writes fail", async () => {
     const harness = createHarness();
     const resultPromise = runHarness(harness);
