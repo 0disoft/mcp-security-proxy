@@ -71,7 +71,9 @@ This repository type owns public API surface, package compatibility, semantic ve
 
 The current evidence registry is `fixtures/compatibility/manifest.json`. Its `target` must remain
 `local-stdio-mvp`, `transport` must remain `stdio`, and `fixtureSource` must remain
-`synthetic-local` until a later ADR and release record approve a broader compatibility target.
+`synthetic-local` until the external target selected in
+docs/adr/0005-external-mcp-compatibility-target.md has tracked fixture evidence and a release
+record approves a broader compatibility target.
 `pnpm run compatibility` builds the workspace, verifies every manifest entry, compares the captured
 CLI, library, and runtime session fixtures against the current implementation, and runs registered
 runtime smoke evidence commands. Library fixtures must exercise the public parser, decision

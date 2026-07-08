@@ -19,6 +19,7 @@ Track durable architecture decisions for MCP Security Proxy.
 - 0002: contract source of truth
 - 0003: open source license and private data boundary
 - 0004: implementation stack direction
+- 0005: external MCP compatibility target
 
 ## Review Blockers
 

@@ -47,7 +47,8 @@ Still intentionally narrow:
 - only stdio transport is implemented
 - network policy is argument-level intent policy, not OS socket enforcement
 - CLI `run` does not bundle an approval UI; approval hooks are for embedding hosts
-- public package names, registry distribution, and MCP SDK choice remain UNDECIDED
+- public package names, registry distribution, and runtime MCP SDK dependency choice remain
+  UNDECIDED
 
 ## Non-Goals
 
@@ -73,4 +74,6 @@ are documented in SECURITY.md.
 Implementation direction is TypeScript with pnpm, recorded in
 docs/adr/0004-implementation-stack-direction.md. The current scaffold targets Node.js `>=24.0.0`
 and uses private workspace package names. Distribution targets, public registry package names, and
-MCP SDK choices remain UNDECIDED until later ADRs.
+runtime MCP SDK dependency choices remain UNDECIDED until later ADRs. The first external stdio
+compatibility target is recorded in docs/adr/0005-external-mcp-compatibility-target.md, but
+external MCP compatibility is not claimed until fixture evidence exists.

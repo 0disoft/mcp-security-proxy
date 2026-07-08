@@ -14,15 +14,17 @@ evidence, but it does not yet claim external MCP client/server compatibility.
 - Product decision: docs/product/02-spec.md
 - Runtime flow: docs/architecture/02-runtime-flow.md
 - Method policy: docs/architecture/05-mcp-method-policy.md
+- First external target ADR: docs/adr/0005-external-mcp-compatibility-target.md
 - Compatibility registry: fixtures/compatibility/manifest.json
 - Release scope gate: docs/ops/release.md
 
 ## Non-Implementation Boundary
 
-This document does not select an MCP SDK, vendor client, vendor server, package manager plugin,
-host runtime, or external compatibility matrix. External MCP compatibility requires a later ADR or
-release record that names the selected clients and servers, exact versions, transport mode,
-installation source, fixture capture method, and validation commands.
+This document does not select an MCP SDK for product runtime dependency, package manager plugin,
+host runtime, or external compatibility matrix. ADR 0005 selects the first external stdio target
+set, but external MCP compatibility still requires tracked fixture evidence or a release record
+that names the selected clients and servers, exact versions, transport mode, installation source,
+fixture capture method, and validation commands.
 
 Do not treat the repository fixture server as an external MCP server. It is a synthetic regression
 fixture for the local stdio MVP.
@@ -72,8 +74,9 @@ External MCP compatibility support remains blocked until:
 
 ## Current Status
 
-External MCP compatibility fixtures are not implemented. The current compatibility evidence is
-limited to synthetic MCP fixtures, CLI/library golden outputs, and the registered live local stdio
-smoke command. The current `fixtures/compatibility/manifest.json` registry records
-`transport: "stdio"` and `fixtureSource: "synthetic-local"` so it cannot be used as external MCP
-compatibility evidence.
+ADR 0005 selects the first external stdio target set:
+`@modelcontextprotocol/sdk@1.29.0` as the client implementation and
+`@modelcontextprotocol/server-filesystem@2026.7.4` as the server implementation. External MCP compatibility fixtures are not implemented. The current compatibility evidence is limited to
+synthetic MCP fixtures, CLI/library golden outputs, and the registered live local stdio smoke
+command. The current `fixtures/compatibility/manifest.json` registry records `transport: "stdio"`
+and `fixtureSource: "synthetic-local"` so it cannot be used as external MCP compatibility evidence.
