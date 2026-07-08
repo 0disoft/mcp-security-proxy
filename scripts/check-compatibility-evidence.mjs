@@ -87,6 +87,7 @@ const requiredEvidenceIds = new Set([
   "runtime-server-envelope-sanitization",
   "runtime-server-origin-unsupported-method",
   "runtime-server-origin-ping-invalid-response",
+  "runtime-server-origin-ping-params-denial",
   "runtime-upstream-error-data-redaction",
   "runtime-upstream-error-message-redaction",
   "runtime-upstream-error-extra-field-redaction"
@@ -428,6 +429,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "server-envelope-sanitization",
     "server-origin-unsupported-method",
     "server-origin-ping-invalid-response",
+    "server-origin-ping-params-denial",
     "upstream-error-data-redaction",
     "upstream-error-message-redaction",
     "upstream-error-extra-field-redaction"
@@ -473,6 +475,46 @@ async function checkRuntimeSessionFixture(id, path, item) {
       serverRequestAuditEvents: serverRequest.auditEvents,
       invalidClientResponseForwarded: invalidClientResponse.forwardLine !== undefined,
       invalidClientResponseAuditEvents: invalidClientResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "server-origin-ping-params-denial") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const objectParams = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-server-ping-object-params",
+        method: "ping",
+        params: {
+          marker: "RAW_SERVER_PING_OBJECT_PARAMS_MARKER"
+        }
+      })
+    );
+    const arrayParams = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-server-ping-array-params",
+        method: "ping",
+        params: ["RAW_SERVER_PING_ARRAY_PARAMS_MARKER"]
+      })
+    );
+    const actual = {
+      objectParamsForwarded: objectParams.forwardLine !== undefined,
+      objectParamsResponse: objectParams.responseLine
+        ? parseJsonText(objectParams.responseLine, `${id}: objectParams.responseLine`)
+        : undefined,
+      objectParamsAuditEvents: objectParams.auditEvents,
+      arrayParamsForwarded: arrayParams.forwardLine !== undefined,
+      arrayParamsResponse: arrayParams.responseLine
+        ? parseJsonText(arrayParams.responseLine, `${id}: arrayParams.responseLine`)
+        : undefined,
+      arrayParamsAuditEvents: arrayParams.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

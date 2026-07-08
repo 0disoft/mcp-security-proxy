@@ -508,6 +508,14 @@
       "scenario": "server-origin-ping-invalid-response"
     },
     {
+      "id": "runtime-server-origin-ping-params-denial",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-server-origin-ping-params-denial.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "server-origin-ping-params-denial"
+    },
+    {
       "id": "runtime-upstream-error-data-redaction",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-upstream-error-data-redaction.json",

@@ -1,0 +1,92 @@
+{
+  "objectParamsForwarded": false,
+  "objectParamsResponse": {
+    "jsonrpc": "2.0",
+    "id": "compat-server-ping-object-params",
+    "error": {
+      "code": -32001,
+      "message": "MCP method denied by policy",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "method.server_origin_ping_params",
+              "method": "ping",
+              "reason": "server-origin ping must not carry params"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "objectParamsAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "method-denied",
+      "profileId": "local",
+      "method": "ping",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "method.server_origin_ping_params",
+            "method": "ping",
+            "reason": "server-origin ping must not carry params"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "arrayParamsForwarded": false,
+  "arrayParamsResponse": {
+    "jsonrpc": "2.0",
+    "id": "compat-server-ping-array-params",
+    "error": {
+      "code": -32001,
+      "message": "MCP method denied by policy",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "method.server_origin_ping_params",
+              "method": "ping",
+              "reason": "server-origin ping must not carry params"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "arrayParamsAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "method-denied",
+      "profileId": "local",
+      "method": "ping",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "method.server_origin_ping_params",
+            "method": "ping",
+            "reason": "server-origin ping must not carry params"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}
