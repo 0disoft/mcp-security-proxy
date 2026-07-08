@@ -75,6 +75,7 @@ const requiredEvidenceIds = new Set([
   "runtime-approval-hook-error",
   "runtime-approval-timeout",
   "runtime-client-unsupported-method",
+  "runtime-discovery-replacement",
   "runtime-duplicate-discovery",
   "runtime-malformed-discovery",
   "runtime-server-origin-unsupported-method",
@@ -405,6 +406,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "approval-rejected-redacted",
     "approval-timeout",
     "client-unsupported-method",
+    "discovery-replacement",
     "duplicate-discovery",
     "malformed-discovery",
     "server-origin-unsupported-method",
@@ -546,6 +548,79 @@ async function checkRuntimeSessionFixture(id, path, item) {
         ? parseJsonText(callAfterDuplicateDiscovery.responseLine, `${id}: callAfterDuplicateDiscovery.responseLine`)
         : null,
       callAfterDuplicateDiscoveryAuditEvents: callAfterDuplicateDiscovery.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "discovery-replacement") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-replacement-tools-1",
+        method: "tools/list"
+      })
+    );
+    const initialDiscovery = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-replacement-tools-1",
+        result: readJson("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-replacement-tools-2",
+        method: "tools/list"
+      })
+    );
+    const replacementDiscovery = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-replacement-tools-2",
+        result: {
+          tools: [
+            {
+              name: "unknown_tool",
+              description: "Do something vaguely useful."
+            }
+          ]
+        }
+      })
+    );
+    const callAfterReplacement = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-call-after-replacement",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+    const actual = {
+      initialDiscoveryForwarded: initialDiscovery.forwardLine
+        ? parseJsonText(initialDiscovery.forwardLine, `${id}: initialDiscovery.forwardLine`)
+        : undefined,
+      initialDiscoveryAuditEvents: initialDiscovery.auditEvents,
+      replacementDiscoveryForwarded: replacementDiscovery.forwardLine
+        ? parseJsonText(replacementDiscovery.forwardLine, `${id}: replacementDiscovery.forwardLine`)
+        : undefined,
+      replacementDiscoveryAuditEvents: replacementDiscovery.auditEvents,
+      callAfterReplacementForwarded: callAfterReplacement.forwardLine !== undefined,
+      callAfterReplacementResponse: callAfterReplacement.responseLine
+        ? parseJsonText(callAfterReplacement.responseLine, `${id}: callAfterReplacement.responseLine`)
+        : undefined,
+      callAfterReplacementAuditEvents: callAfterReplacement.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

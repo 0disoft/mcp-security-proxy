@@ -1,0 +1,107 @@
+{
+  "initialDiscoveryForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-replacement-tools-1",
+    "result": {
+      "tools": [
+        {
+          "name": "read_file",
+          "description": "Read a file from a caller-provided path."
+        }
+      ]
+    }
+  },
+  "initialDiscoveryAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "discovery-filtered",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "discovery.filtered",
+            "reason": "3 tool(s) hidden by discovery policy"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "replacementDiscoveryForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-replacement-tools-2",
+    "result": {
+      "tools": []
+    }
+  },
+  "replacementDiscoveryAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "discovery-filtered",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "discovery.filtered",
+            "reason": "1 tool(s) hidden by discovery policy"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "callAfterReplacementForwarded": false,
+  "callAfterReplacementResponse": {
+    "jsonrpc": "2.0",
+    "id": "compat-call-after-replacement",
+    "error": {
+      "code": -32001,
+      "message": "MCP tool call denied by policy",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "tool.not_visible",
+              "reason": "tool was not visible in filtered discovery"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "callAfterReplacementAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "call-decision",
+      "profileId": "local",
+      "toolName": "read_file",
+      "method": "tools/call",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "tool.not_visible",
+            "reason": "tool was not visible in filtered discovery"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}
