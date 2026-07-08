@@ -130,4 +130,75 @@ describe("policy document parsing", () => {
       ])
     });
   });
+
+  it("rejects path matcher roots that cannot be canonicalized safely", () => {
+    const policy = createDenyByDefaultPolicy("local");
+    const result = validatePolicyDocument({
+      ...policy,
+      profiles: [
+        {
+          ...policy.profiles[0],
+          rules: [
+            {
+              id: "ambiguous-path-roots",
+              action: "allow",
+              capabilities: ["file-read"],
+              paths: {
+                allowedRoots: ["workspace/public", "../private", "~/workspace", "\\\\server\\share", "workspace%2fprivate"],
+                deniedRoots: ["workspace/private/.."]
+              }
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      errors: expect.arrayContaining([
+        "profiles[0].rules[0].paths.allowedRoots[1] must be a canonical path root",
+        "profiles[0].rules[0].paths.allowedRoots[2] must be a canonical path root",
+        "profiles[0].rules[0].paths.allowedRoots[3] must be a canonical path root",
+        "profiles[0].rules[0].paths.allowedRoots[4] must be a canonical path root",
+        "profiles[0].rules[0].paths.deniedRoots[0] must be a canonical path root"
+      ])
+    });
+  });
+
+  it("rejects network matcher values that cannot be canonicalized safely", () => {
+    const policy = createDenyByDefaultPolicy("local");
+    const result = validatePolicyDocument({
+      ...policy,
+      profiles: [
+        {
+          ...policy.profiles[0],
+          rules: [
+            {
+              id: "ambiguous-network-matchers",
+              action: "allow",
+              capabilities: ["network"],
+              networks: [
+                {
+                  domains: ["example.com", " https://example.com", "user@example.com", "example.com/path", "127.0.0.1"],
+                  ips: ["127.0.0.1", "999.0.0.1", "example.com", "::1"]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      errors: expect.arrayContaining([
+        "profiles[0].rules[0].networks[0].domains[1] must be a canonical network domain",
+        "profiles[0].rules[0].networks[0].domains[2] must be a canonical network domain",
+        "profiles[0].rules[0].networks[0].domains[3] must be a canonical network domain",
+        "profiles[0].rules[0].networks[0].domains[4] must be a canonical network domain",
+        "profiles[0].rules[0].networks[0].ips[1] must be a canonical network ip",
+        "profiles[0].rules[0].networks[0].ips[2] must be a canonical network ip"
+      ])
+    });
+  });
 });

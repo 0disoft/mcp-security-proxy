@@ -232,6 +232,8 @@ function validateRuleMatchers(rule: PolicyRule, path: string, errors: string[]):
       validateKnownProperties(rule.paths, `${path}.paths`, ["allowedRoots", "deniedRoots"], errors);
       validateNonEmptyStringArray(rule.paths["allowedRoots"], `${path}.paths.allowedRoots`, errors, false);
       validateNonEmptyStringArray(rule.paths["deniedRoots"], `${path}.paths.deniedRoots`, errors, false);
+      validateCanonicalPathRootArray(rule.paths["allowedRoots"], `${path}.paths.allowedRoots`, errors);
+      validateCanonicalPathRootArray(rule.paths["deniedRoots"], `${path}.paths.deniedRoots`, errors);
       if (rule.paths["allowedRoots"] === undefined && rule.paths["deniedRoots"] === undefined) {
         errors.push(`${path}.paths must include allowedRoots or deniedRoots`);
       }
@@ -387,8 +389,99 @@ function validateNetworkRule(value: unknown, path: string, errors: string[]): vo
   validateKnownProperties(value, path, ["domains", "ips"], errors);
   validateNonEmptyStringArray(value["domains"], `${path}.domains`, errors, false);
   validateNonEmptyStringArray(value["ips"], `${path}.ips`, errors, false);
+  validateCanonicalDomainArray(value["domains"], `${path}.domains`, errors);
+  validateCanonicalIpArray(value["ips"], `${path}.ips`, errors);
   if (value["domains"] === undefined && value["ips"] === undefined) {
     errors.push(`${path} must include domains or ips`);
+  }
+}
+
+function validateCanonicalPathRootArray(value: unknown, path: string, errors: string[]): void {
+  if (!Array.isArray(value)) {
+    return;
+  }
+  for (const [index, item] of value.entries()) {
+    if (typeof item === "string" && !isCanonicalPathRoot(item)) {
+      errors.push(`${path}[${index}] must be a canonical path root`);
+    }
+  }
+}
+
+function validateCanonicalDomainArray(value: unknown, path: string, errors: string[]): void {
+  if (!Array.isArray(value)) {
+    return;
+  }
+  for (const [index, item] of value.entries()) {
+    if (typeof item === "string" && !isCanonicalDomain(item)) {
+      errors.push(`${path}[${index}] must be a canonical network domain`);
+    }
+  }
+}
+
+function validateCanonicalIpArray(value: unknown, path: string, errors: string[]): void {
+  if (!Array.isArray(value)) {
+    return;
+  }
+  for (const [index, item] of value.entries()) {
+    if (typeof item === "string" && !isCanonicalIp(item)) {
+      errors.push(`${path}[${index}] must be a canonical network ip`);
+    }
+  }
+}
+
+function isCanonicalPathRoot(value: string): boolean {
+  const trimmed = value.trim();
+  return (
+    trimmed.length > 0 &&
+    !trimmed.includes("\0") &&
+    trimmed === trimmed.normalize("NFC") &&
+    !/^[/\\]{2}/u.test(trimmed) &&
+    !/^~(?:$|[/\\])/u.test(trimmed) &&
+    !/%2f|%5c/i.test(trimmed) &&
+    !trimmed.split(/[\\/]+/u).includes("..")
+  );
+}
+
+function isCanonicalDomain(value: string): boolean {
+  if (value.length === 0 || value !== value.trim() || /\s/u.test(value) || value.includes("://")) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(`msp://${value}`);
+    const host = parsed.hostname.toLowerCase();
+    return (
+      parsed.username.length === 0 &&
+      parsed.password.length === 0 &&
+      parsed.port.length === 0 &&
+      (parsed.pathname === "" || parsed.pathname === "/") &&
+      parsed.search.length === 0 &&
+      parsed.hash.length === 0 &&
+      host.length > 0 &&
+      host === value.toLowerCase() &&
+      !isCanonicalIp(host)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isCanonicalIp(value: string): boolean {
+  if (value.length === 0 || value !== value.trim() || /\s/u.test(value) || /[@/\\?#]/u.test(value)) {
+    return false;
+  }
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/u.test(value)) {
+    return value.split(".").every((octet) => Number(octet) <= 255);
+  }
+  if (!value.includes(":")) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(`msp://[${value}]`);
+    return parsed.hostname.toLowerCase() === `[${value.toLowerCase()}]`;
+  } catch {
+    return false;
   }
 }
 
