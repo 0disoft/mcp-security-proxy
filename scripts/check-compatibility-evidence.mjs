@@ -76,6 +76,7 @@ const requiredEvidenceIds = new Set([
   "runtime-approval-timeout",
   "runtime-client-unsupported-method",
   "runtime-discovery-replacement",
+  "runtime-duplicate-client-request-id",
   "runtime-duplicate-discovery",
   "runtime-malformed-discovery",
   "runtime-pending-discovery-id-type",
@@ -408,6 +409,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "approval-timeout",
     "client-unsupported-method",
     "discovery-replacement",
+    "duplicate-client-request-id",
     "duplicate-discovery",
     "malformed-discovery",
     "pending-discovery-id-type",
@@ -478,6 +480,68 @@ async function checkRuntimeSessionFixture(id, path, item) {
       forwarded: result.forwardLine !== undefined,
       response: result.responseLine ? parseJsonText(result.responseLine, `${id}: responseLine`) : undefined,
       auditEvents: result.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "duplicate-client-request-id") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const first = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-duplicate-client-id",
+        method: "tools/list"
+      })
+    );
+    const duplicate = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-duplicate-client-id",
+        method: "ping"
+      })
+    );
+    const originalResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-duplicate-client-id",
+        result: readJson("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+    const callAfterOriginalResponse = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-call-after-duplicate-client-id",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+    const actual = {
+      firstForwarded: first.forwardLine ? parseJsonText(first.forwardLine, `${id}: first.forwardLine`) : undefined,
+      firstAuditEvents: first.auditEvents,
+      duplicateForwarded: duplicate.forwardLine !== undefined,
+      duplicateResponse: duplicate.responseLine ? parseJsonText(duplicate.responseLine, `${id}: duplicate.responseLine`) : undefined,
+      duplicateAuditEvents: duplicate.auditEvents,
+      originalResponseForwarded: originalResponse.forwardLine
+        ? parseJsonText(originalResponse.forwardLine, `${id}: originalResponse.forwardLine`)
+        : undefined,
+      originalResponseAuditEvents: originalResponse.auditEvents,
+      callAfterOriginalResponseForwarded: callAfterOriginalResponse.forwardLine
+        ? parseJsonText(callAfterOriginalResponse.forwardLine, `${id}: callAfterOriginalResponse.forwardLine`)
+        : undefined,
+      callAfterOriginalResponseResponse: callAfterOriginalResponse.responseLine
+        ? parseJsonText(callAfterOriginalResponse.responseLine, `${id}: callAfterOriginalResponse.responseLine`)
+        : null,
+      callAfterOriginalResponseAuditEvents: callAfterOriginalResponse.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

@@ -1,0 +1,122 @@
+{
+  "firstForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-duplicate-client-id",
+    "method": "tools/list"
+  },
+  "firstAuditEvents": [],
+  "duplicateForwarded": false,
+  "duplicateResponse": {
+    "jsonrpc": "2.0",
+    "id": "compat-duplicate-client-id",
+    "error": {
+      "code": -32001,
+      "message": "MCP request denied by proxy protocol state",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "jsonrpc.invalid",
+              "method": "ping",
+              "reason": "client JSON-RPC request id already has a pending upstream response"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "duplicateAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "method": "ping",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "method": "ping",
+            "reason": "client JSON-RPC request id already has a pending upstream response"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "originalResponseForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-duplicate-client-id",
+    "result": {
+      "tools": [
+        {
+          "name": "read_file",
+          "description": "Read a file from a caller-provided path."
+        }
+      ]
+    }
+  },
+  "originalResponseAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "discovery-filtered",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "discovery.filtered",
+            "reason": "3 tool(s) hidden by discovery policy"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "callAfterOriginalResponseForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-call-after-duplicate-client-id",
+    "method": "tools/call",
+    "params": {
+      "name": "read_file",
+      "arguments": {
+        "path": "workspace/public/readme.md"
+      }
+    }
+  },
+  "callAfterOriginalResponseResponse": null,
+  "callAfterOriginalResponseAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "call-decision",
+      "profileId": "local",
+      "toolName": "read_file",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "allow",
+        "evidence": [
+          {
+            "code": "policy.rule_allow",
+            "ruleId": "allow-public-files",
+            "capability": "file-read",
+            "reason": "matched allow rule"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}

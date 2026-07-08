@@ -54,9 +54,10 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Library decision-result fixture.
 - Runtime live stdio smoke command evidence for the implemented local proxy path.
 - Runtime session-result fixtures for approval rejection, approval hook error, approval timeout
-  fail-closed behavior, discovery state replacement, duplicate discovery sanitization, malformed
-  discovery sanitization, pending discovery id type preservation, client unsupported method denial,
-  server-origin unsupported method denial, and invalid server-origin ping response denial.
+  fail-closed behavior, discovery state replacement, duplicate pending client request id denial,
+  duplicate discovery sanitization, malformed discovery sanitization, pending discovery id type
+  preservation, client unsupported method denial, server-origin unsupported method denial, and
+  invalid server-origin ping response denial.
 
 The current evidence registry is `fixtures/compatibility/manifest.json`. Its `target` must remain
 `local-stdio-mvp`, `transport` must remain `stdio`, and `fixtureSource` must remain

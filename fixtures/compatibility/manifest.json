@@ -420,6 +420,14 @@
       "scenario": "discovery-replacement"
     },
     {
+      "id": "runtime-duplicate-client-request-id",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-duplicate-client-request-id.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "duplicate-client-request-id"
+    },
+    {
       "id": "runtime-duplicate-discovery",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-duplicate-discovery.json",
