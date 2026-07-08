@@ -2,14 +2,14 @@ import type {
   Capability,
   NormalizedToolCall
 } from "@0disoft/mcp-security-proxy-contracts";
-import type { JsonRpcEnvelope } from "./jsonrpc.js";
+import type { JsonRpcNotification, JsonRpcRequest } from "./jsonrpc.js";
 
 export interface ToolCallMetadata {
   readonly name: string;
   readonly capabilities: readonly Capability[];
 }
 
-export function normalizeToolCallEnvelope(envelope: JsonRpcEnvelope, visibleTool: ToolCallMetadata): NormalizedToolCall {
+export function normalizeToolCallEnvelope(envelope: JsonRpcRequest | JsonRpcNotification, visibleTool: ToolCallMetadata): NormalizedToolCall {
   const params = isRecord(envelope.params) ? envelope.params : {};
   return {
     method: "tools/call",

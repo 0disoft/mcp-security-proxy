@@ -1,18 +1,57 @@
-export interface JsonRpcEnvelope {
+export type JsonRpcId = string | number | null;
+
+export interface JsonRpcRequest {
+  readonly [key: string]: unknown;
   readonly jsonrpc: "2.0";
-  readonly id?: string | number | null;
-  readonly method?: string;
+  readonly id: JsonRpcId;
+  readonly method: string;
   readonly params?: unknown;
-  readonly result?: unknown;
-  readonly error?: unknown;
 }
 
-export function isJsonRpcRequest(value: unknown): value is JsonRpcEnvelope & { readonly method: string } {
+export interface JsonRpcNotification {
+  readonly [key: string]: unknown;
+  readonly jsonrpc: "2.0";
+  readonly method: string;
+  readonly params?: unknown;
+}
+
+export interface JsonRpcErrorObject {
+  readonly [key: string]: unknown;
+  readonly code: number;
+  readonly message: string;
+  readonly data?: unknown;
+}
+
+export type JsonRpcResponse =
+  | {
+      readonly [key: string]: unknown;
+      readonly jsonrpc: "2.0";
+      readonly id: JsonRpcId;
+      readonly result: unknown;
+    }
+  | {
+      readonly [key: string]: unknown;
+      readonly jsonrpc: "2.0";
+      readonly id: JsonRpcId;
+      readonly error: JsonRpcErrorObject;
+    };
+
+export type JsonRpcEnvelope = JsonRpcRequest | JsonRpcNotification | JsonRpcResponse;
+
+export function isJsonRpcRequest(value: unknown): value is JsonRpcRequest | JsonRpcNotification {
   if (!isRecord(value)) {
     return false;
   }
 
   return value["jsonrpc"] === "2.0" && typeof value["method"] === "string";
+}
+
+export function isJsonRpcResponse(value: unknown): value is JsonRpcResponse {
+  return isRecord(value) && value["jsonrpc"] === "2.0" && !("method" in value) && "id" in value && ("result" in value || "error" in value);
+}
+
+export function isJsonRpcErrorResponse(value: JsonRpcEnvelope): value is Extract<JsonRpcResponse, { readonly error: JsonRpcErrorObject }> {
+  return "error" in value;
 }
 
 export function getRequestMethod(value: unknown): string | undefined {

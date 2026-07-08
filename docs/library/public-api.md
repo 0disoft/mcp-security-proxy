@@ -62,6 +62,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Policy errors must be value-based and testable.
 - Policy JSON parse errors must not echo the original policy text because policy files can contain
   sensitive local paths, labels, or operational details.
+- JSON-RPC adapter types must distinguish requests, notifications, and responses while still
+  allowing the runtime to sanitize non-standard envelope fields before forwarding.
 - Tool descriptors must preserve upstream identity without inventing tools.
 - Secret-like descriptor names or descriptions may infer the `secret` capability, but the
   classifier must not treat `api` alone as secret-bearing material.

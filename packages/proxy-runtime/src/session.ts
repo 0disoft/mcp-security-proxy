@@ -12,9 +12,15 @@ import {
 import { classifyToolDescriptor, createAuditEvent, evaluateToolCall, redactText } from "@0disoft/mcp-security-proxy-core";
 import {
   evaluateEnvelopeMethod,
+  isJsonRpcErrorResponse,
   isJsonRpcRequest,
   normalizeToolCallEnvelope,
-  type JsonRpcEnvelope
+  type JsonRpcEnvelope,
+  type JsonRpcErrorObject,
+  type JsonRpcId,
+  type JsonRpcNotification,
+  type JsonRpcRequest,
+  type JsonRpcResponse
 } from "@0disoft/mcp-security-proxy-mcp-adapter";
 
 export interface ProxySessionOptions {
@@ -57,6 +63,8 @@ interface PendingRequestState {
   readonly method: string;
   readonly expiresAt: number;
 }
+
+type JsonRpcRequestEnvelope = JsonRpcRequest | JsonRpcNotification;
 
 const policyDeniedErrorCode = -32001;
 const invalidRequestErrorCode = -32600;
@@ -111,7 +119,7 @@ export class ProxySession {
     line: string
   ):
     | { readonly kind: "result"; readonly result: ProxyFrameResult }
-    | { readonly kind: "request"; readonly line: string; readonly envelope: JsonRpcEnvelope; readonly auditEvents: readonly AuditEvent[] } {
+    | { readonly kind: "request"; readonly line: string; readonly envelope: JsonRpcRequestEnvelope; readonly auditEvents: readonly AuditEvent[] } {
     const parsed = parseJsonLine(line, this.maxFrameBytes, this.maxJsonDepth);
     if (!parsed.ok) {
       const decision = denyDecision(parsed.reason, { code: parsed.code });
@@ -250,7 +258,7 @@ export class ProxySession {
     };
   }
 
-  private handlePreparedClientRequest(line: string, envelope: JsonRpcEnvelope, preparedAuditEvents: readonly AuditEvent[] = []): ProxyFrameResult {
+  private handlePreparedClientRequest(line: string, envelope: JsonRpcRequestEnvelope, preparedAuditEvents: readonly AuditEvent[] = []): ProxyFrameResult {
     const toolName = readToolCallName(envelope);
     const visibleTool = this.visibleTools.get(toolName);
     if (!visibleTool) {
@@ -310,7 +318,7 @@ export class ProxySession {
 
   private async handlePreparedClientRequestWithApproval(
     line: string,
-    envelope: JsonRpcEnvelope,
+    envelope: JsonRpcRequestEnvelope,
     approvalHook: ApprovalHook,
     preparedAuditEvents: readonly AuditEvent[] = []
   ): Promise<ProxyFrameResult> {
@@ -506,7 +514,7 @@ export class ProxySession {
     };
   }
 
-  private takePendingMethod(envelope: JsonRpcEnvelope): string | undefined {
+  private takePendingMethod(envelope: JsonRpcResponse): string | undefined {
     if (envelope.id === undefined) {
       return undefined;
     }
@@ -517,17 +525,14 @@ export class ProxySession {
     return method;
   }
 
-  private rememberPendingRequest(envelope: JsonRpcEnvelope): void {
-    if (envelope.id === undefined || typeof envelope.method !== "string") {
+  private rememberPendingRequest(envelope: JsonRpcRequestEnvelope): void {
+    if (!hasJsonRpcRequestId(envelope)) {
       return;
     }
     this.pendingRequestMethods.set(requestIdKey(envelope.id), this.createPendingRequestState(envelope.method));
   }
 
-  private takePendingServerOriginMethod(envelope: JsonRpcEnvelope): string | undefined {
-    if (envelope.id === undefined) {
-      return undefined;
-    }
+  private takePendingServerOriginMethod(envelope: JsonRpcResponse): string | undefined {
     this.evictExpiredPendingRequests(this.pendingServerOriginMethods);
     const key = requestIdKey(envelope.id);
     const method = this.pendingServerOriginMethods.get(key)?.method;
@@ -535,27 +540,27 @@ export class ProxySession {
     return method;
   }
 
-  private rememberPendingServerOriginRequest(envelope: JsonRpcEnvelope): void {
-    if (envelope.id === undefined || typeof envelope.method !== "string") {
+  private rememberPendingServerOriginRequest(envelope: JsonRpcRequestEnvelope): void {
+    if (!hasJsonRpcRequestId(envelope)) {
       return;
     }
     this.pendingServerOriginMethods.set(requestIdKey(envelope.id), this.createPendingRequestState(envelope.method));
   }
 
   private denyDuplicatePendingRequest(
-    envelope: JsonRpcEnvelope,
+    envelope: JsonRpcRequestEnvelope,
     pending: Map<string, PendingRequestState>,
     reason: string
   ): ProxyFrameResult | undefined {
     this.evictExpiredPendingRequests(pending);
-    if (envelope.id === undefined || !pending.has(requestIdKey(envelope.id))) {
+    if (!hasJsonRpcRequestId(envelope) || !pending.has(requestIdKey(envelope.id))) {
       return undefined;
     }
     return this.denyEnvelope(
       envelope,
       denyDecision(reason, {
         code: "jsonrpc.invalid",
-        ...(typeof envelope.method === "string" ? { method: envelope.method } : {})
+        method: envelope.method
       }),
       "MCP request denied by proxy protocol state",
       "error"
@@ -563,26 +568,26 @@ export class ProxySession {
   }
 
   private denyPendingCapacityExceeded(
-    envelope: JsonRpcEnvelope,
+    envelope: JsonRpcRequestEnvelope,
     pending: Map<string, PendingRequestState>,
     direction: "client" | "upstream"
   ): ProxyFrameResult | undefined {
     this.evictExpiredPendingRequests(pending);
-    if (envelope.id === undefined || pending.size < this.maxPendingRequests) {
+    if (!hasJsonRpcRequestId(envelope) || pending.size < this.maxPendingRequests) {
       return undefined;
     }
     return this.denyEnvelope(
       envelope,
       denyDecision(`${direction} pending request limit exceeded`, {
         code: "jsonrpc.invalid",
-        ...(typeof envelope.method === "string" ? { method: envelope.method } : {})
+        method: envelope.method
       }),
       "MCP request denied by proxy protocol state",
       "error"
     );
   }
 
-  private denyConcurrentDiscoveryRequest(envelope: JsonRpcEnvelope): ProxyFrameResult | undefined {
+  private denyConcurrentDiscoveryRequest(envelope: JsonRpcRequestEnvelope): ProxyFrameResult | undefined {
     if (envelope.method !== "tools/list") {
       return undefined;
     }
@@ -619,15 +624,15 @@ export class ProxySession {
     }
   }
 
-  private denyInvalidMethodShape(envelope: JsonRpcEnvelope): ProxyFrameResult | undefined {
-    if (requestMethodIdsRequired.has(envelope.method ?? "") && envelope.id === undefined) {
+  private denyInvalidMethodShape(envelope: JsonRpcRequestEnvelope): ProxyFrameResult | undefined {
+    if (requestMethodIdsRequired.has(envelope.method) && !hasJsonRpcRequestId(envelope)) {
       return this.denyInvalidClientMessage(
         envelope,
         "MCP request method must include a JSON-RPC id",
         "MCP request denied by proxy protocol state"
       );
     }
-    if (notificationMethods.has(envelope.method ?? "") && envelope.id !== undefined) {
+    if (notificationMethods.has(envelope.method) && hasJsonRpcRequestId(envelope)) {
       return this.denyInvalidClientMessage(
         envelope,
         "MCP notification method must not include a JSON-RPC id",
@@ -637,8 +642,8 @@ export class ProxySession {
     return undefined;
   }
 
-  private denyInvalidServerOriginMethodShape(envelope: JsonRpcEnvelope): ProxyFrameResult | undefined {
-    if (envelope.method === "ping" && envelope.id === undefined) {
+  private denyInvalidServerOriginMethodShape(envelope: JsonRpcRequestEnvelope): ProxyFrameResult | undefined {
+    if (envelope.method === "ping" && !hasJsonRpcRequestId(envelope)) {
       return this.denyEnvelope(
         envelope,
         denyDecision("server-origin ping must include a JSON-RPC id", { code: "jsonrpc.invalid", method: envelope.method }),
@@ -649,26 +654,26 @@ export class ProxySession {
     return undefined;
   }
 
-  private denyInvalidClientMessage(envelope: JsonRpcEnvelope, reason: string, message: string): ProxyFrameResult {
+  private denyInvalidClientMessage(envelope: JsonRpcRequestEnvelope, reason: string, message: string): ProxyFrameResult {
     const decision = denyDecision(reason, {
       code: "jsonrpc.invalid",
-      ...(typeof envelope.method === "string" ? { method: envelope.method } : {})
+      method: envelope.method
     });
     return {
-      responseLine: encodeJsonRpcError(envelope.id ?? null, invalidRequestErrorCode, message, decision),
+      responseLine: encodeJsonRpcError(hasJsonRpcRequestId(envelope) ? envelope.id : null, invalidRequestErrorCode, message, decision),
       auditEvents: [this.createAudit("error", decision, undefined, envelope.method)]
     };
   }
 
   private denyEnvelope(
-    envelope: JsonRpcEnvelope,
+    envelope: JsonRpcRequestEnvelope,
     decision: PolicyDecision,
     message: string,
     kind: "method-denied" | "call-decision" | "error",
     toolName?: string
   ): ProxyFrameResult {
     const auditEvent = this.createAudit(kind, decision, toolName, envelope.method);
-    if (envelope.id === undefined) {
+    if (!hasJsonRpcRequestId(envelope)) {
       return {
         auditEvents: [auditEvent]
       };
@@ -824,10 +829,60 @@ function parseJsonLine(
         return { ok: false, reason: "JSON-RPC error must include numeric code and string message", code: "jsonrpc.invalid" };
       }
     }
-    return { ok: true, value: parsed as unknown as JsonRpcEnvelope };
+    return { ok: true, value: buildJsonRpcEnvelope(parsed) };
   } catch {
     return { ok: false, reason: "message is not valid JSON", code: "jsonrpc.invalid" };
   }
+}
+
+function buildJsonRpcEnvelope(parsed: Readonly<Record<string, unknown>>): JsonRpcEnvelope {
+  if (typeof parsed["method"] === "string") {
+    const extraFields = copyExtraFields(parsed, jsonRpcRequestEnvelopeKeys);
+    if ("id" in parsed) {
+      const request: JsonRpcRequest = {
+        jsonrpc: "2.0",
+        id: readJsonRpcId(parsed["id"]),
+        method: parsed["method"]
+      };
+      return withExtraFields("params" in parsed ? { ...request, params: parsed["params"] } : request, extraFields);
+    }
+    const notification: JsonRpcNotification = {
+      jsonrpc: "2.0",
+      method: parsed["method"]
+    };
+    return withExtraFields("params" in parsed ? { ...notification, params: parsed["params"] } : notification, extraFields);
+  }
+
+  const extraFields = copyExtraFields(parsed, jsonRpcResponseEnvelopeKeys);
+  if ("result" in parsed) {
+    const response: JsonRpcResponse = {
+      jsonrpc: "2.0",
+      id: readJsonRpcId(parsed["id"]),
+      result: parsed["result"]
+    };
+    return withExtraFields(response, extraFields);
+  }
+
+  const response: JsonRpcResponse = {
+    jsonrpc: "2.0",
+    id: readJsonRpcId(parsed["id"]),
+    error: readJsonRpcErrorObject(parsed["error"])
+  };
+  return withExtraFields(response, extraFields);
+}
+
+function copyExtraFields(value: Readonly<Record<string, unknown>>, allowedKeys: ReadonlySet<string>): Readonly<Record<string, unknown>> {
+  const extra: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (!allowedKeys.has(key)) {
+      extra[key] = entry;
+    }
+  }
+  return extra;
+}
+
+function withExtraFields<T extends JsonRpcEnvelope>(envelope: T, extraFields: Readonly<Record<string, unknown>>): T {
+  return Object.assign({}, extraFields, envelope);
 }
 
 function jsonDepthExceeds(value: unknown, maxDepth: number): boolean {
@@ -854,22 +909,42 @@ function isJsonRpcId(value: unknown): value is string | number | null {
   return value === null || typeof value === "string" || (typeof value === "number" && Number.isSafeInteger(value));
 }
 
-function isJsonRpcErrorObject(value: unknown): boolean {
+function readJsonRpcId(value: unknown): JsonRpcId {
+  return isJsonRpcId(value) ? value : null;
+}
+
+function hasJsonRpcRequestId(envelope: JsonRpcRequestEnvelope): envelope is JsonRpcRequest {
+  return "id" in envelope && isJsonRpcId(envelope.id);
+}
+
+function isJsonRpcErrorObject(value: unknown): value is { readonly code: number; readonly message: string; readonly data?: unknown } {
   return isRecord(value) && typeof value["code"] === "number" && typeof value["message"] === "string";
 }
 
+function readJsonRpcErrorObject(value: unknown): JsonRpcErrorObject {
+  if (!isJsonRpcErrorObject(value)) {
+    return { code: invalidRequestErrorCode, message: "invalid JSON-RPC error object" };
+  }
+  return {
+    ...value,
+    code: value["code"],
+    message: value["message"],
+    ...("data" in value ? { data: value["data"] } : {})
+  };
+}
+
 function sanitizeUpstreamError(
-  envelope: JsonRpcEnvelope,
+  envelope: JsonRpcResponse,
   redactionPolicy: PolicyDocument["redaction"]
-): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
-  const originalError = isRecord(envelope.error) ? envelope.error : undefined;
-  if (!originalError) {
+): { readonly envelope: JsonRpcResponse; readonly redaction: RedactionSummary } {
+  if (!isJsonRpcErrorResponse(envelope)) {
     return { envelope, redaction: noRedaction() };
   }
+  const originalError = envelope.error;
 
   const error: Record<string, unknown> = {
-    code: originalError["code"],
-    message: originalError["message"]
+    code: originalError.code,
+    message: originalError.message
   };
   const counts: Record<string, number> = {};
   if ("data" in originalError) {
@@ -896,7 +971,10 @@ function sanitizeUpstreamError(
   return {
     envelope: {
       ...envelope,
-      error
+      error: {
+        code: typeof error["code"] === "number" ? error["code"] : invalidRequestErrorCode,
+        message: typeof error["message"] === "string" ? error["message"] : "upstream error redacted"
+      }
     },
     redaction: {
       applied: true,
@@ -905,25 +983,39 @@ function sanitizeUpstreamError(
   };
 }
 
-function sanitizeJsonRpcRequestEnvelope(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
+function sanitizeJsonRpcRequestEnvelope(
+  envelope: JsonRpcRequestEnvelope
+): { readonly envelope: JsonRpcRequestEnvelope; readonly redaction: RedactionSummary } {
   const extraFieldCount = Object.keys(envelope).filter((key) => !jsonRpcRequestEnvelopeKeys.has(key)).length;
   if (extraFieldCount === 0) {
     return { envelope, redaction: noRedaction() };
   }
 
-  const sanitized: Record<string, unknown> = {
+  const sanitized = {
     jsonrpc: "2.0",
     method: envelope.method
-  };
-  if ("id" in envelope) {
-    sanitized["id"] = envelope.id;
+  } as const;
+  if (hasJsonRpcRequestId(envelope)) {
+    const request: JsonRpcRequest = {
+      ...sanitized,
+      id: envelope.id,
+      ...("params" in envelope ? { params: envelope.params } : {})
+    };
+    return {
+      envelope: request,
+      redaction: {
+        applied: true,
+        counts: {
+          jsonrpc_request_extra_fields: extraFieldCount
+        }
+      }
+    };
   }
-  if ("params" in envelope) {
-    sanitized["params"] = envelope.params;
-  }
-
   return {
-    envelope: sanitized as unknown as JsonRpcEnvelope,
+    envelope: {
+      ...sanitized,
+      ...("params" in envelope ? { params: envelope.params } : {})
+    },
     redaction: {
       applied: true,
       counts: {
@@ -934,8 +1026,8 @@ function sanitizeJsonRpcRequestEnvelope(envelope: JsonRpcEnvelope): { readonly e
 }
 
 function sanitizeToolCallRequestEnvelope(
-  envelope: JsonRpcEnvelope
-): { readonly ok: true; readonly envelope: JsonRpcEnvelope } | { readonly ok: false; readonly reason: string } {
+  envelope: JsonRpcRequestEnvelope
+): { readonly ok: true; readonly envelope: JsonRpcRequestEnvelope } | { readonly ok: false; readonly reason: string } {
   const params = isRecord(envelope.params) ? envelope.params : undefined;
   if (!params) {
     return { ok: false, reason: "tools/call params must be an object" };
@@ -957,36 +1049,46 @@ function sanitizeToolCallRequestEnvelope(
     sanitizedParams["arguments"] = params["arguments"];
   }
 
-  const sanitized: Record<string, unknown> = {
-    jsonrpc: "2.0"
-  };
   if ("id" in envelope) {
-    sanitized["id"] = envelope.id;
+    return {
+      ok: true,
+      envelope: {
+        jsonrpc: "2.0",
+        id: envelope.id,
+        method: "tools/call",
+        params: sanitizedParams
+      }
+    };
   }
-  sanitized["method"] = "tools/call";
-  sanitized["params"] = sanitizedParams;
-
-  return { ok: true, envelope: sanitized as unknown as JsonRpcEnvelope };
+  return {
+    ok: true,
+    envelope: {
+      jsonrpc: "2.0",
+      method: "tools/call",
+      params: sanitizedParams
+    }
+  };
 }
 
-function sanitizeJsonRpcResponseEnvelope(envelope: JsonRpcEnvelope): { readonly envelope: JsonRpcEnvelope; readonly redaction: RedactionSummary } {
+function sanitizeJsonRpcResponseEnvelope(envelope: JsonRpcResponse): { readonly envelope: JsonRpcResponse; readonly redaction: RedactionSummary } {
   const extraFieldCount = Object.keys(envelope).filter((key) => !jsonRpcResponseEnvelopeKeys.has(key)).length;
   if (extraFieldCount === 0) {
     return { envelope, redaction: noRedaction() };
   }
 
-  const sanitized: Record<string, unknown> = {
-    jsonrpc: "2.0",
-    id: envelope.id
-  };
-  if ("result" in envelope) {
-    sanitized["result"] = envelope.result;
-  } else {
-    sanitized["error"] = envelope.error;
-  }
-
   return {
-    envelope: sanitized as unknown as JsonRpcEnvelope,
+    envelope:
+      "result" in envelope
+        ? {
+            jsonrpc: "2.0",
+            id: envelope.id,
+            result: envelope.result
+          }
+        : {
+            jsonrpc: "2.0",
+            id: envelope.id,
+            error: envelope.error
+          },
     redaction: {
       applied: true,
       counts: {
