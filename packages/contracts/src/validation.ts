@@ -23,6 +23,16 @@ export type ValidationResult<T> =
       readonly errors: readonly string[];
     };
 
+export function parsePolicyDocumentJson(text: string): ValidationResult<PolicyDocument> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    return invalid("policy JSON is invalid");
+  }
+  return validatePolicyDocument(parsed);
+}
+
 const capabilities = new Set<Capability>([
   "file-read",
   "file-write",

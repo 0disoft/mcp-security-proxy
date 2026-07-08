@@ -28,7 +28,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 
 ## Provisional Modules
 
-- `policy`: parse, validate, and normalize policy files.
+- `policy`: parse policy JSON text with `parsePolicyDocumentJson`, validate already-parsed
+  unknown values with `validatePolicyDocument`, and normalize policy files.
 - `method-policy`: classify supported, unsupported, and denied MCP methods.
 - `classifier`: map MCP tool descriptors to capability labels.
 - `evaluator`: evaluate tool calls against policy and return allow, deny, or approval-required.
@@ -53,6 +54,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Unsupported-method decisions must use the same evidence model as tool-call decisions.
 - Redaction summaries must count replacements without exposing original values.
 - Policy errors must be value-based and testable.
+- Policy JSON parse errors must not echo the original policy text because policy files can contain
+  sensitive local paths, labels, or operational details.
 - Tool descriptors must preserve upstream identity without inventing tools.
 - Secret-like descriptor names or descriptions may infer the `secret` capability, but the
   classifier must not treat `api` alone as secret-bearing material.
