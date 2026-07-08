@@ -1,0 +1,86 @@
+{
+  "invalidIdForwarded": false,
+  "invalidIdResponse": {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+      "code": -32600,
+      "message": "invalid MCP JSON-RPC message",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "jsonrpc.invalid",
+              "reason": "JSON-RPC id must be a string, safe integer number, null, or absent"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "invalidIdAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "reason": "JSON-RPC id must be a string, safe integer number, null, or absent"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "invalidMethodForwarded": false,
+  "invalidMethodResponse": {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+      "code": -32600,
+      "message": "invalid MCP JSON-RPC message",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "jsonrpc.invalid",
+              "reason": "JSON-RPC method must be a string when present"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "invalidMethodAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "reason": "JSON-RPC method must be a string when present"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}

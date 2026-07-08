@@ -84,6 +84,7 @@ const requiredEvidenceIds = new Set([
   "runtime-duplicate-server-request-id",
   "runtime-malformed-discovery",
   "runtime-pending-discovery-id-type",
+  "runtime-invalid-jsonrpc-envelope-shape",
   "runtime-invalid-upstream-response-shape",
   "runtime-invalid-upstream-error-object",
   "runtime-unmatched-response-denial",
@@ -431,6 +432,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "duplicate-server-request-id",
     "malformed-discovery",
     "pending-discovery-id-type",
+    "invalid-jsonrpc-envelope-shape",
     "invalid-upstream-response-shape",
     "invalid-upstream-error-object",
     "unmatched-response-denial",
@@ -546,6 +548,44 @@ async function checkRuntimeSessionFixture(id, path, item) {
         ? parseJsonText(arrayParams.responseLine, `${id}: arrayParams.responseLine`)
         : undefined,
       arrayParamsAuditEvents: arrayParams.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "invalid-jsonrpc-envelope-shape") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const invalidId = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: {
+          marker: "RAW_INVALID_ID_MARKER"
+        },
+        method: "tools/list"
+      })
+    );
+    const invalidMethod = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-invalid-method",
+        method: {
+          marker: "RAW_INVALID_METHOD_MARKER"
+        }
+      })
+    );
+    const actual = {
+      invalidIdForwarded: invalidId.forwardLine !== undefined,
+      invalidIdResponse: invalidId.responseLine ? parseJsonText(invalidId.responseLine, `${id}: invalidId.responseLine`) : null,
+      invalidIdAuditEvents: invalidId.auditEvents,
+      invalidMethodForwarded: invalidMethod.forwardLine !== undefined,
+      invalidMethodResponse: invalidMethod.responseLine
+        ? parseJsonText(invalidMethod.responseLine, `${id}: invalidMethod.responseLine`)
+        : null,
+      invalidMethodAuditEvents: invalidMethod.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);
