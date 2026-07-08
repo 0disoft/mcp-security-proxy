@@ -506,6 +506,14 @@
       "policy": "fixtures/policies/local-dev.json",
       "profile": "local",
       "scenario": "server-origin-ping-invalid-response"
+    },
+    {
+      "id": "runtime-upstream-error-data-redaction",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-upstream-error-data-redaction.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "upstream-error-data-redaction"
     }
   ]
 }

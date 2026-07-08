@@ -86,7 +86,8 @@ const requiredEvidenceIds = new Set([
   "runtime-pending-discovery-id-type",
   "runtime-server-envelope-sanitization",
   "runtime-server-origin-unsupported-method",
-  "runtime-server-origin-ping-invalid-response"
+  "runtime-server-origin-ping-invalid-response",
+  "runtime-upstream-error-data-redaction"
 ]);
 
 const failures = [];
@@ -424,7 +425,8 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "pending-discovery-id-type",
     "server-envelope-sanitization",
     "server-origin-unsupported-method",
-    "server-origin-ping-invalid-response"
+    "server-origin-ping-invalid-response",
+    "upstream-error-data-redaction"
   ]);
   if (!supportedScenarios.has(item.scenario)) {
     failures.push(`${id}: unsupported runtime session scenario ${item.scenario}`);
@@ -565,6 +567,48 @@ async function checkRuntimeSessionFixture(id, path, item) {
         ? parseJsonText(clientErrorResponse.responseLine, `${id}: clientErrorResponse.responseLine`)
         : null,
       clientErrorResponseAuditEvents: clientErrorResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "upstream-error-data-redaction") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const request = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-error-with-data",
+        method: "ping"
+      })
+    );
+    const upstreamError = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-error-with-data",
+        error: {
+          code: -32000,
+          message: "upstream failure",
+          data: {
+            marker: "RAW_ERROR_DATA_MARKER",
+            path: "workspace/private/secret.txt"
+          }
+        }
+      })
+    );
+    const actual = {
+      requestForwarded: request.forwardLine ? parseJsonText(request.forwardLine, `${id}: request.forwardLine`) : undefined,
+      requestAuditEvents: request.auditEvents,
+      upstreamErrorForwarded: upstreamError.forwardLine
+        ? parseJsonText(upstreamError.forwardLine, `${id}: upstreamError.forwardLine`)
+        : undefined,
+      upstreamErrorResponse: upstreamError.responseLine
+        ? parseJsonText(upstreamError.responseLine, `${id}: upstreamError.responseLine`)
+        : null,
+      upstreamErrorAuditEvents: upstreamError.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);
