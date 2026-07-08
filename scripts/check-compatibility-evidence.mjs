@@ -75,6 +75,7 @@ const requiredEvidenceIds = new Set([
   "runtime-approval-hook-error",
   "runtime-approval-timeout",
   "runtime-client-envelope-sanitization",
+  "runtime-client-ping-error-response",
   "runtime-client-ping-payload-response",
   "runtime-client-unsupported-method",
   "runtime-discovery-replacement",
@@ -412,6 +413,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "approval-rejected-redacted",
     "approval-timeout",
     "client-envelope-sanitization",
+    "client-ping-error-response",
     "client-ping-payload-response",
     "client-unsupported-method",
     "discovery-replacement",
@@ -525,6 +527,44 @@ async function checkRuntimeSessionFixture(id, path, item) {
         ? parseJsonText(clientPayloadResponse.responseLine, `${id}: clientPayloadResponse.responseLine`)
         : null,
       clientPayloadResponseAuditEvents: clientPayloadResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "client-ping-error-response") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const serverPing = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-server-ping-error-response",
+        method: "ping"
+      })
+    );
+    const clientErrorResponse = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-server-ping-error-response",
+        error: {
+          code: -32000,
+          message: "RAW_CLIENT_PING_ERROR_MARKER"
+        }
+      })
+    );
+    const actual = {
+      serverPingForwarded: serverPing.forwardLine
+        ? parseJsonText(serverPing.forwardLine, `${id}: serverPing.forwardLine`)
+        : undefined,
+      serverPingAuditEvents: serverPing.auditEvents,
+      clientErrorResponseForwarded: clientErrorResponse.forwardLine !== undefined,
+      clientErrorResponseResponse: clientErrorResponse.responseLine
+        ? parseJsonText(clientErrorResponse.responseLine, `${id}: clientErrorResponse.responseLine`)
+        : null,
+      clientErrorResponseAuditEvents: clientErrorResponse.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

@@ -412,6 +412,14 @@
       "scenario": "client-envelope-sanitization"
     },
     {
+      "id": "runtime-client-ping-error-response",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-client-ping-error-response.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "client-ping-error-response"
+    },
+    {
       "id": "runtime-client-ping-payload-response",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-client-ping-payload-response.json",
