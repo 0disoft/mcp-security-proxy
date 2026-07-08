@@ -522,6 +522,14 @@
       "policy": "fixtures/policies/local-dev.json",
       "profile": "local",
       "scenario": "upstream-error-message-redaction"
+    },
+    {
+      "id": "runtime-upstream-error-extra-field-redaction",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-upstream-error-extra-field-redaction.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "upstream-error-extra-field-redaction"
     }
   ]
 }

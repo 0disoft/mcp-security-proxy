@@ -88,7 +88,8 @@ const requiredEvidenceIds = new Set([
   "runtime-server-origin-unsupported-method",
   "runtime-server-origin-ping-invalid-response",
   "runtime-upstream-error-data-redaction",
-  "runtime-upstream-error-message-redaction"
+  "runtime-upstream-error-message-redaction",
+  "runtime-upstream-error-extra-field-redaction"
 ]);
 
 const failures = [];
@@ -428,7 +429,8 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "server-origin-unsupported-method",
     "server-origin-ping-invalid-response",
     "upstream-error-data-redaction",
-    "upstream-error-message-redaction"
+    "upstream-error-message-redaction",
+    "upstream-error-extra-field-redaction"
   ]);
   if (!supportedScenarios.has(item.scenario)) {
     failures.push(`${id}: unsupported runtime session scenario ${item.scenario}`);
@@ -685,6 +687,48 @@ async function checkRuntimeSessionFixture(id, path, item) {
         error: {
           code: -32000,
           message: "failed to read workspace/private/error-message.txt"
+        }
+      })
+    );
+    const actual = {
+      requestForwarded: request.forwardLine ? parseJsonText(request.forwardLine, `${id}: request.forwardLine`) : undefined,
+      requestAuditEvents: request.auditEvents,
+      upstreamErrorForwarded: upstreamError.forwardLine
+        ? parseJsonText(upstreamError.forwardLine, `${id}: upstreamError.forwardLine`)
+        : undefined,
+      upstreamErrorResponse: upstreamError.responseLine
+        ? parseJsonText(upstreamError.responseLine, `${id}: upstreamError.responseLine`)
+        : null,
+      upstreamErrorAuditEvents: upstreamError.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "upstream-error-extra-field-redaction") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const request = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-error-with-extra-fields",
+        method: "ping"
+      })
+    );
+    const upstreamError = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-error-with-extra-fields",
+        error: {
+          code: -32000,
+          message: "upstream failure",
+          stack: "RAW_ERROR_STACK_MARKER at workspace/private/secret.txt",
+          details: {
+            marker: "RAW_ERROR_DETAILS_MARKER"
+          }
         }
       })
     );
