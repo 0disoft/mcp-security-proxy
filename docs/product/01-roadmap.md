@@ -48,7 +48,8 @@ Status: implemented for the current stdio-only boundary.
 Status: partially implemented with fixture-backed dry-run evidence for policy validation,
 discovery inspection, allowed calls, denied calls, approval-required calls, path traversal
 denials, shell denials, network decisions, redaction, CLI JSON output, public policy parsing,
-audit JSONL formatting, tool-call normalization, and library decision results.
+audit JSONL formatting, tool-call normalization, approval hook behavior, and library decision
+results.
 
 - Expose policy parser.
 - Expose tool classifier.
@@ -59,7 +60,8 @@ audit JSONL formatting, tool-call normalization, and library decision results.
 - Expose an approval hook API for embedding hosts.
 - Maintain fixture-backed compatibility evidence for discovery, allowed calls, denied calls,
   approval-required calls, matcher denials, redaction, CLI JSON output, public parser output,
-  audit JSONL formatting, tool-call normalization, and library decision results.
+  audit JSONL formatting, tool-call normalization, approval hook behavior, and library decision
+  results.
 
 ## Milestone 3: Host Integration Hardening
 

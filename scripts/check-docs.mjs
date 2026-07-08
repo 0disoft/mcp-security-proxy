@@ -18,6 +18,7 @@ const requiredFiles = [
   "docs/adr/0001-initial-architecture-boundaries.md",
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
+  "docs/library/approval-hooks.md",
   "docs/library/decision-codes.md",
   "docs/cli/output-and-exit-codes.md",
   "docs/ops/observability.md",
@@ -63,7 +64,8 @@ const cliContractFailures = [
   ...checkHttpTransportPlanDocs(),
   ...checkHostApprovalUxPlanDocs(),
   ...checkExternalMcpCompatibilityPlanDocs(),
-  ...checkDecisionCodeDocs()
+  ...checkDecisionCodeDocs(),
+  ...checkApprovalHookDocs()
 ];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
@@ -312,4 +314,59 @@ function extractDecisionReasonCodes(source) {
 
 function extractDocumentedDecisionCodes(markdown) {
   return [...markdown.matchAll(/^\| `([^`]+)` \| .+ \|$/gm)].map((item) => item[1]);
+}
+
+function checkApprovalHookDocs() {
+  const failures = [];
+  const approvalDocsPath = "docs/library/approval-hooks.md";
+  const publicApiPath = "docs/library/public-api.md";
+  const sessionSource = readFileSync(join(root, "packages/proxy-runtime/src/session.ts"), "utf8");
+  const stdioBridgeSource = readFileSync(join(root, "packages/proxy-runtime/src/stdio-bridge.ts"), "utf8");
+  const approvalDocs = readFileSync(join(root, approvalDocsPath), "utf8");
+  const publicApiDoc = readFileSync(join(root, publicApiPath), "utf8");
+
+  for (const sourcePhrase of [
+    "export interface ApprovalRequest",
+    "readonly call: NormalizedToolCall;",
+    "readonly decision: PolicyDecision;",
+    "export interface ApprovalResult",
+    "readonly approved: boolean;",
+    "export type ApprovalHook"
+  ]) {
+    if (!sessionSource.includes(sourcePhrase)) {
+      failures.push(`packages/proxy-runtime/src/session.ts: missing approval hook source phrase: ${sourcePhrase}`);
+    }
+  }
+
+  for (const sourcePhrase of [
+    "readonly approveToolCall?: ApprovalHook;",
+    "readonly approvalHookAvailable?: boolean;",
+    "readonly approvalTimeoutMs?: number;"
+  ]) {
+    if (!stdioBridgeSource.includes(sourcePhrase)) {
+      failures.push(`packages/proxy-runtime/src/stdio-bridge.ts: missing approval bridge source phrase: ${sourcePhrase}`);
+    }
+  }
+
+  for (const phrase of [
+    "Approval hooks receive normalized call facts and decision evidence only",
+    "must not include the raw JSON-RPC envelope",
+    "Host-provided rejection reasons are host-owned input",
+    "They are not forwarded or stored verbatim",
+    "No bundled approval UI",
+    "No persistent or remembered approval store",
+    "policy.approval_denied",
+    "policy.approval_hook_failed",
+    "policy.approval_hook_missing"
+  ]) {
+    if (!approvalDocs.includes(phrase)) {
+      failures.push(`${approvalDocsPath}: missing approval hook contract phrase: ${phrase}`);
+    }
+  }
+
+  if (!publicApiDoc.includes("docs/library/approval-hooks.md")) {
+    failures.push(`${publicApiPath}: public API docs must link the approval hook contract`);
+  }
+
+  return failures;
 }

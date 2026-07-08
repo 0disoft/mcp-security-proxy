@@ -41,7 +41,7 @@ This repository type owns public API surface, package compatibility, semantic ve
 - `proxy-runtime`: evaluate newline-delimited JSON-RPC messages at the proxy boundary and return
   forward, denial, and audit actions without owning subprocess IO.
 - `approval`: host-owned approval callback types used by the runtime before forwarding
-  approval-required calls.
+  approval-required calls. The approval hook API contract is docs/library/approval-hooks.md.
 
 ## Public Type Principles
 
