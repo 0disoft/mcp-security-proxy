@@ -2214,7 +2214,7 @@ describe("proxy runtime session", () => {
     });
   });
 
-  it("hides duplicate visible tool names after the first sanitized descriptor", () => {
+  it("hides every descriptor for duplicate visible tool names", () => {
     const session = createProxySession({
       policy: readPolicy(),
       profileId: "local"
@@ -2262,15 +2262,10 @@ describe("proxy runtime session", () => {
       jsonrpc: "2.0",
       id: "tools-duplicates",
       result: {
-        tools: [
-          {
-            name: "read_file",
-            title: "Read File",
-            description: "Read a file from a caller-provided path."
-          }
-        ]
+        tools: []
       }
     });
+    expect(JSON.stringify(inbound.forwardLine)).not.toContain("Read File");
     expect(JSON.stringify(inbound.forwardLine)).not.toContain("RAW_DUPLICATE_DESCRIPTOR_TITLE_MARKER");
     expect(JSON.stringify(inbound.forwardLine)).not.toContain("RAW_DUPLICATE_DESCRIPTOR_DESC_MARKER");
     expect(JSON.stringify(inbound.forwardLine)).not.toContain("RAW_DUPLICATE_DESCRIPTOR_SCHEMA_MARKER");
@@ -2279,11 +2274,11 @@ describe("proxy runtime session", () => {
     expect(inbound.auditEvents[0]).toMatchObject({
       kind: "discovery-filtered",
       decision: {
-        evidence: [{ code: "discovery.filtered", reason: "1 tool(s) hidden by discovery policy" }]
+        evidence: [{ code: "discovery.filtered", reason: "2 tool(s) hidden by discovery policy" }]
       }
     });
 
-    const allowedCall = session.handleClientLine(
+    const deniedCall = session.handleClientLine(
       JSON.stringify({
         jsonrpc: "2.0",
         id: "call-after-duplicate-discovery",
@@ -2297,14 +2292,25 @@ describe("proxy runtime session", () => {
       })
     );
 
-    expect(allowedCall.forwardLine).toBeTruthy();
-    expect(allowedCall.responseLine).toBeUndefined();
-    expect(allowedCall.auditEvents[0]).toMatchObject({
+    expect(deniedCall.forwardLine).toBeUndefined();
+    expect(JSON.parse(deniedCall.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "call-after-duplicate-discovery",
+      error: {
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [{ code: "tool.not_visible", reason: "tool was not visible in filtered discovery" }]
+          }
+        }
+      }
+    });
+    expect(deniedCall.auditEvents[0]).toMatchObject({
       kind: "call-decision",
       toolName: "read_file",
       decision: {
-        action: "allow",
-        evidence: [{ ruleId: "allow-public-files" }]
+        action: "deny",
+        evidence: [{ code: "tool.not_visible" }]
       }
     });
   });

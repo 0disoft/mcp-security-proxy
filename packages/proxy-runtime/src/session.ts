@@ -964,9 +964,12 @@ function filterToolListResult(
 
   const visibleTools: ToolMetadata[] = [];
   const filteredTools: unknown[] = [];
-  const forwardedToolNames = new Set<string>();
+  const duplicateToolNames = findDuplicateToolNames(tools);
   for (const item of tools) {
     if (!isRecord(item) || typeof item["name"] !== "string") {
+      continue;
+    }
+    if (duplicateToolNames.has(item["name"])) {
       continue;
     }
     const description = typeof item["description"] === "string" ? item["description"] : undefined;
@@ -983,10 +986,6 @@ function filterToolListResult(
     };
 
     if (toolIsDiscoverable(metadata, policy, profileId)) {
-      if (forwardedToolNames.has(metadata.name)) {
-        continue;
-      }
-      forwardedToolNames.add(metadata.name);
       visibleTools.push(metadata);
       filteredTools.push(sanitizeVisibleToolDescriptor(item, metadata));
     }
@@ -1001,6 +1000,22 @@ function filterToolListResult(
     filteredCount: tools.length - filteredTools.length,
     sanitizedMalformedResult: false
   };
+}
+
+function findDuplicateToolNames(tools: readonly unknown[]): ReadonlySet<string> {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const item of tools) {
+    if (!isRecord(item) || typeof item["name"] !== "string") {
+      continue;
+    }
+    if (seen.has(item["name"])) {
+      duplicates.add(item["name"]);
+      continue;
+    }
+    seen.add(item["name"]);
+  }
+  return duplicates;
 }
 
 function sanitizeVisibleToolDescriptor(item: Readonly<Record<string, unknown>>, metadata: ToolMetadata): Readonly<Record<string, unknown>> {

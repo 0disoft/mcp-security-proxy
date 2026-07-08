@@ -72,7 +72,7 @@ transports remain future runtime responsibilities.
 4. Proxy rebuilds each visible descriptor with only `name`, optional `title`, optional `description`,
    object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`,
    while removing nested `default`, `example`, `examples`, `$comment`, and `_meta` metadata.
-5. Proxy hides duplicate visible tool names after the first sanitized descriptor.
+5. Proxy hides every descriptor for duplicate visible tool names.
 6. Proxy rebuilds the `tools/list` success result with only `tools` and optional string
    `nextCursor`.
 7. Malformed discovery success results are normalized to an empty `tools` array.

@@ -62,8 +62,8 @@ discovery and tool calls through explicit policy, redaction, and audit events.
   `examples`, `$comment`, and `_meta`, are removed from forwarded schema and annotation objects.
 - Sanitize malformed `tools/list` success results to an empty `tools` array instead of forwarding
   raw malformed discovery payloads.
-- Hide duplicate visible tool names after the first sanitized descriptor in a filtered discovery
-  response so call-time state and client-visible discovery remain unambiguous.
+- Hide every descriptor for duplicate visible tool names in a filtered discovery response so
+  call-time state and client-visible discovery remain unambiguous.
 - Evaluate tool calls before forwarding them.
 - Reduce secret-like argument keys to label-only policy facts and deny them unless the tool
   explicitly declares the `secret` capability.
