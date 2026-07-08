@@ -85,6 +85,7 @@ const requiredEvidenceIds = new Set([
   "runtime-malformed-discovery",
   "runtime-pending-discovery-id-type",
   "runtime-server-envelope-sanitization",
+  "runtime-upstream-response-envelope-sanitization",
   "runtime-server-origin-unsupported-method",
   "runtime-server-origin-ping-invalid-response",
   "runtime-server-origin-ping-missing-id-denial",
@@ -428,6 +429,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "malformed-discovery",
     "pending-discovery-id-type",
     "server-envelope-sanitization",
+    "upstream-response-envelope-sanitization",
     "server-origin-unsupported-method",
     "server-origin-ping-invalid-response",
     "server-origin-ping-missing-id-denial",
@@ -561,6 +563,62 @@ async function checkRuntimeSessionFixture(id, path, item) {
       pingForwarded: ping.forwardLine ? parseJsonText(ping.forwardLine, `${id}: ping.forwardLine`) : undefined,
       pingResponse: ping.responseLine ? parseJsonText(ping.responseLine, `${id}: ping.responseLine`) : null,
       pingAuditEvents: ping.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "upstream-response-envelope-sanitization") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-success-response-envelope-extra",
+        method: "ping"
+      })
+    );
+    const success = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-success-response-envelope-extra",
+        result: {},
+        trace: "RAW_UPSTREAM_SUCCESS_RESPONSE_TRACE_MARKER",
+        debug: {
+          marker: "RAW_UPSTREAM_SUCCESS_RESPONSE_DEBUG_MARKER"
+        }
+      })
+    );
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-error-response-envelope-extra",
+        method: "ping"
+      })
+    );
+    const error = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-error-response-envelope-extra",
+        error: {
+          code: -32000,
+          message: "upstream failure"
+        },
+        trace: {
+          marker: "RAW_UPSTREAM_ERROR_RESPONSE_TRACE_MARKER"
+        }
+      })
+    );
+    const actual = {
+      successForwarded: success.forwardLine ? parseJsonText(success.forwardLine, `${id}: success.forwardLine`) : undefined,
+      successResponse: success.responseLine ? parseJsonText(success.responseLine, `${id}: success.responseLine`) : null,
+      successAuditEvents: success.auditEvents,
+      errorForwarded: error.forwardLine ? parseJsonText(error.forwardLine, `${id}: error.forwardLine`) : undefined,
+      errorResponse: error.responseLine ? parseJsonText(error.responseLine, `${id}: error.responseLine`) : null,
+      errorAuditEvents: error.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

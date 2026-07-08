@@ -492,6 +492,14 @@
       "scenario": "server-envelope-sanitization"
     },
     {
+      "id": "runtime-upstream-response-envelope-sanitization",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-upstream-response-envelope-sanitization.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "upstream-response-envelope-sanitization"
+    },
+    {
       "id": "runtime-server-origin-unsupported-method",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-server-origin-unsupported-method.json",

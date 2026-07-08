@@ -1,0 +1,63 @@
+{
+  "successForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-success-response-envelope-extra",
+    "result": {}
+  },
+  "successResponse": null,
+  "successAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.response_extra_fields_redacted",
+            "reason": "upstream JSON-RPC response extra fields removed before forwarding"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": true,
+        "counts": {
+          "jsonrpc_response_extra_fields": 2
+        }
+      }
+    }
+  ],
+  "errorForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-error-response-envelope-extra",
+    "error": {
+      "code": -32000,
+      "message": "upstream failure"
+    }
+  },
+  "errorResponse": null,
+  "errorAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.response_extra_fields_redacted",
+            "reason": "upstream JSON-RPC response extra fields removed before forwarding"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": true,
+        "counts": {
+          "jsonrpc_response_extra_fields": 1
+        }
+      }
+    }
+  ]
+}
