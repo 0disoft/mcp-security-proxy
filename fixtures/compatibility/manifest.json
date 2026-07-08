@@ -468,6 +468,14 @@
       "scenario": "pending-discovery-id-type"
     },
     {
+      "id": "runtime-server-envelope-sanitization",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-server-envelope-sanitization.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "server-envelope-sanitization"
+    },
+    {
       "id": "runtime-server-origin-unsupported-method",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-server-origin-unsupported-method.json",

@@ -82,6 +82,7 @@ const requiredEvidenceIds = new Set([
   "runtime-duplicate-server-request-id",
   "runtime-malformed-discovery",
   "runtime-pending-discovery-id-type",
+  "runtime-server-envelope-sanitization",
   "runtime-server-origin-unsupported-method",
   "runtime-server-origin-ping-invalid-response"
 ]);
@@ -417,6 +418,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "duplicate-server-request-id",
     "malformed-discovery",
     "pending-discovery-id-type",
+    "server-envelope-sanitization",
     "server-origin-unsupported-method",
     "server-origin-ping-invalid-response"
   ]);
@@ -461,6 +463,29 @@ async function checkRuntimeSessionFixture(id, path, item) {
       serverRequestAuditEvents: serverRequest.auditEvents,
       invalidClientResponseForwarded: invalidClientResponse.forwardLine !== undefined,
       invalidClientResponseAuditEvents: invalidClientResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "server-envelope-sanitization") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const ping = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-server-ping-envelope-extra",
+        method: "ping",
+        trace: "RAW_SERVER_REQUEST_ENVELOPE_TRACE_MARKER"
+      })
+    );
+    const actual = {
+      pingForwarded: ping.forwardLine ? parseJsonText(ping.forwardLine, `${id}: ping.forwardLine`) : undefined,
+      pingResponse: ping.responseLine ? parseJsonText(ping.responseLine, `${id}: ping.responseLine`) : null,
+      pingAuditEvents: ping.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

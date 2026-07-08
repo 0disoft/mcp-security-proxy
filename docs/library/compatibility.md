@@ -57,8 +57,8 @@ This repository type owns public API surface, package compatibility, semantic ve
   fail-closed behavior, client envelope sanitization, discovery state replacement, duplicate
   pending client request id denial, duplicate pending server request id denial, duplicate discovery
   sanitization, malformed discovery sanitization, pending discovery id type preservation, client
-  unsupported method denial, server-origin unsupported method denial, and invalid server-origin
-  ping response denial.
+  unsupported method denial, server envelope sanitization, server-origin unsupported method denial,
+  and invalid server-origin ping response denial.
 
 The current evidence registry is `fixtures/compatibility/manifest.json`. Its `target` must remain
 `local-stdio-mvp`, `transport` must remain `stdio`, and `fixtureSource` must remain
