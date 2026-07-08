@@ -57,7 +57,7 @@ must remain private and versioned as `0.0.0`.
 
 ## Expected Package Surfaces
 
-- `packages/contracts`: policy, decision, audit event types, and JSON schema files.
+- `packages/contracts`: policy, decision, audit event, ops event types, and JSON schema files.
 - `packages/core`: method policy, classifier, evaluator, redactor, and audit formatter.
 - `packages/mcp-adapter`: JSON-RPC envelope and method-policy adapter helpers.
 - `packages/proxy-runtime`: runtime startup planning, JSON-RPC message gating, discovery
@@ -68,7 +68,7 @@ must remain private and versioned as `0.0.0`.
 ## Expected Entrypoint Re-exports
 
 - `packages/contracts/src/index.ts`: `./policy.js`, `./decision.js`, `./audit.js`,
-  `./validation.js`.
+  `./ops.js`, `./validation.js`.
 - `packages/core/src/index.ts`: `./method-policy.js`, `./matchers.js`, `./classifier.js`,
   `./evaluator.js`, `./redactor.js`, `./audit.js`.
 - `packages/mcp-adapter/src/index.ts`: `./jsonrpc.js`, `./method-policy.js`, `./tool-call.js`.

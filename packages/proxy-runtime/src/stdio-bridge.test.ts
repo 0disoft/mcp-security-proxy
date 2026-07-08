@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
-import type { AuditEvent, PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
-import { runStdioProxy, type StdioProxyOpsEvent, type UpstreamProcess } from "./stdio-bridge.js";
+import type { AuditEvent, PolicyDocument, StdioProxyOpsEvent } from "@0disoft/mcp-security-proxy-contracts";
+import { runStdioProxy, type UpstreamProcess } from "./stdio-bridge.js";
 import type { ApprovalHook } from "./session.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");

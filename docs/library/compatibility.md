@@ -56,6 +56,7 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Library audit JSONL formatter fixture.
 - Library tool-call normalization fixture.
 - Runtime live stdio smoke command evidence for the implemented local proxy path.
+- Runtime ops-log fixture evidence for structured lifecycle metrics emitted by live `run`.
 - Runtime session-result fixtures for approval rejection, approval hook error, approval timeout
   fail-closed behavior, client envelope sanitization, client ping error response denial, client ping
   payload response denial, discovery state replacement, duplicate pending client request id denial,

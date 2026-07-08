@@ -1,0 +1,39 @@
+[
+  {
+    "schemaVersion": "msp.ops-event.v1",
+    "timestamp": "<timestamp>",
+    "kind": "lifecycle",
+    "event": "proxy.start",
+    "profileId": "local",
+    "maxFrameBytes": 1048576,
+    "metrics": {
+      "clientFrames": 0,
+      "upstreamFrames": 0,
+      "clientFramesForwarded": 0,
+      "upstreamFramesForwarded": 0,
+      "clientDenials": 0,
+      "upstreamDenials": 0,
+      "protocolResponsesWritten": 0,
+      "auditEventsWritten": 0
+    }
+  },
+  {
+    "schemaVersion": "msp.ops-event.v1",
+    "timestamp": "<timestamp>",
+    "kind": "lifecycle",
+    "event": "proxy.stop",
+    "profileId": "local",
+    "exitCode": 0,
+    "elapsedMs": 0,
+    "metrics": {
+      "clientFrames": 1,
+      "upstreamFrames": 0,
+      "clientFramesForwarded": 0,
+      "upstreamFramesForwarded": 0,
+      "clientDenials": 1,
+      "upstreamDenials": 0,
+      "protocolResponsesWritten": 1,
+      "auditEventsWritten": 1
+    }
+  }
+]

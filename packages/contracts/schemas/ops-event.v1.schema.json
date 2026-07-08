@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://0disoft.github.io/mcp-security-proxy/schemas/ops-event.v1.schema.json",
+  "title": "MCP Security Proxy Ops Event v1",
+  "oneOf": [
+    { "$ref": "#/$defs/proxyStart" },
+    { "$ref": "#/$defs/proxyStop" }
+  ],
+  "$defs": {
+    "base": {
+      "type": "object",
+      "required": ["schemaVersion", "timestamp", "kind", "event", "profileId", "metrics"],
+      "properties": {
+        "schemaVersion": { "const": "msp.ops-event.v1" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "kind": { "enum": ["lifecycle"] },
+        "event": { "enum": ["proxy.start", "proxy.stop"] },
+        "profileId": { "type": "string" },
+        "metrics": { "$ref": "#/$defs/metrics" }
+      }
+    },
+    "proxyStart": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["maxFrameBytes"],
+          "properties": {
+            "event": { "const": "proxy.start" },
+            "maxFrameBytes": { "type": "integer", "minimum": 1 },
+            "maxJsonDepth": { "type": "integer", "minimum": 1 }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "proxyStop": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["exitCode", "elapsedMs"],
+          "properties": {
+            "event": { "const": "proxy.stop" },
+            "exitCode": { "type": "integer" },
+            "elapsedMs": { "type": "integer", "minimum": 0 }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "clientFrames",
+        "upstreamFrames",
+        "clientFramesForwarded",
+        "upstreamFramesForwarded",
+        "clientDenials",
+        "upstreamDenials",
+        "protocolResponsesWritten",
+        "auditEventsWritten"
+      ],
+      "properties": {
+        "clientFrames": { "type": "integer", "minimum": 0 },
+        "upstreamFrames": { "type": "integer", "minimum": 0 },
+        "clientFramesForwarded": { "type": "integer", "minimum": 0 },
+        "upstreamFramesForwarded": { "type": "integer", "minimum": 0 },
+        "clientDenials": { "type": "integer", "minimum": 0 },
+        "upstreamDenials": { "type": "integer", "minimum": 0 },
+        "protocolResponsesWritten": { "type": "integer", "minimum": 0 },
+        "auditEventsWritten": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

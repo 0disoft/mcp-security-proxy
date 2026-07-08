@@ -13,7 +13,8 @@
     "schemas": [
       "msp.policy.v1",
       "msp.decision.v1",
-      "msp.audit-event.v1"
+      "msp.audit-event.v1",
+      "msp.ops-event.v1"
     ]
   }
 }

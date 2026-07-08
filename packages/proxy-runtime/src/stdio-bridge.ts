@@ -1,6 +1,11 @@
 import type { Readable, Writable } from "node:stream";
 import { StringDecoder } from "node:string_decoder";
-import type { AuditEvent, PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
+import type {
+  AuditEvent,
+  PolicyDocument,
+  StdioProxyMetrics,
+  StdioProxyOpsEvent
+} from "@0disoft/mcp-security-proxy-contracts";
 import { createAuditEvent } from "@0disoft/mcp-security-proxy-core";
 import { createProxySession, type ApprovalHook } from "./session.js";
 
@@ -37,39 +42,6 @@ export interface StdioProxyOptions {
 export interface StdioProxyResult {
   readonly exitCode: number;
 }
-
-export interface StdioProxyMetrics {
-  readonly clientFrames: number;
-  readonly upstreamFrames: number;
-  readonly clientFramesForwarded: number;
-  readonly upstreamFramesForwarded: number;
-  readonly clientDenials: number;
-  readonly upstreamDenials: number;
-  readonly protocolResponsesWritten: number;
-  readonly auditEventsWritten: number;
-}
-
-export type StdioProxyOpsEvent =
-  | {
-      readonly schemaVersion: "msp.ops-event.v1";
-      readonly timestamp: string;
-      readonly kind: "lifecycle";
-      readonly event: "proxy.start";
-      readonly profileId: string;
-      readonly maxFrameBytes: number;
-      readonly maxJsonDepth?: number;
-      readonly metrics: StdioProxyMetrics;
-    }
-  | {
-      readonly schemaVersion: "msp.ops-event.v1";
-      readonly timestamp: string;
-      readonly kind: "lifecycle";
-      readonly event: "proxy.stop";
-      readonly profileId: string;
-      readonly exitCode: number;
-      readonly elapsedMs: number;
-      readonly metrics: StdioProxyMetrics;
-    };
 
 class AuditFailure extends Error {}
 

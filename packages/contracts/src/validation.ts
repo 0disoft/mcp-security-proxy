@@ -25,6 +25,7 @@ import {
   type NormalizedToolCall
 } from "./decision.js";
 import { AUDIT_EVENT_SCHEMA_VERSION } from "./audit.js";
+import { OPS_EVENT_SCHEMA_VERSION } from "./ops.js";
 
 export type ValidationResult<T> =
   | {
@@ -152,7 +153,7 @@ export function validateToolListCapture(value: unknown): ValidationResult<{
 }
 
 export function knownSchemaVersions(): readonly string[] {
-  return [POLICY_SCHEMA_VERSION, DECISION_SCHEMA_VERSION, AUDIT_EVENT_SCHEMA_VERSION];
+  return [POLICY_SCHEMA_VERSION, DECISION_SCHEMA_VERSION, AUDIT_EVENT_SCHEMA_VERSION, OPS_EVENT_SCHEMA_VERSION];
 }
 
 function parseMethodPolicy(value: unknown, errors: string[]): MethodPolicy | undefined {

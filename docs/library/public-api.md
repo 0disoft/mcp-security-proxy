@@ -36,6 +36,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - `redactor`: redact secret-like values before output.
 - `audit`: create audit event objects with `createAuditEvent` and format one JSON Lines record
   with `formatAuditEventJsonLine`.
+- `ops`: structured local runtime lifecycle metrics types and the `msp.ops-event.v1` schema
+  contract.
 - `mcp`: protocol adapter types for MCP messages and `normalizeToolCallEnvelope` for deriving
   normalized tool-call facts without binding the package to one host.
 - `proxy-runtime`: evaluate newline-delimited JSON-RPC messages at the proxy boundary and return

@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const root = process.cwd();
@@ -18,6 +19,7 @@ const requiredKinds = new Set([
   "library.audit-jsonl",
   "library.tool-call-normalization",
   "runtime.live-smoke",
+  "runtime.ops-log",
   "runtime.session-result"
 ]);
 const cliCommandByKind = new Map([
@@ -77,6 +79,7 @@ const requiredEvidenceIds = new Set([
   "library-audit-jsonl-method-denied",
   "library-tool-call-normalization",
   "runtime-live-stdio-smoke",
+  "runtime-ops-log-local",
   "runtime-approval-rejected-redacted",
   "runtime-approval-hook-error",
   "runtime-approval-timeout",
@@ -211,6 +214,9 @@ async function checkEvidenceEntry(item) {
   if (kind === "runtime.session-result") {
     await checkRuntimeSessionFixture(id, path, item);
   }
+  if (kind === "runtime.ops-log") {
+    checkRuntimeOpsLogFixture(id, path);
+  }
   if (kind === "mcp.discovery") {
     checkDiscoveryFixture(id, path);
   }
@@ -237,6 +243,81 @@ function checkRuntimeFixture(id, kind, command) {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
   });
+}
+
+function checkRuntimeOpsLogFixture(id, path) {
+  const tempDir = mkdtempSync(join(tmpdir(), "msp-ops-compat-"));
+  const auditLog = join(tempDir, "audit.jsonl");
+  const opsLog = join(tempDir, "ops.jsonl");
+  try {
+    const output = execFileSync(
+      process.execPath,
+      [
+        "packages/cli/dist/main.js",
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--audit-log",
+        auditLog,
+        "--ops-log",
+        opsLog,
+        "--",
+        process.execPath,
+        "scripts/fixture-mcp-server.mjs"
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        input: `${JSON.stringify({
+          jsonrpc: "2.0",
+          id: "ops-compat-denied",
+          method: "tools/call",
+          params: {
+            name: "read_file",
+            arguments: {
+              path: "workspace/private/secret.txt"
+            }
+          }
+        })}\n`,
+        stdio: ["pipe", "pipe", "pipe"]
+      }
+    );
+    const outputLines = output
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => parseJsonText(line, `${id}: stdout`));
+    if (
+      outputLines.length !== 1 ||
+      outputLines[0]?.id !== "ops-compat-denied" ||
+      outputLines[0]?.error?.data?.decision?.action !== "deny"
+    ) {
+      failures.push(`${id}: unexpected MCP stdout from ops-log compatibility run`);
+    }
+    if (output.includes("workspace/private/secret.txt")) {
+      failures.push(`${id}: raw denied path leaked to MCP stdout`);
+    }
+    const actual = readFileSync(opsLog, "utf8")
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line, index) => normalizeOpsEvent(parseJsonText(line, `${id}: opsLog:${index + 1}`)));
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function normalizeOpsEvent(event) {
+  if (!event || typeof event !== "object") {
+    return event;
+  }
+  return {
+    ...event,
+    timestamp: "<timestamp>",
+    ...(event.elapsedMs !== undefined ? { elapsedMs: 0 } : {})
+  };
 }
 
 function checkDiscoveryFixture(id, path) {

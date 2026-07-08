@@ -402,6 +402,11 @@
       ]
     },
     {
+      "id": "runtime-ops-log-local",
+      "kind": "runtime.ops-log",
+      "path": "fixtures/compatibility/runtime-ops-log.json"
+    },
+    {
       "id": "runtime-approval-timeout",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-approval-timeout.json",

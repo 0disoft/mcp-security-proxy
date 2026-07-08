@@ -9,6 +9,9 @@ import {
   DECISION_REASON_CODES,
   DECISION_SCHEMA_VERSION,
   MVP_ALLOWED_METHODS,
+  OPS_EVENT_KINDS,
+  OPS_EVENT_SCHEMA_VERSION,
+  OPS_LIFECYCLE_EVENTS,
   POLICY_ACTIONS,
   POLICY_SCHEMA_VERSION,
   REDACTION_DETECTOR_KINDS
@@ -16,7 +19,12 @@ import {
 
 const root = process.cwd();
 const failures = [];
-const expectedSchemaFiles = ["audit-event.v1.schema.json", "decision.v1.schema.json", "policy.v1.schema.json"];
+const expectedSchemaFiles = [
+  "audit-event.v1.schema.json",
+  "decision.v1.schema.json",
+  "ops-event.v1.schema.json",
+  "policy.v1.schema.json"
+];
 
 assertArrayEqual(
   "packages/contracts/schemas files",
@@ -29,6 +37,7 @@ assertArrayEqual(
 const policySchema = readJson("packages/contracts/schemas/policy.v1.schema.json");
 const decisionSchema = readJson("packages/contracts/schemas/decision.v1.schema.json");
 const auditSchema = readJson("packages/contracts/schemas/audit-event.v1.schema.json");
+const opsSchema = readJson("packages/contracts/schemas/ops-event.v1.schema.json");
 
 assertEqual("policy.schemaVersion", policySchema.properties?.schemaVersion?.const, POLICY_SCHEMA_VERSION);
 assertArrayEqual(
@@ -57,6 +66,10 @@ assertArrayEqual(
 
 assertEqual("audit.schemaVersion", auditSchema.properties?.schemaVersion?.const, AUDIT_EVENT_SCHEMA_VERSION);
 assertArrayEqual("audit.kind", auditSchema.properties?.kind?.enum, AUDIT_EVENT_KINDS);
+
+assertEqual("ops.schemaVersion", opsSchema.$defs?.base?.properties?.schemaVersion?.const, OPS_EVENT_SCHEMA_VERSION);
+assertArrayEqual("ops.kind", opsSchema.$defs?.base?.properties?.kind?.enum, OPS_EVENT_KINDS);
+assertArrayEqual("ops.lifecycle.event", opsSchema.$defs?.base?.properties?.event?.enum, OPS_LIFECYCLE_EVENTS);
 
 if (failures.length > 0) {
   for (const failure of failures) {
