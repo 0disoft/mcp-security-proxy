@@ -18,6 +18,7 @@ const requiredFiles = [
   "docs/adr/0001-initial-architecture-boundaries.md",
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
+  "docs/library/decision-codes.md",
   "docs/cli/output-and-exit-codes.md",
   "docs/ops/observability.md",
   "docs/ops/release-records/README.md",
@@ -61,7 +62,8 @@ const cliContractFailures = [
   ...checkAuditExportDocs(),
   ...checkHttpTransportPlanDocs(),
   ...checkHostApprovalUxPlanDocs(),
-  ...checkExternalMcpCompatibilityPlanDocs()
+  ...checkExternalMcpCompatibilityPlanDocs(),
+  ...checkDecisionCodeDocs()
 ];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
@@ -264,4 +266,50 @@ function checkExternalMcpCompatibilityPlanDocs() {
     }
   }
   return failures;
+}
+
+function checkDecisionCodeDocs() {
+  const failures = [];
+  const decisionSourcePath = "packages/contracts/src/decision.ts";
+  const decisionCodesPath = "docs/library/decision-codes.md";
+  const publicApiPath = "docs/library/public-api.md";
+  const decisionSource = readFileSync(join(root, decisionSourcePath), "utf8");
+  const decisionCodesDoc = readFileSync(join(root, decisionCodesPath), "utf8");
+  const publicApiDoc = readFileSync(join(root, publicApiPath), "utf8");
+  const exportedCodes = extractDecisionReasonCodes(decisionSource);
+  const documentedCodes = extractDocumentedDecisionCodes(decisionCodesDoc);
+
+  if (JSON.stringify(documentedCodes) !== JSON.stringify(exportedCodes)) {
+    failures.push(
+      `${decisionCodesPath}: documented decision codes must match DECISION_REASON_CODES (${exportedCodes.join(", ")})`
+    );
+  }
+
+  for (const phrase of [
+    "Consumers should route on `decision.evidence[].code`",
+    "treat `reason` as human-readable operator text",
+    "decision.v1.schema.json"
+  ]) {
+    if (!decisionCodesDoc.includes(phrase)) {
+      failures.push(`${decisionCodesPath}: missing decision code consumer guidance phrase: ${phrase}`);
+    }
+  }
+
+  if (!publicApiDoc.includes("docs/library/decision-codes.md")) {
+    failures.push(`${publicApiPath}: public API docs must link the decision code catalog`);
+  }
+
+  return failures;
+}
+
+function extractDecisionReasonCodes(source) {
+  const match = source.match(/export const DECISION_REASON_CODES = \[([\s\S]*?)\] as const;/);
+  if (!match) {
+    return [];
+  }
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
+}
+
+function extractDocumentedDecisionCodes(markdown) {
+  return [...markdown.matchAll(/^\| `([^`]+)` \| .+ \|$/gm)].map((item) => item[1]);
 }

@@ -16,6 +16,7 @@ This repository type owns public API surface, package compatibility, semantic ve
 ## Required Decisions
 
 - Public API ownership: docs/library/public-api.md
+- Stable decision evidence codes: docs/library/decision-codes.md
 - Semantic versioning policy: docs/library/semver.md
 - Runtime and platform compatibility: docs/library/compatibility.md
 - Package artifact and export surface: docs/library/package-surface.md

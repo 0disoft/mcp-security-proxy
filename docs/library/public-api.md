@@ -48,6 +48,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Decision results must include rule evidence when a rule wins.
 - Decision evidence must include a stable machine-readable `code`. Consumers should use `code`
   for programmatic routing and treat `reason` as human-readable operator text.
+- The complete draft code catalog is docs/library/decision-codes.md and must stay aligned with
+  `DECISION_REASON_CODES` and `decision.v1.schema.json`.
 - Policy evaluator rule decisions use `policy.rule_allow`, `policy.rule_deny`, and
   `policy.rule_approval_required`. Pre-rule fail-closed decisions use specific codes such as
   `policy.ambiguous_path`, `policy.free_form_shell`, `policy.ambiguous_network`,
