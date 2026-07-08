@@ -75,6 +75,7 @@ const requiredEvidenceIds = new Set([
   "runtime-approval-hook-error",
   "runtime-approval-timeout",
   "runtime-client-unsupported-method",
+  "runtime-malformed-discovery",
   "runtime-server-origin-unsupported-method",
   "runtime-server-origin-ping-invalid-response"
 ]);
@@ -403,6 +404,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "approval-rejected-redacted",
     "approval-timeout",
     "client-unsupported-method",
+    "malformed-discovery",
     "server-origin-unsupported-method",
     "server-origin-ping-invalid-response"
   ]);
@@ -470,6 +472,59 @@ async function checkRuntimeSessionFixture(id, path, item) {
       forwarded: result.forwardLine !== undefined,
       response: result.responseLine ? parseJsonText(result.responseLine, `${id}: responseLine`) : undefined,
       auditEvents: result.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "malformed-discovery") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-malformed-tools",
+        method: "tools/list"
+      })
+    );
+    const malformedDiscovery = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-malformed-tools",
+        result: {
+          tools: {
+            leaked: "RAW_MALFORMED_COMPAT_DISCOVERY_TOOLS_MARKER"
+          },
+          debug: "RAW_MALFORMED_COMPAT_DISCOVERY_RESULT_MARKER"
+        }
+      })
+    );
+    const callAfterMalformedDiscovery = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-call-after-malformed-discovery",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+    const actual = {
+      malformedDiscoveryForwarded: malformedDiscovery.forwardLine
+        ? parseJsonText(malformedDiscovery.forwardLine, `${id}: malformedDiscovery.forwardLine`)
+        : undefined,
+      malformedDiscoveryAuditEvents: malformedDiscovery.auditEvents,
+      callAfterMalformedDiscoveryForwarded: callAfterMalformedDiscovery.forwardLine !== undefined,
+      callAfterMalformedDiscoveryResponse: callAfterMalformedDiscovery.responseLine
+        ? parseJsonText(callAfterMalformedDiscovery.responseLine, `${id}: callAfterMalformedDiscovery.responseLine`)
+        : undefined,
+      callAfterMalformedDiscoveryAuditEvents: callAfterMalformedDiscovery.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

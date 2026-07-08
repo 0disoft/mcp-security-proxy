@@ -412,6 +412,14 @@
       "scenario": "client-unsupported-method"
     },
     {
+      "id": "runtime-malformed-discovery",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-malformed-discovery.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "malformed-discovery"
+    },
+    {
       "id": "runtime-server-origin-unsupported-method",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-server-origin-unsupported-method.json",
