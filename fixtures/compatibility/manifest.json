@@ -514,6 +514,14 @@
       "policy": "fixtures/policies/local-dev.json",
       "profile": "local",
       "scenario": "upstream-error-data-redaction"
+    },
+    {
+      "id": "runtime-upstream-error-message-redaction",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-upstream-error-message-redaction.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "upstream-error-message-redaction"
     }
   ]
 }

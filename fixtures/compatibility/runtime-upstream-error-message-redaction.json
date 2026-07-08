@@ -1,0 +1,40 @@
+{
+  "requestForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-error-with-sensitive-message",
+    "method": "ping"
+  },
+  "requestAuditEvents": [],
+  "upstreamErrorForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-error-with-sensitive-message",
+    "error": {
+      "code": -32000,
+      "message": "upstream error message redacted"
+    }
+  },
+  "upstreamErrorResponse": null,
+  "upstreamErrorAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.upstream_error_message_redacted",
+            "reason": "upstream JSON-RPC error message redacted before forwarding"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": true,
+        "counts": {
+          "jsonrpc_error_message": 1
+        }
+      }
+    }
+  ]
+}
