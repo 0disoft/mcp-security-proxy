@@ -34,6 +34,7 @@ Current implemented responsibilities:
 - rebuild forwarded JSON-RPC request envelopes with only `jsonrpc`, `method`, optional `id`, and
   optional `params`
 - track `tools/list` request IDs so discovery responses can be filtered
+- reject concurrent `tools/list` requests while a discovery response is still pending
 - require upstream responses to match a pending client request id before forwarding
 - bound pending client and server-origin request state with a maximum in-flight count and TTL
 - rebuild forwarded JSON-RPC response envelopes with only `jsonrpc`, `id`, and exactly one of
@@ -71,17 +72,19 @@ transports remain future runtime responsibilities.
 ## Tool Discovery Flow
 
 1. Upstream server returns tool descriptors.
-2. Proxy classifies tool capabilities from explicit policy, tool name, and description.
-3. Proxy applies discovery filtering rules.
-4. Proxy rebuilds each visible descriptor with only `name`, optional `title`, optional `description`,
+2. Proxy accepts only one pending `tools/list` request at a time, so discovery state is updated in
+   request/response order instead of by whichever upstream response arrives last.
+3. Proxy classifies tool capabilities from explicit policy, tool name, and description.
+4. Proxy applies discovery filtering rules.
+5. Proxy rebuilds each visible descriptor with only `name`, optional `title`, optional `description`,
    object-valued `inputSchema`, object-valued `outputSchema`, and object-valued `annotations`,
    while removing nested `default`, `example`, `examples`, `$comment`, and `_meta` metadata.
-5. Proxy hides every descriptor for duplicate visible tool names.
-6. Proxy rebuilds the `tools/list` success result with only `tools` and optional string
+6. Proxy hides every descriptor for duplicate visible tool names.
+7. Proxy rebuilds the `tools/list` success result with only `tools` and optional string
    `nextCursor`.
-7. Malformed discovery success results are normalized to an empty `tools` array.
-8. Client receives only sanitized tools allowed for discovery.
-9. Proxy records a redacted discovery audit event.
+8. Malformed discovery success results are normalized to an empty `tools` array.
+9. Client receives only sanitized tools allowed for discovery.
+10. Proxy records a redacted discovery audit event.
 
 ## Tool Call Flow
 
@@ -110,6 +113,8 @@ transports remain future runtime responsibilities.
 - Unmatched upstream response: response is dropped with a redacted audit event.
 - Pending request state expiration or capacity exhaustion: stale responses are treated as
   unmatched, and new over-capacity requests are denied before forwarding.
+- Concurrent tool discovery: a second `tools/list` request is denied while the previous discovery
+  response is still pending.
 - Oversized or overly deep JSON-RPC message: message is denied or dropped before forwarding.
 - Upstream error response with data, non-standard fields, or sensitive message: error is sanitized
   before forwarding.

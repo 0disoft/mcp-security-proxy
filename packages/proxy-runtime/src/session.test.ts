@@ -573,6 +573,73 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("denies concurrent tool discovery requests without replacing the pending discovery response", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local"
+    });
+
+    const first = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "discovery-concurrent-1",
+        method: "tools/list"
+      })
+    );
+    expect(first.forwardLine).toBeTruthy();
+
+    const second = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "discovery-concurrent-2",
+        method: "tools/list"
+      })
+    );
+
+    expect(second.forwardLine).toBeUndefined();
+    expect(JSON.parse(second.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "discovery-concurrent-2",
+      error: {
+        code: -32001,
+        message: "MCP request denied by proxy protocol state",
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                method: "tools/list",
+                reason: "tools/list discovery request already has a pending upstream response"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(second.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.invalid", method: "tools/list" }]
+      }
+    });
+
+    const originalResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "discovery-concurrent-1",
+        result: readJsonFixture("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+    expect(JSON.parse(originalResponse.forwardLine ?? "{}")).toMatchObject({
+      id: "discovery-concurrent-1",
+      result: {
+        tools: [{ name: "read_file" }]
+      }
+    });
+  });
+
   it("expires pending client requests before duplicate and response correlation checks", async () => {
     const session = createProxySession({
       policy: readPolicy(),

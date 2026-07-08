@@ -202,6 +202,13 @@ export class ProxySession {
 
     const forwardLine = requestSanitized.redaction.applied ? JSON.stringify(requestSanitized.envelope) : line;
     if (requestSanitized.envelope.method !== "tools/call") {
+      const concurrentDiscoveryDenied = this.denyConcurrentDiscoveryRequest(requestSanitized.envelope);
+      if (concurrentDiscoveryDenied) {
+        return {
+          kind: "result",
+          result: this.withPrependedAuditEvents(requestSanitizeAuditEvents, concurrentDiscoveryDenied)
+        };
+      }
       const pendingDenied = this.denyPendingCapacityExceeded(requestSanitized.envelope, this.pendingRequestMethods, "client");
       if (pendingDenied) {
         return {
@@ -569,6 +576,27 @@ export class ProxySession {
       "MCP request denied by proxy protocol state",
       "error"
     );
+  }
+
+  private denyConcurrentDiscoveryRequest(envelope: JsonRpcEnvelope): ProxyFrameResult | undefined {
+    if (envelope.method !== "tools/list") {
+      return undefined;
+    }
+    this.evictExpiredPendingRequests(this.pendingRequestMethods);
+    for (const pending of this.pendingRequestMethods.values()) {
+      if (pending.method === "tools/list") {
+        return this.denyEnvelope(
+          envelope,
+          denyDecision("tools/list discovery request already has a pending upstream response", {
+            code: "jsonrpc.invalid",
+            method: "tools/list"
+          }),
+          "MCP request denied by proxy protocol state",
+          "error"
+        );
+      }
+    }
+    return undefined;
   }
 
   private createPendingRequestState(method: string): PendingRequestState {
