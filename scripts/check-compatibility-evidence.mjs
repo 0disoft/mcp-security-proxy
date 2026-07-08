@@ -78,6 +78,7 @@ const requiredEvidenceIds = new Set([
   "runtime-discovery-replacement",
   "runtime-duplicate-discovery",
   "runtime-malformed-discovery",
+  "runtime-pending-discovery-id-type",
   "runtime-server-origin-unsupported-method",
   "runtime-server-origin-ping-invalid-response"
 ]);
@@ -409,6 +410,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "discovery-replacement",
     "duplicate-discovery",
     "malformed-discovery",
+    "pending-discovery-id-type",
     "server-origin-unsupported-method",
     "server-origin-ping-invalid-response"
   ]);
@@ -621,6 +623,83 @@ async function checkRuntimeSessionFixture(id, path, item) {
         ? parseJsonText(callAfterReplacement.responseLine, `${id}: callAfterReplacement.responseLine`)
         : undefined,
       callAfterReplacementAuditEvents: callAfterReplacement.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "pending-discovery-id-type") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "1",
+        method: "tools/list"
+      })
+    );
+    const numericIdResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        result: readJson("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+    const deniedBeforeMatchingDiscovery = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-call-before-matching-discovery",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+    const stringIdResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "1",
+        result: readJson("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+    const allowedAfterMatchingDiscovery = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-call-after-matching-discovery",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/public/readme.md"
+          }
+        }
+      })
+    );
+    const actual = {
+      numericIdResponseForwarded: numericIdResponse.forwardLine !== undefined,
+      numericIdResponseAuditEvents: numericIdResponse.auditEvents,
+      deniedBeforeMatchingDiscoveryForwarded: deniedBeforeMatchingDiscovery.forwardLine !== undefined,
+      deniedBeforeMatchingDiscoveryResponse: deniedBeforeMatchingDiscovery.responseLine
+        ? parseJsonText(deniedBeforeMatchingDiscovery.responseLine, `${id}: deniedBeforeMatchingDiscovery.responseLine`)
+        : undefined,
+      deniedBeforeMatchingDiscoveryAuditEvents: deniedBeforeMatchingDiscovery.auditEvents,
+      stringIdResponseForwarded: stringIdResponse.forwardLine
+        ? parseJsonText(stringIdResponse.forwardLine, `${id}: stringIdResponse.forwardLine`)
+        : undefined,
+      stringIdResponseAuditEvents: stringIdResponse.auditEvents,
+      allowedAfterMatchingDiscoveryForwarded: allowedAfterMatchingDiscovery.forwardLine
+        ? parseJsonText(allowedAfterMatchingDiscovery.forwardLine, `${id}: allowedAfterMatchingDiscovery.forwardLine`)
+        : undefined,
+      allowedAfterMatchingDiscoveryResponse: allowedAfterMatchingDiscovery.responseLine
+        ? parseJsonText(allowedAfterMatchingDiscovery.responseLine, `${id}: allowedAfterMatchingDiscovery.responseLine`)
+        : null,
+      allowedAfterMatchingDiscoveryAuditEvents: allowedAfterMatchingDiscovery.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

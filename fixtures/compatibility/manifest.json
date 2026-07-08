@@ -436,6 +436,14 @@
       "scenario": "malformed-discovery"
     },
     {
+      "id": "runtime-pending-discovery-id-type",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-pending-discovery-id-type.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "pending-discovery-id-type"
+    },
+    {
       "id": "runtime-server-origin-unsupported-method",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-server-origin-unsupported-method.json",
