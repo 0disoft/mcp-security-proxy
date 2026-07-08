@@ -16,6 +16,7 @@ external MCP compatibility.
 
 - Product decision: docs/product/02-spec.md
 - Compatibility plan: docs/architecture/09-external-mcp-compatibility-plan.md
+- External fixture harness: docs/architecture/11-external-fixture-harness.md
 - Runtime flow: docs/architecture/02-runtime-flow.md
 - Method policy: docs/architecture/05-mcp-method-policy.md
 - Related ADR: docs/adr/0004-implementation-stack-direction.md

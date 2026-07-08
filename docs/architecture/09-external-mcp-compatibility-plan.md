@@ -15,6 +15,7 @@ evidence, but it does not yet claim external MCP client/server compatibility.
 - Runtime flow: docs/architecture/02-runtime-flow.md
 - Method policy: docs/architecture/05-mcp-method-policy.md
 - First external target ADR: docs/adr/0005-external-mcp-compatibility-target.md
+- External fixture harness: docs/architecture/11-external-fixture-harness.md
 - Compatibility registry: fixtures/compatibility/manifest.json
 - Release scope gate: docs/ops/release.md
 
