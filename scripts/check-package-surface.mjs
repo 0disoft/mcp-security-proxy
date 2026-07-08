@@ -14,6 +14,14 @@ const expectedWorkspacePackages = [
   "proxy-runtime",
   "testkit"
 ];
+const expectedEntrypointReExports = new Map([
+  ["cli", ["./commands.js"]],
+  ["contracts", ["./policy.js", "./decision.js", "./audit.js", "./validation.js"]],
+  ["core", ["./method-policy.js", "./matchers.js", "./classifier.js", "./evaluator.js", "./redactor.js", "./audit.js"]],
+  ["mcp-adapter", ["./jsonrpc.js", "./method-policy.js", "./tool-call.js"]],
+  ["proxy-runtime", ["./startup-plan.js", "./session.js", "./stdio-bridge.js"]],
+  ["testkit", ["./fixtures.js"]]
+]);
 const expectedWorkspaceGlobs = ["packages/*"];
 const dependencyGroups = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
 const mcpSdkDependencyPatterns = [
@@ -285,6 +293,13 @@ const checkPackageSurfaceValidator = () => {
   if (!workspaceDirectoryFailures.some((item) => item.includes("workspace package directories"))) {
     failures.push(`package-surface self-test workspace directory drift was not rejected: ${workspaceDirectoryFailures.join("; ")}`);
   }
+
+  const entrypointReExportFailures = collectPackageSurfaceFailures(() => {
+    checkEntrypointReExportNames("<package-surface-self-test-entrypoint-reexports>", ["./index.js"], ["./commands.js"]);
+  });
+  if (!entrypointReExportFailures.some((item) => item.includes("entrypoint re-exports"))) {
+    failures.push(`package-surface self-test entrypoint re-export drift was not rejected: ${entrypointReExportFailures.join("; ")}`);
+  }
 };
 
 const collectPackageSurfaceFailures = (fn) => {
@@ -376,6 +391,7 @@ if (existsSync(packagesDir)) {
     const manifest = readJson(manifestPath);
     checkWorkspacePackage(manifest, manifestPath);
     checkDependencies(manifest, manifestPath, workspacePackageNames);
+    checkWorkspacePackageEntrypointReExports(manifestPath);
   }
 
   const cliManifestPath = join(packagesDir, "cli", "package.json");
@@ -399,7 +415,7 @@ if (failures.length > 0) {
 
 function checkDocumentedPackageSurfaces(path, expectedPackages) {
   const text = readFileSync(join(root, path), "utf8");
-  const documentedPackages = [...text.matchAll(/^- `packages\/([^`]+)`:/gm)]
+  const documentedPackages = [...text.matchAll(/^- `packages\/([^`\/]+)`:/gm)]
     .map((match) => match[1])
     .sort((left, right) => left.localeCompare(right));
   checkDocumentedPackageSurfaceNames(path, documentedPackages, expectedPackages);
@@ -429,5 +445,25 @@ function checkWorkspacePackageDirectoryNames(label, directories, expectedPackage
   assertEqual(
     JSON.stringify(directories) === JSON.stringify(expectedPackages),
     `${label}: workspace package directories must match ${expectedPackages.join(", ")}`
+  );
+}
+
+function checkWorkspacePackageEntrypointReExports(manifestPath) {
+  const packageName = relative(packagesDir, manifestPath).split(/[\\/]/)[0];
+  const expectedReExports = expectedEntrypointReExports.get(packageName);
+  if (!expectedReExports) {
+    failures.push(`${formatPath(manifestPath)}: package ${packageName} is missing expected entrypoint re-export metadata`);
+    return;
+  }
+  const indexPath = join(packagesDir, packageName, "src", "index.ts");
+  const text = readFileSync(indexPath, "utf8");
+  const actualReExports = [...text.matchAll(/^export \* from "([^"]+)";$/gm)].map((match) => match[1]);
+  checkEntrypointReExportNames(formatPath(indexPath), actualReExports, expectedReExports);
+}
+
+function checkEntrypointReExportNames(label, actualReExports, expectedReExports) {
+  assertEqual(
+    JSON.stringify(actualReExports) === JSON.stringify(expectedReExports),
+    `${label}: entrypoint re-exports must match ${expectedReExports.join(", ")}`
   );
 }

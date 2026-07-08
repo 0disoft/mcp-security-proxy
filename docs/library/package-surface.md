@@ -62,6 +62,18 @@ must remain private and versioned as `0.0.0`.
 - `packages/cli`: command registry, dry-run commands, and live stdio `run` entrypoint.
 - `packages/testkit`: synthetic fixtures for future integration tests.
 
+## Expected Entrypoint Re-exports
+
+- `packages/contracts/src/index.ts`: `./policy.js`, `./decision.js`, `./audit.js`,
+  `./validation.js`.
+- `packages/core/src/index.ts`: `./method-policy.js`, `./matchers.js`, `./classifier.js`,
+  `./evaluator.js`, `./redactor.js`, `./audit.js`.
+- `packages/mcp-adapter/src/index.ts`: `./jsonrpc.js`, `./method-policy.js`, `./tool-call.js`.
+- `packages/proxy-runtime/src/index.ts`: `./startup-plan.js`, `./session.js`,
+  `./stdio-bridge.js`.
+- `packages/cli/src/index.ts`: `./commands.js`.
+- `packages/testkit/src/index.ts`: `./fixtures.js`.
+
 ## Package Surface Rules
 
 - Do not export unstable internal parser details as public API.
