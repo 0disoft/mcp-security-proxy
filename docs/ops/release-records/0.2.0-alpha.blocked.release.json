@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "msp.release-readiness.v1",
+  "status": "blocked",
+  "releaseVersion": "0.2.0-alpha.0",
+  "targetCommit": "4b0292bf93e110912e4d84ed5cfc353c0c80f4d8",
+  "registryTarget": "npmjs.org; blocked until package ownership and artifact approval",
+  "publishCredentialsOwner": "0disoft repository owner; no publish credential use approved for this blocked candidate",
+  "publicPackages": [
+    {
+      "name": "@0disoft/mcp-security-proxy-contracts",
+      "workspacePath": "packages/contracts",
+      "artifactName": "mcp-security-proxy-contracts-npm-package"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-core",
+      "workspacePath": "packages/core",
+      "artifactName": "mcp-security-proxy-core-npm-package"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-mcp-adapter",
+      "workspacePath": "packages/mcp-adapter",
+      "artifactName": "mcp-security-proxy-mcp-adapter-npm-package"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-runtime",
+      "workspacePath": "packages/proxy-runtime",
+      "artifactName": "mcp-security-proxy-runtime-npm-package"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-cli",
+      "workspacePath": "packages/cli",
+      "artifactName": "mcp-security-proxy-cli-npm-package"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "mcp-security-proxy-contracts-npm-package",
+      "source": "packages/contracts/package.json"
+    },
+    {
+      "name": "mcp-security-proxy-core-npm-package",
+      "source": "packages/core/package.json"
+    },
+    {
+      "name": "mcp-security-proxy-mcp-adapter-npm-package",
+      "source": "packages/mcp-adapter/package.json"
+    },
+    {
+      "name": "mcp-security-proxy-runtime-npm-package",
+      "source": "packages/proxy-runtime/package.json"
+    },
+    {
+      "name": "mcp-security-proxy-cli-npm-package",
+      "source": "packages/cli/package.json"
+    }
+  ],
+  "releaseScope": {
+    "mcpSdkDependency": {
+      "status": "excluded",
+      "evidence": "docs/adr/0004-implementation-stack-direction.md"
+    },
+    "httpTransport": {
+      "status": "excluded",
+      "evidence": "docs/architecture/07-http-transport-plan.md"
+    },
+    "hostApprovalUx": {
+      "status": "excluded",
+      "evidence": "docs/architecture/08-host-approval-ux-plan.md"
+    },
+    "externalMcpFixture": {
+      "status": "excluded",
+      "evidence": "docs/architecture/09-external-mcp-compatibility-plan.md"
+    }
+  },
+  "validation": {
+    "docs": "blocked candidate: rerun pnpm run docs and record exit 0 before approval",
+    "schema-contract": "blocked candidate: rerun pnpm run schema-contract and record exit 0 before approval",
+    "migration-check": "blocked candidate: rerun pnpm run migration-check and record exit 0 before approval",
+    "package-surface": "blocked candidate: rerun pnpm run package-surface and record exit 0 before approval",
+    "secret-scan": "blocked candidate: rerun pnpm run secret-scan and record exit 0 before approval",
+    "artifact-safety": "blocked candidate: rerun pnpm run artifact-safety and record exit 0 before approval",
+    "repository-hygiene": "blocked candidate: rerun pnpm run repository-hygiene and record exit 0 before approval",
+    "validation-registry": "blocked candidate: rerun pnpm run validation-registry and record exit 0 before approval",
+    "ci-contract": "blocked candidate: rerun pnpm run ci-contract and record exit 0 before approval",
+    "compatibility": "blocked candidate: rerun pnpm run compatibility and record exit 0 before approval",
+    "license-report": "blocked candidate: rerun pnpm run license-report and record exit 0 before approval",
+    "release-readiness": "blocked candidate: rerun pnpm run release-readiness and record exit 0 before approval",
+    "performance-smoke": "blocked candidate: rerun pnpm run performance-smoke and record exit 0 before approval",
+    "contract": "blocked candidate: rerun pnpm run contract and record exit 0 before approval",
+    "test": "blocked candidate: rerun pnpm run test and record exit 0 before approval",
+    "smoke": "blocked candidate: rerun pnpm run smoke and record exit 0 before approval",
+    "check": "blocked candidate: rerun pnpm check and record exit 0 before approval"
+  },
+  "rollback": {
+    "lastKnownGoodVersion": "none; first public release remains blocked",
+    "procedure": "docs/ops/rollback.md"
+  },
+  "blockers": [
+    "Package manifests remain private and versioned as 0.0.0 until an approved current-target release record exists.",
+    "Release artifacts are represented by tracked package manifests only; publishable package archives are not approved.",
+    "External MCP client and server compatibility fixtures are excluded from this candidate.",
+    "HTTP transport and host-specific approval UX are excluded from this candidate.",
+    "Approval-grade validation evidence must be rerun and recorded before this candidate can become approved."
+  ]
+}
