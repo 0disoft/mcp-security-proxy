@@ -1,0 +1,32 @@
+{
+  "serverPingForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-server-ping-payload-response",
+    "method": "ping"
+  },
+  "serverPingAuditEvents": [],
+  "clientPayloadResponseForwarded": false,
+  "clientPayloadResponseResponse": null,
+  "clientPayloadResponseAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "method": "ping",
+            "reason": "client response to server-origin ping must be an empty result"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}

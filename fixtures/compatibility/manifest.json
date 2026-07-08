@@ -412,6 +412,14 @@
       "scenario": "client-envelope-sanitization"
     },
     {
+      "id": "runtime-client-ping-payload-response",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-client-ping-payload-response.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "client-ping-payload-response"
+    },
+    {
       "id": "runtime-client-unsupported-method",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-client-unsupported-method.json",
