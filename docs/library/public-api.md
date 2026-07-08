@@ -36,7 +36,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - `redactor`: redact secret-like values before output.
 - `audit`: create audit event objects with `createAuditEvent` and format one JSON Lines record
   with `formatAuditEventJsonLine`.
-- `mcp`: protocol adapter types for MCP messages without binding the whole package to one host.
+- `mcp`: protocol adapter types for MCP messages and `normalizeToolCallEnvelope` for deriving
+  normalized tool-call facts without binding the package to one host.
 - `proxy-runtime`: evaluate newline-delimited JSON-RPC messages at the proxy boundary and return
   forward, denial, and audit actions without owning subprocess IO.
 - `approval`: host-owned approval callback types used by the runtime before forwarding

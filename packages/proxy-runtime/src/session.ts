@@ -10,7 +10,12 @@ import {
   type RedactionSummary
 } from "@0disoft/mcp-security-proxy-contracts";
 import { classifyToolDescriptor, createAuditEvent, evaluateToolCall } from "@0disoft/mcp-security-proxy-core";
-import { evaluateEnvelopeMethod, isJsonRpcRequest, type JsonRpcEnvelope } from "@0disoft/mcp-security-proxy-mcp-adapter";
+import {
+  evaluateEnvelopeMethod,
+  isJsonRpcRequest,
+  normalizeToolCallEnvelope,
+  type JsonRpcEnvelope
+} from "@0disoft/mcp-security-proxy-mcp-adapter";
 
 export interface ProxySessionOptions {
   readonly policy: PolicyDocument;
@@ -212,7 +217,7 @@ export class ProxySession {
       );
     }
 
-    const normalized = normalizeToolCall(envelope, visibleTool);
+    const normalized = normalizeToolCallEnvelope(envelope, visibleTool);
     const decision = evaluateToolCall({
       policy: this.options.policy,
       profileId: this.options.profileId,
@@ -271,7 +276,7 @@ export class ProxySession {
       );
     }
 
-    const normalized = normalizeToolCall(envelope, visibleTool);
+    const normalized = normalizeToolCallEnvelope(envelope, visibleTool);
     const decision = evaluateToolCall({
       policy: this.options.policy,
       profileId: this.options.profileId,
@@ -868,80 +873,6 @@ function upstreamErrorRedactionCode(redaction: RedactionSummary): DecisionReason
 function readToolCallName(envelope: JsonRpcEnvelope): string {
   const params = isRecord(envelope.params) ? envelope.params : {};
   return typeof params["name"] === "string" ? params["name"] : "";
-}
-
-function normalizeToolCall(envelope: JsonRpcEnvelope, visibleTool: ToolMetadata): NormalizedToolCall {
-  const params = isRecord(envelope.params) ? envelope.params : {};
-  return {
-    method: "tools/call",
-    toolName: visibleTool.name,
-    capabilities: visibleTool.capabilities,
-    argumentFacts: extractArgumentFacts(params["arguments"])
-  };
-}
-
-function extractArgumentFacts(value: unknown): NormalizedToolCall["argumentFacts"] {
-  const facts: NormalizedToolCall["argumentFacts"][number][] = [];
-  collectArgumentFacts(value, facts);
-  return facts;
-}
-
-function collectArgumentFacts(value: unknown, facts: NormalizedToolCall["argumentFacts"][number][]): void {
-  if (typeof value === "string") {
-    if (looksLikeUrl(value)) {
-      facts.push({ kind: "network", value });
-      return;
-    }
-    if (looksLikePath(value)) {
-      facts.push({ kind: "path", value });
-    }
-    return;
-  }
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      collectArgumentFacts(item, facts);
-    }
-    return;
-  }
-
-  if (!isRecord(value)) {
-    return;
-  }
-
-  const executable = value["executable"];
-  const argv = value["argv"];
-  if (typeof executable === "string" && Array.isArray(argv) && argv.every((item) => typeof item === "string")) {
-    facts.push({ kind: "command", executable, argv });
-  }
-
-  for (const [key, entry] of Object.entries(value)) {
-    const secretLabel = secretLabelForKey(key);
-    if (secretLabel) {
-      facts.push({ kind: "secret", label: secretLabel });
-    }
-    collectArgumentFacts(entry, facts);
-  }
-}
-
-function secretLabelForKey(key: string): string | undefined {
-  const normalized = key.toLowerCase().replace(/[_-]+/gu, " ");
-  if (/\bapi\s*key\b|\bapikey\b/u.test(normalized)) {
-    return "api-key";
-  }
-  if (/\btoken\b/u.test(normalized)) {
-    return "token";
-  }
-  if (/\bpassword\b/u.test(normalized)) {
-    return "password";
-  }
-  if (/\bcredentials?\b/u.test(normalized)) {
-    return "credential";
-  }
-  if (/\bsecret\b/u.test(normalized)) {
-    return "secret";
-  }
-  return undefined;
 }
 
 function filterToolListResult(
