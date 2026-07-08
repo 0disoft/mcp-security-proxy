@@ -123,6 +123,9 @@ function normalizePathValue(value: string): { readonly ok: true; readonly value:
   if (
     trimmed.length === 0 ||
     trimmed.includes("\0") ||
+    trimmed !== trimmed.normalize("NFC") ||
+    /^[/\\]{2}/u.test(trimmed) ||
+    /^~(?:$|[/\\])/u.test(trimmed) ||
     /%2f|%5c/i.test(trimmed) ||
     trimmed.split(/[\\/]+/u).includes("..")
   ) {
@@ -135,7 +138,7 @@ function normalizePathValue(value: string): { readonly ok: true; readonly value:
   const driveMatch = segments[0]?.match(/^[a-zA-Z]:$/u);
   const normalizedSegments = driveMatch ? [segments[0]?.toLowerCase() ?? "", ...segments.slice(1)] : segments;
 
-  return { ok: true, value: `${prefix}${normalizedSegments.join("/")}`.toLowerCase() };
+  return { ok: true, value: `${prefix}${normalizedSegments.join("/")}` };
 }
 
 function isWithinRoot(value: string, root: string): boolean {

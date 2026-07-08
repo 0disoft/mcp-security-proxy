@@ -71,6 +71,12 @@ Before a path decision, the implementation must define how it handles:
 - Unicode normalization differences
 - traversal segments such as `..`
 
+The current MVP matcher canonicalizes argument-level path strings only. It normalizes separators,
+removes `.` segments, lowercases Windows drive-letter prefixes, and then compares remaining path
+segments case-sensitively. It rejects traversal, encoded separators, home-directory expansion, UNC
+paths, NUL bytes, and non-NFC Unicode as ambiguous. It does not claim symlink or OS-level realpath
+containment; that belongs to a future filesystem-aware resolver or sandbox boundary.
+
 Ambiguous paths must fail closed.
 
 ## Command Matching

@@ -96,6 +96,56 @@ describe("MCP Security Proxy core", () => {
     expect(decision.evidence[0]?.reason).toBe("ambiguous path denied by default");
   });
 
+  it("does not fold path segment case into an allow-root match", () => {
+    const decision = evaluateToolCall({
+      policy: readFixture<PolicyDocument>("fixtures/policies/local-dev.json"),
+      profileId: "local",
+      call: {
+        method: "tools/call",
+        toolName: "read_file",
+        capabilities: ["file-read"],
+        argumentFacts: [{ kind: "path", value: "workspace/Public/readme.md" }]
+      }
+    });
+
+    expect(decision).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.default_deny", reason: "default deny" }]
+    });
+  });
+
+  it("fails closed on path forms that require host filesystem expansion", () => {
+    const homePathDecision = evaluateToolCall({
+      policy: readFixture<PolicyDocument>("fixtures/policies/local-dev.json"),
+      profileId: "local",
+      call: {
+        method: "tools/call",
+        toolName: "read_file",
+        capabilities: ["file-read"],
+        argumentFacts: [{ kind: "path", value: "~/workspace/public/readme.md" }]
+      }
+    });
+    const uncDecision = evaluateToolCall({
+      policy: readFixture<PolicyDocument>("fixtures/policies/local-dev.json"),
+      profileId: "local",
+      call: {
+        method: "tools/call",
+        toolName: "read_file",
+        capabilities: ["file-read"],
+        argumentFacts: [{ kind: "path", value: "\\\\server\\share\\readme.md" }]
+      }
+    });
+
+    expect(homePathDecision).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.ambiguous_path", reason: "ambiguous path denied by default" }]
+    });
+    expect(uncDecision).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.ambiguous_path", reason: "ambiguous path denied by default" }]
+    });
+  });
+
   it("denies free-form shell wrappers before rule evaluation", () => {
     const decision = evaluateToolCall({
       policy: readFixture<PolicyDocument>("fixtures/policies/local-dev.json"),
