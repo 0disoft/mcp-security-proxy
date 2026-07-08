@@ -28,7 +28,7 @@ After the first public package release, semantic versioning covers:
 - exported policy parser, validator, evaluator, classifier, redactor, audit, and MCP adapter types
 - policy schema fields, defaults, matching behavior, and decision semantics
 - audit event schema fields, redaction guarantees, and severity or decision labels
-- decision evidence code values once documented as stable public values
+- required decision evidence code values once documented as stable public values
 - CLI-facing library helpers that shape command output or exit behavior
 - approval hook request and result types
 - package entrypoints, documented exports, and published schema assets
@@ -63,7 +63,7 @@ The following may be minor versions when backward compatible:
 - adding optional policy schema fields with deny-by-default behavior
 - adding public helper functions or public types
 - adding audit fields that consumers may ignore safely
-- adding new optional decision evidence codes for newly handled cases
+- adding new decision evidence codes for newly handled cases
 - adding stricter validation warnings that do not change runtime decisions
 - adding new classifier labels when unknown labels still deny by default
 

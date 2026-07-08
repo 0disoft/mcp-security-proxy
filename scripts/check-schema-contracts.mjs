@@ -48,6 +48,7 @@ assertArrayEqual(
 
 assertEqual("decision.schemaVersion", decisionSchema.properties?.schemaVersion?.const, DECISION_SCHEMA_VERSION);
 assertArrayEqual("decision.action", decisionSchema.properties?.action?.enum, POLICY_ACTIONS);
+assertArrayEqual("decision.evidence.required", decisionSchema.properties?.evidence?.items?.required, ["code", "reason"]);
 assertArrayEqual(
   "decision.evidence.code",
   decisionSchema.properties?.evidence?.items?.properties?.code?.enum,

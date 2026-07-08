@@ -43,8 +43,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 ## Public Type Principles
 
 - Decision results must include rule evidence when a rule wins.
-- Decision evidence may include an optional stable machine-readable code. Consumers should prefer
-  `code` for programmatic routing and treat `reason` as human-readable operator text.
+- Decision evidence must include a stable machine-readable `code`. Consumers should use `code`
+  for programmatic routing and treat `reason` as human-readable operator text.
 - Policy evaluator rule decisions use `policy.rule_allow`, `policy.rule_deny`, and
   `policy.rule_approval_required`. Pre-rule fail-closed decisions use specific codes such as
   `policy.ambiguous_path`, `policy.free_form_shell`, `policy.ambiguous_network`,

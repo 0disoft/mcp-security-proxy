@@ -46,7 +46,7 @@ Export allowlist:
 
 Exported audit events must not contain raw secrets, environment values, prompt contents, full tool
 arguments, raw upstream stderr lines, `error.data`, or unredacted upstream error messages. Audit
-events may include stable decision codes, method names, profile names, tool names, rule ids,
+events include stable decision codes, method names, profile names, tool names, rule ids,
 capabilities, human-readable decision reasons, and redaction counts.
 
 Operator responsibilities:

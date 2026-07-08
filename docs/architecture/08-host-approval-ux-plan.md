@@ -46,7 +46,7 @@ The host UX must show enough context for a real decision without exposing raw se
 - tool name;
 - capability labels;
 - matched rule id when available;
-- decision evidence code when available;
+- decision evidence code;
 - redacted path, command, or network summaries when available;
 - policy profile id;
 - whether the action is one-time, session-scoped, or persistent.

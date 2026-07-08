@@ -40,7 +40,7 @@ export type DecisionAction = PolicyAction;
 export type DecisionReasonCode = (typeof DECISION_REASON_CODES)[number];
 
 export interface DecisionEvidence {
-  readonly code?: DecisionReasonCode;
+  readonly code: DecisionReasonCode;
   readonly ruleId?: string;
   readonly capability?: Capability;
   readonly method?: string;

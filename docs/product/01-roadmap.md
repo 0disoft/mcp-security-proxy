@@ -55,7 +55,7 @@ results.
 - Expose call evaluator.
 - Expose redactor and audit formatter.
 - Add compatibility fixtures for representative MCP clients.
-- Expose stable optional decision evidence codes for audit consumers.
+- Expose required stable decision evidence codes for audit consumers.
 - Expose an approval hook API for embedding hosts.
 - Maintain fixture-backed compatibility evidence for discovery, allowed calls, denied calls,
   approval-required calls, matcher denials, redaction, CLI JSON output, and library decision
