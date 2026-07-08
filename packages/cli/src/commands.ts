@@ -6,7 +6,7 @@ import {
   type NormalizedToolCall,
   type PolicyDocument
 } from "@0disoft/mcp-security-proxy-contracts";
-import { classifyToolDescriptor, evaluateToolCall } from "@0disoft/mcp-security-proxy-core";
+import { classifyToolDescriptor, evaluateToolCall, formatAuditEventJsonLine } from "@0disoft/mcp-security-proxy-core";
 import {
   runStdioProxy,
   type UpstreamCommand,
@@ -546,7 +546,7 @@ async function runProxy(
     clientInput: io.clientInput,
     clientOutput: io.mcpOutput,
     spawnUpstream: io.spawnUpstream,
-    writeAuditEvent: (event) => io.appendTextFile(auditLogPath, `${JSON.stringify(event)}\n`),
+    writeAuditEvent: (event) => io.appendTextFile(auditLogPath, formatAuditEventJsonLine(event)),
     ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {}),
     ...(maxFrameBytes !== undefined ? { maxFrameBytes } : {}),
     ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {})

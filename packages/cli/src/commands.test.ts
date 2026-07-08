@@ -160,6 +160,9 @@ describe("dry-run CLI commands", () => {
       }
     });
     expect(output.auditLines()).toHaveLength(1);
+    expect(output.auditWrites()).toHaveLength(1);
+    expect(output.auditWrites()[0]?.endsWith("\n")).toBe(true);
+    expect(output.auditWrites()[0]?.slice(0, -1)).not.toContain("\n");
   });
 
   it("redacts upstream JSON-RPC error fields on the async stdio proxy path", async () => {
@@ -516,6 +519,7 @@ async function invokeAsync(
   readonly mcpOutputJson: () => any;
   readonly upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly killed: boolean };
   readonly upstreamInputLines: () => readonly string[];
+  readonly auditWrites: () => readonly string[];
   readonly auditLines: () => readonly string[];
   readonly spawned: boolean;
   readonly stdout: readonly string[];
@@ -573,6 +577,7 @@ async function invokeAsync(
     mcpOutputJson: () => JSON.parse(readLines(mcpChunks)[0] ?? "{}") as any,
     upstream,
     upstreamInputLines: () => readLines(upstreamInputChunks),
+    auditWrites: () => auditWrites,
     auditLines: () => auditWrites.flatMap((write) => write.split("\n").filter((line) => line.length > 0)),
     get spawned() {
       return spawned;
