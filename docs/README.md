@@ -9,6 +9,7 @@ Status: Draft
 - Policy model source: docs/architecture/04-policy-model.md
 - MCP method policy source: docs/architecture/05-mcp-method-policy.md
 - Data flow and privacy source: docs/architecture/06-data-flow-and-privacy.md
+- Audit correlation plan source: docs/architecture/10-audit-correlation-plan.md
 - Operational standard source: docs/ops/00-operational-contract.md
 - Validation source: VALIDATION.md
 - Agent routing source: .agents/context-map.md

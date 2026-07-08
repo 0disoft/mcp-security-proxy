@@ -15,6 +15,7 @@ const requiredFiles = [
   "docs/architecture/07-http-transport-plan.md",
   "docs/architecture/08-host-approval-ux-plan.md",
   "docs/architecture/09-external-mcp-compatibility-plan.md",
+  "docs/architecture/10-audit-correlation-plan.md",
   "docs/adr/0001-initial-architecture-boundaries.md",
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
@@ -64,6 +65,7 @@ const cliContractFailures = [
   ...checkHttpTransportPlanDocs(),
   ...checkHostApprovalUxPlanDocs(),
   ...checkExternalMcpCompatibilityPlanDocs(),
+  ...checkAuditCorrelationPlanDocs(),
   ...checkDecisionCodeDocs(),
   ...checkApprovalHookDocs()
 ];
@@ -265,6 +267,29 @@ function checkExternalMcpCompatibilityPlanDocs() {
   ]) {
     if (!text.includes(phrase)) {
       failures.push(`${path}: missing external MCP compatibility plan phrase: ${phrase}`);
+    }
+  }
+  return failures;
+}
+
+function checkAuditCorrelationPlanDocs() {
+  const failures = [];
+  const path = "docs/architecture/10-audit-correlation-plan.md";
+  const text = readFileSync(join(root, path), "utf8");
+  for (const phrase of [
+    "Audit correlation v2 is not implemented",
+    "Do not store raw JSON-RPC ids",
+    "sessionId",
+    "sequence",
+    "transportEventId",
+    "jsonRpcIdHash",
+    "discoveryGeneration",
+    "Pending request state stores correlation metadata alongside method and expiry",
+    "Unmatched responses receive their own correlation metadata and must not guess a request link",
+    "Audit correlation v2 requires a schema change, new compatibility fixtures, and migration notes"
+  ]) {
+    if (!text.includes(phrase)) {
+      failures.push(`${path}: missing audit correlation plan phrase: ${phrase}`);
     }
   }
   return failures;
