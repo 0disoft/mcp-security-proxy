@@ -234,7 +234,19 @@ const checkPackageSurfaceValidator = () => {
     failures.push("package-surface self-test non-approved release records unlocked public package posture");
   }
 
-  const historicalApprovedReleaseRecordPackages = collectReleasePackageVersions([
+  const reachableApprovedReleaseRecordPackages = collectReleasePackageVersions([
+    {
+      status: "approved",
+      releaseVersion: "0.1.0-alpha.0",
+      targetCommit: getHistoricalReachableCommit(),
+      publicPackages: [{ workspacePath: "packages/cli" }]
+    }
+  ]);
+  if (reachableApprovedReleaseRecordPackages.get("packages/cli/package.json") !== "0.1.0-alpha.0") {
+    failures.push("package-surface self-test reachable approved release records did not unlock package posture");
+  }
+
+  const unreachableApprovedReleaseRecordPackages = collectReleasePackageVersions([
     {
       status: "approved",
       releaseVersion: "0.1.0-alpha.0",
@@ -242,8 +254,8 @@ const checkPackageSurfaceValidator = () => {
       publicPackages: [{ workspacePath: "packages/cli" }]
     }
   ]);
-  if (historicalApprovedReleaseRecordPackages.size !== 0) {
-    failures.push("package-surface self-test historical approved release records unlocked current package posture");
+  if (unreachableApprovedReleaseRecordPackages.size !== 0) {
+    failures.push("package-surface self-test unreachable approved release records unlocked current package posture");
   }
 
   const sdkDependencyFailures = collectPackageSurfaceFailures(() => {
@@ -341,7 +353,7 @@ function collectReleasePackageVersions(records) {
     if (record.status !== "approved") {
       continue;
     }
-    if (record.targetCommit !== currentHead) {
+    if (!isReachableCommit(record.targetCommit)) {
       continue;
     }
     if (!isNonPlaceholderString(record.releaseVersion) || !Array.isArray(record.publicPackages)) {
@@ -364,6 +376,34 @@ function collectReleasePackageVersions(records) {
 
 function isNonPlaceholderString(value) {
   return typeof value === "string" && value.trim().length > 0 && value !== "UNDECIDED" && value !== "UNRECORDED";
+}
+
+function isReachableCommit(value) {
+  if (!isNonPlaceholderString(value)) {
+    return false;
+  }
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", value, currentHead], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "ignore", "ignore"]
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getHistoricalReachableCommit() {
+  try {
+    return execFileSync("git", ["rev-list", "--max-count=1", "--skip=1", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim() || currentHead;
+  } catch {
+    return currentHead;
+  }
 }
 
 const rootManifestPath = join(root, "package.json");

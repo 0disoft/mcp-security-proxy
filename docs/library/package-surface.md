@@ -49,11 +49,10 @@ Until release readiness records public package names and artifacts:
 
 `pnpm run package-surface` enforces this private package posture until an approved release record
 exists. When `docs/ops/release-records/*.release.json` records a package as public with
-`status: "approved"` and `targetCommit` equal to the current HEAD, the same check allows only that
-recorded `packages/*` manifest to use the recorded release version and public package posture.
-Historical approved release records whose `targetCommit` remains reachable from current HEAD do not
-unlock current package manifests. Packages not listed in a current-target approved release record
-must remain private and versioned as `0.0.0`.
+`status: "approved"` and a `targetCommit` reachable from the current HEAD, the same check allows
+only that recorded `packages/*` manifest to use the recorded release version and public package
+posture. Unreachable approved release records do not unlock current package manifests. Packages not
+listed in a reachable approved release record must remain private and versioned as `0.0.0`.
 
 ## Expected Package Surfaces
 
