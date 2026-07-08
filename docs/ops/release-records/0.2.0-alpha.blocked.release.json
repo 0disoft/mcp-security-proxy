@@ -2,7 +2,7 @@
   "schemaVersion": "msp.release-readiness.v1",
   "status": "blocked",
   "releaseVersion": "0.2.0-alpha.0",
-  "targetCommit": "4b0292bf93e110912e4d84ed5cfc353c0c80f4d8",
+  "targetCommit": "02039a618f5ff668ccd8de5ee581ed21106df9b3",
   "registryTarget": "npmjs.org; blocked until package ownership and artifact approval",
   "publishCredentialsOwner": "0disoft repository owner; no publish credential use approved for this blocked candidate",
   "publicPackages": [
@@ -78,11 +78,11 @@
     "migration-check": "blocked candidate: rerun pnpm run migration-check and record exit 0 before approval",
     "package-surface": "blocked candidate: rerun pnpm run package-surface and record exit 0 before approval",
     "secret-scan": "blocked candidate: rerun pnpm run secret-scan and record exit 0 before approval",
-    "artifact-safety": "blocked candidate: rerun pnpm run artifact-safety and record exit 0 before approval",
+    "artifact-safety": "blocked candidate: external fixture path and log guards are covered by pnpm run artifact-safety; rerun and record exit 0 before approval",
     "repository-hygiene": "blocked candidate: rerun pnpm run repository-hygiene and record exit 0 before approval",
     "validation-registry": "blocked candidate: rerun pnpm run validation-registry and record exit 0 before approval",
     "ci-contract": "blocked candidate: rerun pnpm run ci-contract and record exit 0 before approval",
-    "compatibility": "blocked candidate: rerun pnpm run compatibility and record exit 0 before approval",
+    "compatibility": "blocked candidate: static external filesystem manifest and summary contracts are covered by pnpm run compatibility; rerun and record exit 0 before approval",
     "license-report": "blocked candidate: rerun pnpm run license-report and record exit 0 before approval",
     "release-readiness": "blocked candidate: rerun pnpm run release-readiness and record exit 0 before approval",
     "performance-smoke": "blocked candidate: rerun pnpm run performance-smoke and record exit 0 before approval",
@@ -98,7 +98,8 @@
   "blockers": [
     "Package manifests remain private and versioned as 0.0.0 until an approved current-target release record exists.",
     "Release artifacts are represented by tracked package manifests only; publishable package archives are not approved.",
-    "External MCP client and server compatibility fixtures are excluded from this candidate.",
+    "External filesystem stdio harness evidence exists, but external MCP compatibility remains excluded from this release scope until the compatibility registry has an approved multi-target release contract.",
+    "Live external harness validation is manual/extended only: run pnpm build followed by node scripts/check-external-mcp-fixture.mjs before approval.",
     "HTTP transport and host-specific approval UX are excluded from this candidate.",
     "Approval-grade validation evidence must be rerun and recorded before this candidate can become approved."
   ]
