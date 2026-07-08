@@ -30,6 +30,8 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 Implemented for newline-delimited stdio MCP servers. The command starts the upstream process named
 after `--`, gates client and upstream JSON-RPC lines through policy, writes only MCP messages to
 stdout, and writes JSON Lines audit events to the file named by `--audit-log`.
+When `--ops-log` is supplied, the command also writes structured JSON Lines lifecycle metrics to
+that file. Ops events are diagnostic and do not replace audit events.
 Upstream stderr is not relayed to stdout or copied into audit logs; the runtime records only a
 redacted stderr line-count summary.
 
@@ -47,6 +49,7 @@ Optional inputs:
 - `--max-frame-bytes <1..16777216>` controls the maximum UTF-8 byte length of one JSON-RPC line.
   The default is 1048576 bytes.
 - `--max-json-depth <1..256>` controls the maximum parsed JSON nesting depth. The default is 64.
+- `--ops-log <path>` writes optional lifecycle and bounded counter events as JSON Lines.
 
 ### `mcp-security-proxy check-policy`
 
@@ -73,6 +76,7 @@ prints the decision without forwarding it.
 - `--input` points to captured tool-list or tool-call JSON for dry-run commands.
 - `--approval-hook` marks approval hook availability for dry-run call evaluation.
 - `--audit-log` selects JSON Lines audit output for live proxy behavior.
+- `--ops-log` selects optional JSON Lines operational metrics output for live proxy behavior.
 - `--shutdown-grace-ms` selects the live proxy shutdown grace window in milliseconds.
 - `--max-frame-bytes` and `--max-json-depth` select live proxy frame guards.
 

@@ -111,7 +111,8 @@ Implemented command names:
 - `mcp-security-proxy eval-call`: dry-run one tool call against policy.
 
 The `run` command uses stdout only for MCP protocol messages after startup. Usage errors go to
-stderr, and audit events go to the file selected by `--audit-log`.
+stderr, audit events go to the file selected by `--audit-log`, and optional lifecycle metrics go
+to the file selected by `--ops-log`.
 The CLI does not bundle approval UX. Approval hooks are a runtime-library integration point for
 embedding hosts; `eval-call --approval-hook` only simulates hook availability for dry-run review.
 

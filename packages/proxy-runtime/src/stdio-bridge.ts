@@ -25,6 +25,7 @@ export interface StdioProxyOptions {
   readonly clientOutput: Writable;
   readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
   readonly writeAuditEvent: (event: AuditEvent) => void | Promise<void>;
+  readonly writeOpsEvent?: (event: StdioProxyOpsEvent) => void | Promise<void>;
   readonly approvalHookAvailable?: boolean;
   readonly approveToolCall?: ApprovalHook;
   readonly approvalTimeoutMs?: number;
@@ -37,12 +38,50 @@ export interface StdioProxyResult {
   readonly exitCode: number;
 }
 
+export interface StdioProxyMetrics {
+  readonly clientFrames: number;
+  readonly upstreamFrames: number;
+  readonly clientFramesForwarded: number;
+  readonly upstreamFramesForwarded: number;
+  readonly clientDenials: number;
+  readonly upstreamDenials: number;
+  readonly protocolResponsesWritten: number;
+  readonly auditEventsWritten: number;
+}
+
+export type StdioProxyOpsEvent =
+  | {
+      readonly schemaVersion: "msp.ops-event.v1";
+      readonly timestamp: string;
+      readonly kind: "lifecycle";
+      readonly event: "proxy.start";
+      readonly profileId: string;
+      readonly maxFrameBytes: number;
+      readonly maxJsonDepth?: number;
+      readonly metrics: StdioProxyMetrics;
+    }
+  | {
+      readonly schemaVersion: "msp.ops-event.v1";
+      readonly timestamp: string;
+      readonly kind: "lifecycle";
+      readonly event: "proxy.stop";
+      readonly profileId: string;
+      readonly exitCode: number;
+      readonly elapsedMs: number;
+      readonly metrics: StdioProxyMetrics;
+    };
+
 class AuditFailure extends Error {}
 
 const defaultShutdownGraceMs = 1_000;
 const defaultMaxFrameBytes = 1_048_576;
 
+type MutableStdioProxyMetrics = {
+  -readonly [Key in keyof StdioProxyMetrics]: StdioProxyMetrics[Key];
+};
+
 export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioProxyResult> {
+  const startedAt = Date.now();
   const profile = options.policy.profiles.find((item) => item.id === options.profileId);
   if (!profile) {
     return { exitCode: 3 };
@@ -66,11 +105,22 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
   });
 
   let fatalExitCode: number | undefined;
+  const metrics: MutableStdioProxyMetrics = {
+    clientFrames: 0,
+    upstreamFrames: 0,
+    clientFramesForwarded: 0,
+    upstreamFramesForwarded: 0,
+    clientDenials: 0,
+    upstreamDenials: 0,
+    protocolResponsesWritten: 0,
+    auditEventsWritten: 0
+  };
 
   const recordAudit = async (events: readonly AuditEvent[]): Promise<void> => {
     for (const event of events) {
       try {
         await options.writeAuditEvent(event);
+        metrics.auditEventsWritten += 1;
       } catch {
         if (profile.audit.onFailure === "fail_closed") {
           throw new AuditFailure("audit write failed");
@@ -78,28 +128,52 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       }
     }
   };
+  const recordOps = async (event: StdioProxyOpsEvent): Promise<void> => {
+    try {
+      await options.writeOpsEvent?.(event);
+    } catch {
+      // Ops telemetry is diagnostic only. Audit failure policy remains the security gate.
+    }
+  };
+  const finish = async (exitCode: number): Promise<StdioProxyResult> => {
+    await recordOps(createStopOpsEvent(options.profileId, exitCode, startedAt, metrics));
+    return { exitCode };
+  };
+  await recordOps(createStartOpsEvent(options.profileId, maxFrameBytes, options.maxJsonDepth, metrics));
   const stderrDone = observeUpstreamStderr(upstream.stderr, options.profileId, recordAudit, maxFrameBytes);
 
   const clientDone = consumeFrames(options.clientInput, maxFrameBytes, async (line) => {
+    metrics.clientFrames += 1;
     const result = options.approveToolCall
       ? await session.handleClientLineWithApproval(line, options.approveToolCall)
       : session.handleClientLine(line);
     await recordAudit(result.auditEvents);
     if (result.responseLine) {
+      metrics.protocolResponsesWritten += 1;
+      if (!result.forwardLine) {
+        metrics.clientDenials += 1;
+      }
       await writeLine(options.clientOutput, result.responseLine);
     }
     if (result.forwardLine) {
+      metrics.clientFramesForwarded += 1;
       await writeLine(upstream.stdin, result.forwardLine);
     }
   });
 
   const upstreamDone = consumeFrames(upstream.stdout, maxFrameBytes, async (line) => {
+    metrics.upstreamFrames += 1;
     const result = session.handleServerLine(line);
     await recordAudit(result.auditEvents);
     if (result.responseLine) {
+      metrics.protocolResponsesWritten += 1;
+      if (!result.forwardLine) {
+        metrics.upstreamDenials += 1;
+      }
       await writeLineIfOpen(upstream.stdin, result.responseLine);
     }
     if (result.forwardLine) {
+      metrics.upstreamFramesForwarded += 1;
       await writeLine(options.clientOutput, result.forwardLine);
     }
   });
@@ -117,18 +191,18 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs, -2);
       await upstreamDone;
       await stderrDone;
-      return { exitCode: await normalizeUpstreamExit(exitCode, options.profileId, recordAudit) };
+      return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit));
     }
 
     if (first === "upstream-output") {
       const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs, -3);
       await stderrDone;
-      return { exitCode: await normalizeUpstreamExit(exitCode, options.profileId, recordAudit) };
+      return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit));
     }
 
     await upstreamDone;
     await stderrDone;
-    return { exitCode: await normalizeUpstreamExit(first, options.profileId, recordAudit) };
+    return await finish(await normalizeUpstreamExit(first, options.profileId, recordAudit));
   } catch (error) {
     if (error instanceof AuditFailure) {
       fatalExitCode = 5;
@@ -136,11 +210,64 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       fatalExitCode = 1;
     }
     upstream.kill();
-    return { exitCode: fatalExitCode };
+    return await finish(fatalExitCode);
   } finally {
     options.clientInput.destroy();
     upstream.stdout.destroy();
   }
+}
+
+export function formatStdioOpsEventJsonLine(event: StdioProxyOpsEvent): string {
+  return `${JSON.stringify(event)}\n`;
+}
+
+function createStartOpsEvent(
+  profileId: string,
+  maxFrameBytes: number,
+  maxJsonDepth: number | undefined,
+  metrics: StdioProxyMetrics
+): StdioProxyOpsEvent {
+  return {
+    schemaVersion: "msp.ops-event.v1",
+    timestamp: new Date().toISOString(),
+    kind: "lifecycle",
+    event: "proxy.start",
+    profileId,
+    maxFrameBytes,
+    ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {}),
+    metrics: snapshotMetrics(metrics)
+  };
+}
+
+function createStopOpsEvent(
+  profileId: string,
+  exitCode: number,
+  startedAt: number,
+  metrics: StdioProxyMetrics
+): StdioProxyOpsEvent {
+  return {
+    schemaVersion: "msp.ops-event.v1",
+    timestamp: new Date().toISOString(),
+    kind: "lifecycle",
+    event: "proxy.stop",
+    profileId,
+    exitCode,
+    elapsedMs: Math.max(0, Date.now() - startedAt),
+    metrics: snapshotMetrics(metrics)
+  };
+}
+
+function snapshotMetrics(metrics: StdioProxyMetrics): StdioProxyMetrics {
+  return {
+    clientFrames: metrics.clientFrames,
+    upstreamFrames: metrics.upstreamFrames,
+    clientFramesForwarded: metrics.clientFramesForwarded,
+    upstreamFramesForwarded: metrics.upstreamFramesForwarded,
+    clientDenials: metrics.clientDenials,
+    upstreamDenials: metrics.upstreamDenials,
+    protocolResponsesWritten: metrics.protocolResponsesWritten,
+    auditEventsWritten: metrics.auditEventsWritten
+  };
 }
 
 async function consumeFrames(input: Readable, maxFrameBytes: number, onLine: (line: string) => Promise<void>): Promise<void> {

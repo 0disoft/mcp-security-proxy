@@ -18,6 +18,7 @@ Cover logs, metrics, traces, dashboards, alerts, health checks, sampling, retent
 - CLI stderr is human-readable operational output.
 - CLI stdout is reserved for MCP protocol frames in live `run` mode.
 - `--audit-log` writes redacted JSONL audit events.
+- `--ops-log` optionally writes structured JSONL lifecycle events with bounded counters.
 - Upstream stderr is summarized by line count and is not copied raw.
 - Upstream response `error.data` is stripped before forwarding.
 - Sensitive upstream `error.message` content is redacted before forwarding.
@@ -61,6 +62,8 @@ Operator responsibilities:
 Failure and recovery:
 
 - Live `run` must fail closed when audit writes fail.
+- Ops log write failures are diagnostic-only and do not change forwarding or audit fail-closed
+  behavior.
 - Rotation or collector failures are local operator incidents, not repository-managed retry queues.
 - Recovery evidence should name the command, exit code, policy profile, audit event kind, decision
   action, and redaction summary without attaching raw prompts or raw arguments.
@@ -74,6 +77,7 @@ Before public release, validation evidence must include:
 - documented stdout/stderr separation for live `run`;
 - operator guidance for audit log path ownership and retention;
 - export guidance that names the audit field allowlist and forbidden raw data;
+- lifecycle metrics evidence for live `run` when `--ops-log` is configured;
 - incident evidence that does not require raw prompts, raw tool arguments, or raw secrets.
 
 ## Validation
@@ -81,5 +85,6 @@ Before public release, validation evidence must include:
 - Required validation names: docs, artifact-safety, repository-hygiene, smoke, check.
 - Release blocker status: public release is blocked if audit retention ownership is omitted or
   described as repository-managed storage.
-- Remaining operational risk: no metrics, traces, dashboards, alerts, or built-in health endpoint
-  exist yet; this is acceptable for local stdio MVP but not for hosted or HTTP transports.
+- Remaining operational risk: no traces, dashboards, alerts, or built-in health endpoint exist yet;
+  lifecycle metrics are local JSON Lines only, which is acceptable for local stdio MVP but not for
+  hosted or HTTP transports.

@@ -16,6 +16,7 @@ Current critical journeys:
 - deny unsupported, ambiguous, or approval-required calls unless the configured runtime path can
   safely approve them;
 - write redacted JSONL audit events to the operator-selected path;
+- optionally write structured JSONL lifecycle metrics to the operator-selected ops path;
 - fail closed on policy parse, audit write, upstream protocol, or approval-hook failures.
 
 ## Owners
@@ -38,6 +39,7 @@ Current critical journeys:
 
 - Policy files are local operator-owned inputs.
 - Audit logs are local operator-owned outputs.
+- Ops logs are local operator-owned diagnostic outputs.
 - The repository owns schemas, redaction rules, and CLI behavior, not retention infrastructure.
 - No project-owned database exists in the current architecture.
 
@@ -47,5 +49,6 @@ Current critical journeys:
   repository-hygiene, validation-registry, ci-contract, contract, test, smoke, check.
 - Release blocker status: public release is blocked when local `check`, audit redaction, stdout
   separation, or package-surface validation fails.
-- Remaining operational risk: no hosted health endpoint, metrics, dashboards, or alerting exists;
-  this is acceptable for local stdio MVP but not for future hosted or HTTP transport modes.
+- Remaining operational risk: no hosted health endpoint, dashboards, tracing, or alerting exists;
+  local JSONL lifecycle metrics are acceptable for local stdio MVP but not sufficient for future
+  hosted or HTTP transport modes.

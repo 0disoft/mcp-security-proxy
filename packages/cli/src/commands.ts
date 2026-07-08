@@ -8,6 +8,7 @@ import {
 } from "@0disoft/mcp-security-proxy-contracts";
 import { classifyToolDescriptor, evaluateToolCall, formatAuditEventJsonLine } from "@0disoft/mcp-security-proxy-core";
 import {
+  formatStdioOpsEventJsonLine,
   runStdioProxy,
   type UpstreamCommand,
   type UpstreamProcess
@@ -355,6 +356,7 @@ function commandHelp(command: CommandName): string {
       "  --policy <path>                local policy file",
       "  --profile <name>               policy profile to apply",
       "  --audit-log <path>             JSON Lines audit output file",
+      "  --ops-log <path>               optional JSON Lines ops metrics output file",
       "  --shutdown-grace-ms <0..2147483647>",
       "                                 milliseconds to wait before killing upstream after client input closes",
       "  --max-frame-bytes <1..16777216>",
@@ -511,6 +513,7 @@ async function runProxy(
   const policyPath = readRequiredStringFlag(flags, "policy");
   const profileId = readRequiredStringFlag(flags, "profile");
   const auditLogPath = readRequiredStringFlag(flags, "audit-log");
+  const opsLogPath = readOptionalStringFlag(flags, "ops-log");
   const shutdownGraceMs = readOptionalShutdownGraceMsFlag(flags);
   const maxFrameBytes = readOptionalFrameBytesFlag(flags);
   const maxJsonDepth = readOptionalJsonDepthFlag(flags);
@@ -519,6 +522,9 @@ async function runProxy(
   }
   if (auditLogPath === "-") {
     throw new CliError(2, "run requires --audit-log to be a file path; stdout is reserved for MCP messages");
+  }
+  if (opsLogPath === "-") {
+    throw new CliError(2, "run requires --ops-log to be a file path; stdout is reserved for MCP messages");
   }
   if (!separatorSeen) {
     throw new CliError(2, "run requires -- before the upstream command");
@@ -544,6 +550,7 @@ async function runProxy(
     clientOutput: io.mcpOutput,
     spawnUpstream: io.spawnUpstream,
     writeAuditEvent: (event) => io.appendTextFile(auditLogPath, formatAuditEventJsonLine(event)),
+    ...(opsLogPath ? { writeOpsEvent: (event) => io.appendTextFile(opsLogPath, formatStdioOpsEventJsonLine(event)) } : {}),
     ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {}),
     ...(maxFrameBytes !== undefined ? { maxFrameBytes } : {}),
     ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {})

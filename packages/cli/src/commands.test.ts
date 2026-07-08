@@ -166,6 +166,56 @@ describe("dry-run CLI commands", () => {
     expect(output.auditWrites()[0]?.slice(0, -1)).not.toContain("\n");
   });
 
+  it("writes optional ops metrics to a separate JSONL file", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "audit.jsonl",
+      "--ops-log",
+      "ops.jsonl",
+      "--",
+      "fixture-server"
+    ]);
+
+    output.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "ops-cli-denied",
+        method: "resources/list"
+      })}\n`
+    );
+    output.clientInput.end();
+    output.upstream.stdout.end();
+
+    const result = await output.result;
+    expect(result.exitCode).toBe(0);
+    expect(output.stdout).toEqual([]);
+    expect(output.opsLines()).toHaveLength(2);
+    expect(output.opsLines().map((line) => JSON.parse(line) as any)).toEqual([
+      expect.objectContaining({
+        schemaVersion: "msp.ops-event.v1",
+        event: "proxy.start",
+        profileId: "local"
+      }),
+      expect.objectContaining({
+        schemaVersion: "msp.ops-event.v1",
+        event: "proxy.stop",
+        profileId: "local",
+        exitCode: 0,
+        metrics: expect.objectContaining({
+          clientFrames: 1,
+          clientDenials: 1,
+          protocolResponsesWritten: 1
+        })
+      })
+    ]);
+    expect(output.auditLines()).toHaveLength(1);
+  });
+
   it("redacts upstream JSON-RPC error fields on the async stdio proxy path", async () => {
     const output = await invokeAsync([
       "run",
@@ -522,6 +572,7 @@ async function invokeAsync(
   readonly upstreamInputLines: () => readonly string[];
   readonly auditWrites: () => readonly string[];
   readonly auditLines: () => readonly string[];
+  readonly opsLines: () => readonly string[];
   readonly spawned: boolean;
   readonly stdout: readonly string[];
   readonly stderr: readonly string[];
@@ -532,7 +583,7 @@ async function invokeAsync(
   const upstreamOutput = new PassThrough();
   const mcpChunks: Buffer[] = [];
   const upstreamInputChunks: Buffer[] = [];
-  const auditWrites: string[] = [];
+  const writesByPath = new Map<string, string[]>();
   const stdout: string[] = [];
   const stderr: string[] = [];
   let killed = false;
@@ -562,8 +613,10 @@ async function invokeAsync(
     stderr: (line) => stderr.push(line),
     clientInput,
     mcpOutput,
-    appendTextFile: (_path, text) => {
-      auditWrites.push(text);
+    appendTextFile: (path, text) => {
+      const writes = writesByPath.get(path) ?? [];
+      writes.push(text);
+      writesByPath.set(path, writes);
     },
     spawnUpstream: () => {
       spawned = true;
@@ -578,8 +631,9 @@ async function invokeAsync(
     mcpOutputJson: () => JSON.parse(readLines(mcpChunks)[0] ?? "{}") as any,
     upstream,
     upstreamInputLines: () => readLines(upstreamInputChunks),
-    auditWrites: () => auditWrites,
-    auditLines: () => auditWrites.flatMap((write) => write.split("\n").filter((line) => line.length > 0)),
+    auditWrites: () => writesByPath.get("audit.jsonl") ?? [],
+    auditLines: () => readTextLines(writesByPath.get("audit.jsonl") ?? []),
+    opsLines: () => readTextLines(writesByPath.get("ops.jsonl") ?? []),
     get spawned() {
       return spawned;
     },
@@ -593,6 +647,10 @@ function readLines(chunks: readonly Buffer[]): readonly string[] {
     .toString("utf8")
     .split("\n")
     .filter((line) => line.length > 0);
+}
+
+function readTextLines(chunks: readonly string[]): readonly string[] {
+  return chunks.flatMap((write) => write.split("\n").filter((line) => line.length > 0));
 }
 
 function nextTick(): Promise<void> {

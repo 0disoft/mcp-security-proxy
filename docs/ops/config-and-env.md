@@ -20,6 +20,7 @@ non-secret convenience defaults.
 - `--policy`: local policy file path.
 - `--profile`: named server profile inside the policy file.
 - `--audit-log`: local JSONL audit output path for live `run`.
+- `--ops-log`: optional local JSONL lifecycle metrics output path for live `run`.
 - `--shutdown-grace-ms`: bounded upstream shutdown window.
 - `--max-frame-bytes`: newline-delimited JSON-RPC frame size limit.
 - `--max-json-depth`: parsed JSON depth limit.
@@ -30,6 +31,7 @@ non-secret convenience defaults.
 - Default policy posture is deny-by-default.
 - Live `run` reads policy at startup; hot reload is not implemented.
 - Audit output is append-oriented JSONL at the selected path.
+- Ops output is append-oriented JSONL at the selected path when configured.
 - Upstream environment passthrough must stay allowlist-based if environment support is added.
 - Secret values must not be stored in policy examples, audit events, CLI JSON output, or error
   messages.

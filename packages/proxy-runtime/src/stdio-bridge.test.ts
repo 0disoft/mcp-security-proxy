@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import type { AuditEvent, PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
-import { runStdioProxy, type UpstreamProcess } from "./stdio-bridge.js";
+import { runStdioProxy, type StdioProxyOpsEvent, type UpstreamProcess } from "./stdio-bridge.js";
 import type { ApprovalHook } from "./session.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
@@ -51,6 +51,56 @@ describe("stdio proxy bridge", () => {
       kind: "call-decision",
       decision: { action: "deny" }
     });
+  });
+
+  it("writes structured lifecycle ops events with bounded counters", async () => {
+    const harness = createHarness();
+    const run = runHarness(harness);
+
+    harness.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "ops-denied",
+        method: "tools/call",
+        params: {
+          name: "read_file",
+          arguments: {
+            path: "workspace/private/secret.txt"
+          }
+        }
+      })}\n`
+    );
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await run;
+    expect(result.exitCode).toBe(0);
+    expect(harness.opsEvents).toHaveLength(2);
+    expect(harness.opsEvents[0]).toMatchObject({
+      schemaVersion: "msp.ops-event.v1",
+      kind: "lifecycle",
+      event: "proxy.start",
+      profileId: "local",
+      metrics: {
+        clientFrames: 0,
+        auditEventsWritten: 0
+      }
+    });
+    expect(harness.opsEvents[1]).toMatchObject({
+      schemaVersion: "msp.ops-event.v1",
+      kind: "lifecycle",
+      event: "proxy.stop",
+      profileId: "local",
+      exitCode: 0,
+      metrics: {
+        clientFrames: 1,
+        clientDenials: 1,
+        protocolResponsesWritten: 1,
+        auditEventsWritten: 1
+      }
+    });
+    expect(JSON.stringify(harness.opsEvents)).not.toContain("workspace/private/secret.txt");
   });
 
   it("forwards allowed client calls and upstream responses line by line", async () => {
@@ -639,6 +689,9 @@ function runHarness(
         throw new Error("audit sink failed");
       }
       harness.auditEvents.push(event);
+    },
+    writeOpsEvent: (event) => {
+      harness.opsEvents.push(event);
     }
   });
 }
@@ -652,6 +705,7 @@ function createHarness(
   readonly upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly stderr: PassThrough; readonly killed: boolean };
   readonly upstreamInputCapture: Buffer[];
   readonly auditEvents: AuditEvent[];
+  readonly opsEvents: StdioProxyOpsEvent[];
   readonly failAuditWrites: boolean;
 } {
   const clientInput = new PassThrough();
@@ -686,6 +740,7 @@ function createHarness(
     },
     upstreamInputCapture,
     auditEvents: [],
+    opsEvents: [],
     failAuditWrites: options.failAuditWrites ?? false
   };
 }

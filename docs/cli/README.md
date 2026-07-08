@@ -28,6 +28,7 @@ run a local stdio proxy, validate policies, inspect discovered tools, and dry-ru
 
 The live `run` command keeps stdout reserved for newline-delimited MCP JSON-RPC messages. Startup
 errors and usage errors go to stderr, and audit events go to the file selected by `--audit-log`.
+Optional structured lifecycle metrics go to the JSON Lines file selected by `--ops-log`.
 Help requests exit before the live proxy starts, so `--help`, `<command> --help`, and
 `help <command>` may print usage text to stdout without starting an upstream process.
 
