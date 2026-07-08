@@ -170,10 +170,10 @@ function capabilityForFactKind(kind: "path" | "command" | "network" | "secret"):
   return "secret";
 }
 
-function deny(reason: string, capability?: Capability, code?: DecisionEvidence["code"]): PolicyDecision {
+function deny(reason: string, capability: Capability | undefined, code: NonNullable<DecisionEvidence["code"]>): PolicyDecision {
   return {
     schemaVersion: DECISION_SCHEMA_VERSION,
     action: "deny",
-    evidence: [{ ...withCapability(capability), ...(code ? { code } : {}), reason }]
+    evidence: [{ ...withCapability(capability), code, reason }]
   };
 }

@@ -1148,7 +1148,10 @@ function isEmptyPingResponse(envelope: JsonRpcEnvelope): boolean {
   return isRecord(envelope.result) && Object.keys(envelope.result).length === 0 && envelope.error === undefined;
 }
 
-function denyDecision(reason: string, evidence?: Omit<DecisionEvidence, "reason">): PolicyDecision {
+function denyDecision(
+  reason: string,
+  evidence: Omit<DecisionEvidence, "reason"> & { readonly code: NonNullable<DecisionEvidence["code"]> }
+): PolicyDecision {
   return {
     schemaVersion: "msp.decision.v1",
     action: "deny",
