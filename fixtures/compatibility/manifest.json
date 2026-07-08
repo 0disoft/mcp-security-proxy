@@ -283,6 +283,12 @@
       ]
     },
     {
+      "id": "library-policy-parse-local-dev",
+      "kind": "library.policy-parse",
+      "path": "fixtures/compatibility/library-policy-parse-local-dev.json",
+      "policy": "fixtures/policies/local-dev.json"
+    },
+    {
       "id": "library-decision-file-read-allowed",
       "kind": "library.decision-result",
       "path": "fixtures/compatibility/library-decision-file-read-allowed.json",
@@ -370,6 +376,22 @@
       "call": "fixtures/mcp/call-workflow-approval.json",
       "profile": "local",
       "approvalHookAvailable": true
+    },
+    {
+      "id": "library-audit-jsonl-method-denied",
+      "kind": "library.audit-jsonl",
+      "path": "fixtures/compatibility/library-audit-jsonl-method-denied.jsonl",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "method": "resources/list"
+    },
+    {
+      "id": "library-tool-call-normalization",
+      "kind": "library.tool-call-normalization",
+      "path": "fixtures/compatibility/library-tool-call-normalization.json",
+      "envelope": "fixtures/mcp/jsonrpc-call-normalization.json",
+      "toolName": "read_file",
+      "capabilities": ["file-read", "network", "shell"]
     },
     {
       "id": "runtime-live-stdio-smoke",

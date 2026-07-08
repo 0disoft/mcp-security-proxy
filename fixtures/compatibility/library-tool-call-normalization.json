@@ -1,0 +1,27 @@
+{
+  "method": "tools/call",
+  "toolName": "read_file",
+  "capabilities": [
+    "file-read",
+    "network",
+    "shell"
+  ],
+  "argumentFacts": [
+    {
+      "kind": "path",
+      "value": "workspace/public/report.md"
+    },
+    {
+      "kind": "network",
+      "value": "https://api.example.com/v1"
+    },
+    {
+      "kind": "command",
+      "executable": "node",
+      "argv": [
+        "script.js",
+        "--flag"
+      ]
+    }
+  ]
+}

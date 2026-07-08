@@ -13,7 +13,10 @@ const requiredKinds = new Set([
   "cli.json.check-policy",
   "cli.json.inspect-tools",
   "cli.json.eval-call",
+  "library.policy-parse",
   "library.decision-result",
+  "library.audit-jsonl",
+  "library.tool-call-normalization",
   "runtime.live-smoke",
   "runtime.session-result"
 ]);
@@ -59,6 +62,7 @@ const requiredEvidenceIds = new Set([
   "cli-eval-call-secret-api-key-allowed-local",
   "cli-eval-call-workflow-no-hook-local",
   "cli-eval-call-workflow-approval-hook-local",
+  "library-policy-parse-local-dev",
   "library-decision-file-read-allowed",
   "library-decision-file-read-denied",
   "library-decision-file-read-traversal",
@@ -70,6 +74,8 @@ const requiredEvidenceIds = new Set([
   "library-decision-secret-api-key-allowed",
   "library-decision-workflow-no-hook",
   "library-decision-workflow-approval-hook",
+  "library-audit-jsonl-method-denied",
+  "library-tool-call-normalization",
   "runtime-live-stdio-smoke",
   "runtime-approval-rejected-redacted",
   "runtime-approval-hook-error",
@@ -155,6 +161,7 @@ async function checkEvidenceEntry(item) {
   checkEvidenceReference(id || manifestPath, "path", item.path);
   checkEvidenceReference(id || manifestPath, "policy", item.policy);
   checkEvidenceReference(id || manifestPath, "call", item.call);
+  checkEvidenceReference(id || manifestPath, "envelope", item.envelope);
 
   if (!id) {
     failures.push(`${manifestPath}: evidence entry is missing id`);
@@ -180,7 +187,7 @@ async function checkEvidenceEntry(item) {
     return;
   }
 
-  if (kind.startsWith("mcp.") || kind.startsWith("cli.") || kind.startsWith("library.")) {
+  if (kind.startsWith("mcp.") || kind.startsWith("cli.") || (kind.startsWith("library.") && kind !== "library.audit-jsonl")) {
     readJson(path);
   }
   if (kind === "audit.redaction") {
@@ -189,8 +196,17 @@ async function checkEvidenceEntry(item) {
   if (kind.startsWith("cli.")) {
     checkCliFixture(id, kind, path, item.command);
   }
+  if (kind === "library.policy-parse") {
+    await checkLibraryPolicyParseFixture(id, path, item);
+  }
   if (kind === "library.decision-result") {
     await checkLibraryDecisionFixture(id, path, item);
+  }
+  if (kind === "library.audit-jsonl") {
+    await checkLibraryAuditJsonlFixture(id, path, item);
+  }
+  if (kind === "library.tool-call-normalization") {
+    await checkLibraryToolCallNormalizationFixture(id, path, item);
   }
   if (kind === "runtime.session-result") {
     await checkRuntimeSessionFixture(id, path, item);
@@ -412,6 +428,68 @@ async function checkLibraryDecisionFixture(id, path, item) {
   });
   const expected = readJson(path);
   assertJsonEqual(id, actual, expected);
+}
+
+async function checkLibraryPolicyParseFixture(id, path, item) {
+  if (typeof item.policy !== "string") {
+    failures.push(`${id}: policy parse evidence must include policy`);
+    return;
+  }
+  const { parsePolicyDocumentJson } = await import("../packages/contracts/dist/index.js");
+  const actual = parsePolicyDocumentJson(readText(item.policy));
+  const expected = readJson(path);
+  assertJsonEqual(id, actual, expected);
+}
+
+async function checkLibraryAuditJsonlFixture(id, path, item) {
+  if (typeof item.policy !== "string" || typeof item.profile !== "string" || typeof item.method !== "string") {
+    failures.push(`${id}: audit JSONL evidence must include policy, profile, and method`);
+    return;
+  }
+  const { createAuditEvent, evaluateMcpMethod, formatAuditEventJsonLine, redactText } = await import("../packages/core/dist/index.js");
+  const redacted = redactText("value REDACT_ME_VALUE_123");
+  const actual = formatAuditEventJsonLine(
+    createAuditEvent({
+      kind: "method-denied",
+      profileId: item.profile,
+      method: item.method,
+      decision: evaluateMcpMethod(item.method, readJson(item.policy)),
+      redaction: redacted.summary
+    })
+  );
+  const expected = readText(path);
+  checkDecisionEvidenceCodes(`${id}: actual`, parseJsonText(actual, `${id}: actual JSONL`));
+  checkDecisionEvidenceCodes(`${id}: expected`, parseJsonText(expected, `${id}: expected JSONL`));
+  if (!expected.endsWith("\n")) {
+    failures.push(`${id}: audit JSONL fixture must end with a newline`);
+  }
+  if (actual.includes("REDACT_ME_VALUE_123") || expected.includes("REDACT_ME_VALUE_123")) {
+    failures.push(`${id}: audit JSONL evidence must not contain raw marker value`);
+  }
+  if (actual !== expected) {
+    failures.push(`${id}: fixture drifted from current implementation`);
+  }
+}
+
+async function checkLibraryToolCallNormalizationFixture(id, path, item) {
+  if (typeof item.envelope !== "string" || typeof item.toolName !== "string" || !Array.isArray(item.capabilities)) {
+    failures.push(`${id}: tool-call normalization evidence must include envelope, toolName, and capabilities`);
+    return;
+  }
+  if (!item.capabilities.every((capability) => typeof capability === "string")) {
+    failures.push(`${id}: tool-call normalization capabilities must be strings`);
+    return;
+  }
+  const { normalizeToolCallEnvelope } = await import("../packages/mcp-adapter/dist/index.js");
+  const actual = normalizeToolCallEnvelope(readJson(item.envelope), {
+    name: item.toolName,
+    capabilities: item.capabilities
+  });
+  const expected = readJson(path);
+  assertJsonEqual(id, actual, expected);
+  if (stableJson(actual).includes("synthetic-normalization-input-marker")) {
+    failures.push(`${id}: normalized tool call must not contain synthetic input marker`);
+  }
 }
 
 async function checkRuntimeSessionFixture(id, path, item) {

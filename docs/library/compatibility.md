@@ -51,7 +51,10 @@ This repository type owns public API surface, package compatibility, semantic ve
   value.
 - Captured redaction fixture.
 - CLI JSON output fixture.
+- Library policy-parse fixture.
 - Library decision-result fixture.
+- Library audit JSONL formatter fixture.
+- Library tool-call normalization fixture.
 - Runtime live stdio smoke command evidence for the implemented local proxy path.
 - Runtime session-result fixtures for approval rejection, approval hook error, approval timeout
   fail-closed behavior, client envelope sanitization, client ping error response denial, client ping
@@ -70,11 +73,13 @@ The current evidence registry is `fixtures/compatibility/manifest.json`. Its `ta
 `synthetic-local` until a later ADR and release record approve a broader compatibility target.
 `pnpm run compatibility` builds the workspace, verifies every manifest entry, compares the captured
 CLI, library, and runtime session fixtures against the current implementation, and runs registered
-runtime smoke evidence commands. Decision fixtures and audit-event fixtures must include stable
+runtime smoke evidence commands. Library fixtures must exercise the public parser, decision
+evaluator, audit JSONL formatter, and tool-call normalizer through package exports instead of
+only checking static JSON shape. Decision fixtures and audit-event fixtures must include stable
 machine-readable decision evidence `code` values; the compatibility check rejects fixture evidence
-that relies only on human-readable `reason` text. Manifest `path`, `policy`, and `call` references,
-plus CLI evidence command `--policy` and `--input` paths, must be safe repository-relative tracked
-files so local-only fixtures cannot satisfy compatibility evidence.
+that relies only on human-readable `reason` text. Manifest `path`, `policy`, `call`, and `envelope`
+references, plus CLI evidence command `--policy` and `--input` paths, must be safe
+repository-relative tracked files so local-only fixtures cannot satisfy compatibility evidence.
 Approval-required library fixtures may explicitly record `approvalHookAvailable` in the manifest so
 hook-present and hook-missing decisions are both checked.
 

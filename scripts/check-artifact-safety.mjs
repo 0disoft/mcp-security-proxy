@@ -90,7 +90,7 @@ function checkCompatibilityManifestObject(path, manifest) {
   }
 
   for (const [index, item] of manifest.evidence.entries()) {
-    for (const field of ["path", "policy", "call"]) {
+    for (const field of ["path", "policy", "call", "envelope"]) {
       const value = item?.[field];
       if (typeof value !== "string") {
         continue;
@@ -291,7 +291,8 @@ function checkArtifactSafetyValidator() {
         {
           path: "private/capture.json",
           policy: "fixtures/policies/local-dev.json",
-          call: "fixtures/audit/tool-call.json"
+          call: "fixtures/audit/tool-call.json",
+          envelope: "captures/raw-envelope.json"
         }
       ]
     });

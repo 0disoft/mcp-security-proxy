@@ -1,0 +1,1 @@
+{"schemaVersion":"msp.audit-event.v1","kind":"method-denied","profileId":"local","method":"resources/list","decision":{"schemaVersion":"msp.decision.v1","action":"deny","evidence":[{"code":"method.unsupported","method":"resources/list","reason":"unsupported MCP method denied by default"}]},"redaction":{"applied":true,"counts":{"secret_like":1}}}
