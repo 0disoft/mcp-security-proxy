@@ -1,0 +1,48 @@
+{
+  "invalidFieldsForwarded": false,
+  "invalidFieldsResponse": null,
+  "invalidFieldsAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "reason": "JSON-RPC error must include numeric code and string message"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "nonObjectForwarded": false,
+  "nonObjectResponse": null,
+  "nonObjectAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "reason": "JSON-RPC error must include numeric code and string message"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}

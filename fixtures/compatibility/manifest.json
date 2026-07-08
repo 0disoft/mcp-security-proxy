@@ -492,6 +492,14 @@
       "scenario": "invalid-upstream-response-shape"
     },
     {
+      "id": "runtime-invalid-upstream-error-object",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-invalid-upstream-error-object.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "invalid-upstream-error-object"
+    },
+    {
       "id": "runtime-unmatched-response-denial",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-unmatched-response-denial.json",

@@ -85,6 +85,7 @@ const requiredEvidenceIds = new Set([
   "runtime-malformed-discovery",
   "runtime-pending-discovery-id-type",
   "runtime-invalid-upstream-response-shape",
+  "runtime-invalid-upstream-error-object",
   "runtime-unmatched-response-denial",
   "runtime-server-envelope-sanitization",
   "runtime-upstream-response-envelope-sanitization",
@@ -431,6 +432,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "malformed-discovery",
     "pending-discovery-id-type",
     "invalid-upstream-response-shape",
+    "invalid-upstream-error-object",
     "unmatched-response-denial",
     "server-envelope-sanitization",
     "upstream-response-envelope-sanitization",
@@ -604,6 +606,43 @@ async function checkRuntimeSessionFixture(id, path, item) {
       neitherForwarded: neither.forwardLine !== undefined,
       neitherResponse: neither.responseLine ? parseJsonText(neither.responseLine, `${id}: neither.responseLine`) : null,
       neitherAuditEvents: neither.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "invalid-upstream-error-object") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const invalidFields = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-invalid-error-fields",
+        error: {
+          code: "not-a-number",
+          message: "RAW_INVALID_ERROR_MESSAGE_MARKER"
+        }
+      })
+    );
+    const nonObject = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-invalid-error-member",
+        error: "RAW_INVALID_ERROR_MEMBER_MARKER"
+      })
+    );
+    const actual = {
+      invalidFieldsForwarded: invalidFields.forwardLine !== undefined,
+      invalidFieldsResponse: invalidFields.responseLine
+        ? parseJsonText(invalidFields.responseLine, `${id}: invalidFields.responseLine`)
+        : null,
+      invalidFieldsAuditEvents: invalidFields.auditEvents,
+      nonObjectForwarded: nonObject.forwardLine !== undefined,
+      nonObjectResponse: nonObject.responseLine ? parseJsonText(nonObject.responseLine, `${id}: nonObject.responseLine`) : null,
+      nonObjectAuditEvents: nonObject.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);
