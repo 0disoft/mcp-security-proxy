@@ -43,7 +43,9 @@ exclusion with tracked fixture and validation evidence. `fixtures/compatibility/
 must record external MCP evidence as a separate `targets[]` entry, not as the top-level
 `local-stdio-mvp` evidence corpus. Target registration alone does not include external MCP
 compatibility in a release; the release record must use non-exclusion evidence and approval-grade
-validation output before `externalMcpFixture.status` may be `included`.
+validation output before `externalMcpFixture.status` may be `included`. For the first pinned
+external filesystem stdio target, use `docs/ops/external-mcp-compatibility-evidence.md` as the
+non-exclusion evidence source only after the required validation evidence is recorded.
 
 Use `docs/architecture/07-http-transport-plan.md` as the release-scope evidence when HTTP
 transport support is excluded. A release that includes HTTP transport must replace that exclusion

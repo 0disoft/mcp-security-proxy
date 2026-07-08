@@ -11,6 +11,7 @@ Status: Draft
 - Data flow and privacy source: docs/architecture/06-data-flow-and-privacy.md
 - Audit correlation plan source: docs/architecture/10-audit-correlation-plan.md
 - External fixture harness source: docs/architecture/11-external-fixture-harness.md
+- External MCP compatibility evidence source: docs/ops/external-mcp-compatibility-evidence.md
 - Operational standard source: docs/ops/00-operational-contract.md
 - Validation source: VALIDATION.md
 - Agent routing source: .agents/context-map.md
