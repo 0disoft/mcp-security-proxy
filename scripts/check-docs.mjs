@@ -263,7 +263,7 @@ function checkExternalMcpCompatibilityPlanDocs() {
     "malformed, unmatched, oversized, or too-deep messages are dropped or denied without leaking raw",
     "compatibility fixtures are registered in `fixtures/compatibility/manifest.json`",
     "release record names external MCP compatibility fixtures as included or explicitly excluded",
-    "External MCP compatibility fixtures are not implemented"
+    "external-filesystem-stdio harness fixture now exists"
   ]) {
     if (!text.includes(phrase)) {
       failures.push(`${path}: missing external MCP compatibility plan phrase: ${phrase}`);

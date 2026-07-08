@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 const root = process.cwd();
 const manifestPath = "fixtures/compatibility/manifest.json";
+const externalManifestPath = "fixtures/compatibility/external-filesystem-stdio.manifest.json";
 const requiredKinds = new Set([
   "mcp.discovery",
   "mcp.call.allowed",
@@ -111,6 +112,7 @@ const requiredEvidenceIds = new Set([
 
 const failures = [];
 const manifest = readJson(manifestPath);
+checkExternalCompatibilityManifest(externalManifestPath);
 
 if (manifest.schemaVersion !== "msp.compatibility-evidence.v1") {
   failures.push(`${manifestPath}: schemaVersion must be msp.compatibility-evidence.v1`);
@@ -232,6 +234,121 @@ function checkManifestScope(path, manifestObject) {
   if (manifestObject.fixtureSource !== "synthetic-local") {
     failures.push(`${path}: fixtureSource must be synthetic-local for local-stdio-mvp evidence`);
   }
+}
+
+function checkExternalCompatibilityManifest(path) {
+  if (!existsSync(join(root, path))) {
+    failures.push(`${path}: external compatibility manifest is missing`);
+    return;
+  }
+  if (!trackedFiles.has(path)) {
+    failures.push(`${path}: external compatibility manifest must be tracked`);
+    return;
+  }
+  const externalManifest = readJson(path);
+  if (externalManifest.schemaVersion !== "msp.external-compatibility-evidence.v1") {
+    failures.push(`${path}: schemaVersion must be msp.external-compatibility-evidence.v1`);
+  }
+  if (externalManifest.target !== "external-filesystem-stdio") {
+    failures.push(`${path}: target must be external-filesystem-stdio`);
+  }
+  if (externalManifest.transport !== "stdio") {
+    failures.push(`${path}: transport must be stdio`);
+  }
+  if (externalManifest.fixtureSource !== "external-mcp") {
+    failures.push(`${path}: fixtureSource must be external-mcp`);
+  }
+  if (externalManifest.client?.package !== "@modelcontextprotocol/sdk" || externalManifest.client?.version !== "1.29.0") {
+    failures.push(`${path}: client package must be @modelcontextprotocol/sdk@1.29.0`);
+  }
+  if (
+    externalManifest.server?.package !== "@modelcontextprotocol/server-filesystem" ||
+    externalManifest.server?.version !== "2026.7.4"
+  ) {
+    failures.push(`${path}: server package must be @modelcontextprotocol/server-filesystem@2026.7.4`);
+  }
+  checkEvidenceReference(path, "harness", externalManifest.harness);
+  checkEvidenceReference(path, "summary", externalManifest.summary);
+  if (typeof externalManifest.harness === "string" && !externalManifest.harness.startsWith("scripts/")) {
+    failures.push(`${path}: harness must be under scripts/`);
+  }
+  if (typeof externalManifest.summary === "string" && !externalManifest.summary.startsWith("fixtures/compatibility/")) {
+    failures.push(`${path}: summary must be under fixtures/compatibility/`);
+  }
+  if (!Array.isArray(externalManifest.scenarios) || externalManifest.scenarios.length === 0) {
+    failures.push(`${path}: scenarios must be a non-empty array`);
+  } else if (!externalManifest.scenarios.every((scenario) => typeof scenario === "string")) {
+    failures.push(`${path}: scenarios must be strings`);
+  }
+  if (typeof externalManifest.summary === "string" && existsSync(join(root, externalManifest.summary))) {
+    checkExternalFixtureSummary(path, externalManifest.summary, externalManifest);
+  }
+}
+
+function checkExternalFixtureSummary(manifestLabel, summaryPath, externalManifest) {
+  const summary = readJson(summaryPath);
+  if (summary.schemaVersion !== "msp.external-fixture-summary.v1") {
+    failures.push(`${summaryPath}: schemaVersion must be msp.external-fixture-summary.v1`);
+  }
+  for (const field of ["target", "transport", "fixtureSource"]) {
+    if (summary[field] !== externalManifest[field]) {
+      failures.push(`${summaryPath}: ${field} must match ${manifestLabel}`);
+    }
+  }
+  if (summary.client?.package !== externalManifest.client?.package || summary.client?.version !== externalManifest.client?.version) {
+    failures.push(`${summaryPath}: client must match ${manifestLabel}`);
+  }
+  if (summary.server?.package !== externalManifest.server?.package || summary.server?.version !== externalManifest.server?.version) {
+    failures.push(`${summaryPath}: server must match ${manifestLabel}`);
+  }
+  if (summary.normalization?.fixtureRoot !== "<external-fixture-root>") {
+    failures.push(`${summaryPath}: normalization.fixtureRoot must be <external-fixture-root>`);
+  }
+  if (summary.normalization?.elapsedMs !== 0) {
+    failures.push(`${summaryPath}: normalization.elapsedMs must be 0`);
+  }
+  if (summary.normalization?.timestamps !== "<timestamp>") {
+    failures.push(`${summaryPath}: normalization.timestamps must be <timestamp>`);
+  }
+  const scenarios = summary.scenarios;
+  if (!scenarios || typeof scenarios !== "object" || Array.isArray(scenarios)) {
+    failures.push(`${summaryPath}: scenarios must be an object`);
+    return;
+  }
+  if (scenarios.initialize?.connected !== true) {
+    failures.push(`${summaryPath}: initialize.connected must be true`);
+  }
+  if (scenarios.initialized?.accepted !== true) {
+    failures.push(`${summaryPath}: initialized.accepted must be true`);
+  }
+  if (scenarios.toolsListFiltering?.includesReadTextFile !== true) {
+    failures.push(`${summaryPath}: toolsListFiltering must include read_text_file`);
+  }
+  if (scenarios.toolsListFiltering?.includesListAllowedDirectories !== false) {
+    failures.push(`${summaryPath}: toolsListFiltering must hide list_allowed_directories`);
+  }
+  if (scenarios.allowedPublicRead?.ok !== true || scenarios.allowedPublicRead?.textDigest !== "external-public-hello") {
+    failures.push(`${summaryPath}: allowedPublicRead must prove the synthetic public read`);
+  }
+  if (!scenarioHasEvidenceCode(scenarios.deniedPrivateRead, "policy.rule_deny")) {
+    failures.push(`${summaryPath}: deniedPrivateRead must include policy.rule_deny evidence`);
+  }
+  if (!scenarioHasEvidenceCode(scenarios.hiddenToolDirectCall, "tool.not_visible")) {
+    failures.push(`${summaryPath}: hiddenToolDirectCall must include tool.not_visible evidence`);
+  }
+  const auditCodes = Array.isArray(scenarios.audit?.evidenceCodes) ? scenarios.audit.evidenceCodes : [];
+  for (const code of ["discovery.filtered", "policy.rule_allow", "policy.rule_deny", "tool.not_visible"]) {
+    if (!auditCodes.includes(code)) {
+      failures.push(`${summaryPath}: audit.evidenceCodes must include ${code}`);
+    }
+  }
+  if (scenarios.audit?.containsRawFixtureRoot !== false) {
+    failures.push(`${summaryPath}: audit must not contain the raw external fixture root`);
+  }
+}
+
+function scenarioHasEvidenceCode(scenario, code) {
+  return scenario?.ok === false && Array.isArray(scenario.evidenceCodes) && scenario.evidenceCodes.includes(code);
 }
 
 function checkRuntimeFixture(id, kind, command) {

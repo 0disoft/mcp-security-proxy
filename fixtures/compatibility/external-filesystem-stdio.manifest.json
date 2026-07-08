@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "msp.external-compatibility-evidence.v1",
+  "target": "external-filesystem-stdio",
+  "transport": "stdio",
+  "fixtureSource": "external-mcp",
+  "client": {
+    "package": "@modelcontextprotocol/sdk",
+    "version": "1.29.0"
+  },
+  "server": {
+    "package": "@modelcontextprotocol/server-filesystem",
+    "version": "2026.7.4"
+  },
+  "harness": "scripts/check-external-mcp-fixture.mjs",
+  "summary": "fixtures/compatibility/external-filesystem-stdio.summary.json",
+  "scenarios": [
+    "initialize",
+    "notifications/initialized",
+    "tools/list-filtering",
+    "tools/call-allowed-public-read",
+    "tools/call-denied-private-read",
+    "tools/call-hidden-tool-denial",
+    "audit-redacted-evidence"
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "msp.external-fixture-summary.v1",
+  "target": "external-filesystem-stdio",
+  "transport": "stdio",
+  "fixtureSource": "external-mcp",
+  "client": {
+    "package": "@modelcontextprotocol/sdk",
+    "version": "1.29.0"
+  },
+  "server": {
+    "package": "@modelcontextprotocol/server-filesystem",
+    "version": "2026.7.4"
+  },
+  "normalization": {
+    "fixtureRoot": "<external-fixture-root>",
+    "elapsedMs": 0,
+    "timestamps": "<timestamp>"
+  },
+  "scenarios": {
+    "initialize": {
+      "connected": true
+    },
+    "initialized": {
+      "accepted": true
+    },
+    "toolsListFiltering": {
+      "visibleToolNames": [
+        "read_text_file"
+      ],
+      "visibleCount": 1,
+      "includesReadTextFile": true,
+      "includesListAllowedDirectories": false
+    },
+    "allowedPublicRead": {
+      "ok": true,
+      "textDigest": "external-public-hello",
+      "contentTypes": [
+        "text"
+      ]
+    },
+    "deniedPrivateRead": {
+      "ok": false,
+      "errorCode": -32001,
+      "decisionAction": "deny",
+      "evidenceCodes": [
+        "policy.rule_deny"
+      ]
+    },
+    "hiddenToolDirectCall": {
+      "ok": false,
+      "errorCode": -32001,
+      "decisionAction": "deny",
+      "evidenceCodes": [
+        "tool.not_visible"
+      ]
+    },
+    "audit": {
+      "eventKinds": [
+        "call-decision",
+        "call-decision",
+        "call-decision",
+        "discovery-filtered",
+        "error"
+      ],
+      "evidenceCodes": [
+        "discovery.filtered",
+        "policy.rule_allow",
+        "policy.rule_deny",
+        "runtime.upstream_stderr",
+        "tool.not_visible"
+      ],
+      "redactionAppliedCount": 1,
+      "stderrLineCount": 4,
+      "containsRawFixtureRoot": false
+    }
+  }
+}

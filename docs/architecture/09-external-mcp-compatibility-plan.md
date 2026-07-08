@@ -77,7 +77,9 @@ External MCP compatibility support remains blocked until:
 
 ADR 0005 selects the first external stdio target set:
 `@modelcontextprotocol/sdk@1.29.0` as the client implementation and
-`@modelcontextprotocol/server-filesystem@2026.7.4` as the server implementation. External MCP compatibility fixtures are not implemented. The current compatibility evidence is limited to
-synthetic MCP fixtures, CLI/library golden outputs, and the registered live local stdio smoke
-command. The current `fixtures/compatibility/manifest.json` registry records `transport: "stdio"`
-and `fixtureSource: "synthetic-local"` so it cannot be used as external MCP compatibility evidence.
+`@modelcontextprotocol/server-filesystem@2026.7.4` as the server implementation. A separate
+external-filesystem-stdio harness fixture now exists for that target, but the current compatibility
+registry remains limited to synthetic MCP fixtures, CLI/library golden outputs, and the registered
+live local stdio smoke command. The current `fixtures/compatibility/manifest.json` registry records
+`transport: "stdio"` and `fixtureSource: "synthetic-local"` so it cannot be used as external MCP
+compatibility evidence or a release claim by itself.

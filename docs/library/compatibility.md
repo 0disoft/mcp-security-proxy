@@ -86,6 +86,12 @@ repository-relative tracked files so local-only fixtures cannot satisfy compatib
 Approval-required library fixtures may explicitly record `approvalHookAvailable` in the manifest so
 hook-present and hook-missing decisions are both checked.
 
+The first external MCP stdio harness evidence is recorded separately in
+`fixtures/compatibility/external-filesystem-stdio.manifest.json` and
+`fixtures/compatibility/external-filesystem-stdio.summary.json`. It covers the pinned external
+filesystem target from docs/adr/0005-external-mcp-compatibility-target.md, but it does not change
+the local synthetic `fixtures/compatibility/manifest.json` release scope by itself.
+
 ## Review Blockers
 
 - Public exports change without semver and migration notes.

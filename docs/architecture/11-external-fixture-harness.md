@@ -95,6 +95,11 @@ normalized into a bounded summary format before it reaches `fixtures/compatibili
 
 ## Validation Contract
 
+The first implementation validates this contract with `node scripts/check-external-mcp-fixture.mjs`
+after the workspace has been built. The script creates an ephemeral npm workspace, installs the
+pinned external packages, runs the proxy against the external filesystem server, and compares a
+normalized summary fixture.
+
 The first implementation should add validation in this order:
 
 1. Add a harness script that can run locally with exact pinned external package versions.
