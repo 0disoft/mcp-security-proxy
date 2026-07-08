@@ -31,12 +31,12 @@ installation used to capture fixture evidence must be dev-only or ephemeral, pin
 version, and excluded from distributed package manifests until a release readiness record approves a
 different posture.
 
-The existing `fixtures/compatibility/manifest.json` remains the local synthetic evidence registry
-while its top-level target is `local-stdio-mvp`. External fixture work must not mix external target
-entries into that local registry until the compatibility checker has an explicit multi-target
-contract. The first implementation step should therefore introduce a separate external harness
-contract or a deliberate manifest schema extension before adding external evidence to `pnpm run
-compatibility`.
+The existing `fixtures/compatibility/manifest.json` keeps the top-level `local-stdio-mvp` fields
+for the local synthetic evidence set and uses `targets[]` as the multi-target registry. External
+fixture work must stay in a separate `external-filesystem-stdio` target entry with its own manifest,
+summary, harness, and validation command. Do not merge external evidence into the local
+`evidence[]` corpus or use it as release-scope evidence unless the release record explicitly
+includes external MCP compatibility.
 
 ## Execution Model
 

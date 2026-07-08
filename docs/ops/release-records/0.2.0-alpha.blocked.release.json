@@ -98,7 +98,7 @@
   "blockers": [
     "Package manifests remain private and versioned as 0.0.0 until an approved current-target release record exists.",
     "Release artifacts are represented by tracked package manifests only; publishable package archives are not approved.",
-    "External filesystem stdio harness evidence exists, but external MCP compatibility remains excluded from this release scope until the compatibility registry has an approved multi-target release contract.",
+    "External filesystem stdio harness evidence is registered as a separate compatibility target, but external MCP compatibility remains excluded from this release scope until the release record uses non-exclusion evidence and approval-grade validation output.",
     "Live external harness validation is manual/extended only: run pnpm build followed by node scripts/check-external-mcp-fixture.mjs before approval.",
     "HTTP transport and host-specific approval UX are excluded from this candidate.",
     "Approval-grade validation evidence must be rerun and recorded before this candidate can become approved."

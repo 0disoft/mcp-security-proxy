@@ -39,12 +39,15 @@ The required release scope keys are `mcpSdkDependency`, `httpTransport`, `hostAp
 
 Use `docs/architecture/09-external-mcp-compatibility-plan.md` as the release-scope evidence when
 external MCP client/server fixtures are excluded. A release that includes them must replace that
-exclusion with tracked fixture and validation evidence. While `fixtures/compatibility/manifest.json`
-targets only `local-stdio-mvp`, `externalMcpFixture.status` must remain `excluded`.
+exclusion with tracked fixture and validation evidence. `fixtures/compatibility/manifest.json`
+must record external MCP evidence as a separate `targets[]` entry, not as the top-level
+`local-stdio-mvp` evidence corpus. Target registration alone does not include external MCP
+compatibility in a release; the release record must use non-exclusion evidence and approval-grade
+validation output before `externalMcpFixture.status` may be `included`.
 
 Use `docs/architecture/07-http-transport-plan.md` as the release-scope evidence when HTTP
 transport support is excluded. A release that includes HTTP transport must replace that exclusion
-with tracked implementation, ADR, fixture, and validation evidence. While
+with tracked implementation, ADR, fixture, and validation evidence. While every target in
 `fixtures/compatibility/manifest.json` records `transport: "stdio"`, `httpTransport.status` must
 remain `excluded`.
 

@@ -94,6 +94,29 @@ function checkCompatibilityManifestObject(path, manifest) {
     return;
   }
 
+  if (Array.isArray(manifest.targets)) {
+    for (const [index, item] of manifest.targets.entries()) {
+      for (const field of ["manifest", "summary", "harness"]) {
+        const value = item?.[field];
+        if (typeof value !== "string") {
+          continue;
+        }
+        const label = `${path}: targets[${index}].${field}`;
+        checkRepositoryPath(value, label);
+        if (field === "harness") {
+          if (!value.startsWith("scripts/")) {
+            failures.push(`${label}: compatibility harness references must stay under scripts/`);
+          }
+        } else if (!value.startsWith("fixtures/compatibility/")) {
+          failures.push(`${label}: compatibility target references must stay under fixtures/compatibility/`);
+        }
+        if (!trackedSet.has(value)) {
+          failures.push(`${label}: referenced compatibility target file must be tracked`);
+        }
+      }
+    }
+  }
+
   for (const [index, item] of manifest.evidence.entries()) {
     for (const field of ["path", "policy", "call", "envelope"]) {
       const value = item?.[field];

@@ -56,7 +56,8 @@ External MCP compatibility must be fixture-backed before release claims. Minimum
 - captured allowed, denied, and approval-required tool-call behavior;
 - captured upstream error, malformed response, unmatched response, and server-origin request cases;
 - redacted audit JSONL fixtures for each security-sensitive path;
-- a replay or live smoke command registered in `fixtures/compatibility/manifest.json`;
+- a replay or live smoke command registered under the matching target in
+  `fixtures/compatibility/manifest.json`;
 - artifact-safety evidence proving captured fixtures are synthetic or public-safe and contain no
   real credentials, private logs, raw prompts, or raw incident evidence.
 
@@ -78,8 +79,10 @@ External MCP compatibility support remains blocked until:
 ADR 0005 selects the first external stdio target set:
 `@modelcontextprotocol/sdk@1.29.0` as the client implementation and
 `@modelcontextprotocol/server-filesystem@2026.7.4` as the server implementation. A separate
-external-filesystem-stdio harness fixture now exists for that target, but the current compatibility
-registry remains limited to synthetic MCP fixtures, CLI/library golden outputs, and the registered
-live local stdio smoke command. The current `fixtures/compatibility/manifest.json` registry records
-`transport: "stdio"` and `fixtureSource: "synthetic-local"` so it cannot be used as external MCP
-compatibility evidence or a release claim by itself.
+external-filesystem-stdio harness fixture now exists for that target. The compatibility registry
+keeps the local synthetic evidence under the top-level `local-stdio-mvp` fields and records target
+ownership in `targets[]`, where `local-stdio-mvp` and `external-filesystem-stdio` are separate
+entries. The external target entry names the pinned client, server, harness, summary fixture, and
+validation command, but registry presence alone is still not a release claim; the release record
+must separately include external MCP compatibility with non-exclusion evidence and approval-grade
+validation before public release notes may claim it.

@@ -77,8 +77,9 @@ operator logs, raw incident evidence, credentials, tokens, cookies, or environme
 
 ## Release Gate
 
-`fixtures/compatibility/manifest.json` must continue to record only the local synthetic target
-until the external fixture evidence above exists and passes validation.
+`fixtures/compatibility/manifest.json` must keep the top-level local synthetic target separate from
+external target entries. External fixture evidence may be registered only as its own target after
+the tracked evidence above exists and passes validation.
 
 A release record may include external MCP compatibility only after:
 

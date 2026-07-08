@@ -3,6 +3,34 @@
   "target": "local-stdio-mvp",
   "transport": "stdio",
   "fixtureSource": "synthetic-local",
+  "targets": [
+    {
+      "id": "local-stdio-mvp",
+      "transport": "stdio",
+      "fixtureSource": "synthetic-local",
+      "evidence": "inline"
+    },
+    {
+      "id": "external-filesystem-stdio",
+      "transport": "stdio",
+      "fixtureSource": "external-mcp",
+      "client": {
+        "package": "@modelcontextprotocol/sdk",
+        "version": "1.29.0"
+      },
+      "server": {
+        "package": "@modelcontextprotocol/server-filesystem",
+        "version": "2026.7.4"
+      },
+      "manifest": "fixtures/compatibility/external-filesystem-stdio.manifest.json",
+      "summary": "fixtures/compatibility/external-filesystem-stdio.summary.json",
+      "harness": "scripts/check-external-mcp-fixture.mjs",
+      "validationCommand": [
+        "node",
+        "scripts/check-external-mcp-fixture.mjs"
+      ]
+    }
+  ],
   "evidence": [
     {
       "id": "mcp-discovery-basic",

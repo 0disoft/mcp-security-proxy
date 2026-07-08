@@ -69,11 +69,11 @@ This repository type owns public API surface, package compatibility, semantic ve
   response denial, invalid client request and notification envelope-shape denial, upstream error
   data redaction, upstream error message redaction, and upstream error extra field redaction.
 
-The current evidence registry is `fixtures/compatibility/manifest.json`. Its `target` must remain
-`local-stdio-mvp`, `transport` must remain `stdio`, and `fixtureSource` must remain
-`synthetic-local` until the external target selected in
-docs/adr/0005-external-mcp-compatibility-target.md has tracked fixture evidence and a release
-record approves a broader compatibility target.
+The current evidence registry is `fixtures/compatibility/manifest.json`. Its top-level `target`
+remains `local-stdio-mvp`, `transport` remains `stdio`, and `fixtureSource` remains
+`synthetic-local` for the local evidence corpus. The `targets[]` registry records each
+compatibility target separately so local synthetic evidence and external MCP evidence cannot be
+mistaken for the same release scope.
 `pnpm run compatibility` builds the workspace, verifies every manifest entry, compares the captured
 CLI, library, and runtime session fixtures against the current implementation, and runs registered
 runtime smoke evidence commands. Library fixtures must exercise the public parser, decision
@@ -86,11 +86,12 @@ repository-relative tracked files so local-only fixtures cannot satisfy compatib
 Approval-required library fixtures may explicitly record `approvalHookAvailable` in the manifest so
 hook-present and hook-missing decisions are both checked.
 
-The first external MCP stdio harness evidence is recorded separately in
-`fixtures/compatibility/external-filesystem-stdio.manifest.json` and
+The first external MCP stdio harness evidence is registered as the `external-filesystem-stdio`
+target in `fixtures/compatibility/manifest.json` and backed by
+`fixtures/compatibility/external-filesystem-stdio.manifest.json` plus
 `fixtures/compatibility/external-filesystem-stdio.summary.json`. It covers the pinned external
-filesystem target from docs/adr/0005-external-mcp-compatibility-target.md, but it does not change
-the local synthetic `fixtures/compatibility/manifest.json` release scope by itself.
+filesystem target from docs/adr/0005-external-mcp-compatibility-target.md, but target registration
+does not change release scope by itself.
 
 ## Review Blockers
 

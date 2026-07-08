@@ -32,8 +32,8 @@ const releaseScopeExclusionEvidencePaths = {
   hostApprovalUx: "docs/architecture/08-host-approval-ux-plan.md",
   externalMcpFixture: "docs/architecture/09-external-mcp-compatibility-plan.md"
 };
-const localCompatibilityTarget = "local-stdio-mvp";
 const localCompatibilityTransport = "stdio";
+const externalCompatibilityTarget = "external-filesystem-stdio";
 const compatibilityManifestPath = "fixtures/compatibility/manifest.json";
 const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
   cwd: root,
@@ -288,20 +288,32 @@ function checkReleaseScope(path, releaseScope) {
   }
   if (releaseScope.externalMcpFixture?.status === "included") {
     const compatibilityManifest = readJson(compatibilityManifestPath);
-    if (compatibilityManifest.target === localCompatibilityTarget) {
+    if (!hasCompatibilityTarget(compatibilityManifest, externalCompatibilityTarget)) {
       failures.push(
-        `${path}: releaseScope.externalMcpFixture.status cannot be included while ${compatibilityManifestPath} target is ${localCompatibilityTarget}`
+        `${path}: releaseScope.externalMcpFixture.status cannot be included until ${compatibilityManifestPath} targets includes ${externalCompatibilityTarget}`
       );
     }
   }
   if (releaseScope.httpTransport?.status === "included") {
     const compatibilityManifest = readJson(compatibilityManifestPath);
-    if (compatibilityManifest.transport === localCompatibilityTransport) {
+    if (!hasNonLocalTransportCompatibilityTarget(compatibilityManifest)) {
       failures.push(
-        `${path}: releaseScope.httpTransport.status cannot be included while ${compatibilityManifestPath} transport is ${localCompatibilityTransport}`
+        `${path}: releaseScope.httpTransport.status cannot be included while ${compatibilityManifestPath} targets are ${localCompatibilityTransport}-only`
       );
     }
   }
+}
+
+function hasCompatibilityTarget(manifest, targetId) {
+  return Array.isArray(manifest.targets) && manifest.targets.some((target) => target?.id === targetId);
+}
+
+function hasNonLocalTransportCompatibilityTarget(manifest) {
+  const targets = Array.isArray(manifest.targets) ? manifest.targets : [];
+  if (targets.length === 0) {
+    return manifest.transport !== localCompatibilityTransport;
+  }
+  return targets.some((target) => target?.transport !== localCompatibilityTransport);
 }
 
 function checkApprovedValidationEvidence(path, validation, evidence) {
@@ -667,6 +679,10 @@ function checkReleaseRecordValidator() {
       hostApprovalUx: {
         ...validRecord.releaseScope.hostApprovalUx,
         status: "included"
+      },
+      externalMcpFixture: {
+        ...validRecord.releaseScope.externalMcpFixture,
+        status: "included"
       }
     }
   });
@@ -679,30 +695,13 @@ function checkReleaseRecordValidator() {
     ) ||
     !includedScopeExclusionEvidenceFailures.some((item) =>
       item.includes("releaseScope.hostApprovalUx.evidence must not use the exclusion evidence path")
+    ) ||
+    !includedScopeExclusionEvidenceFailures.some((item) =>
+      item.includes("releaseScope.externalMcpFixture.evidence must not use the exclusion evidence path")
     )
   ) {
     failures.push(
       `release-readiness self-test included scope exclusion evidence was not rejected: ${includedScopeExclusionEvidenceFailures.join("; ")}`
-    );
-  }
-
-  const includedExternalMcpFixtureFailures = collectReleaseRecordFailures("<release-readiness-self-test-external-mcp-included>", {
-    ...validRecord,
-    releaseScope: {
-      ...validRecord.releaseScope,
-      externalMcpFixture: {
-        ...validRecord.releaseScope.externalMcpFixture,
-        status: "included"
-      }
-    }
-  });
-  if (
-    !includedExternalMcpFixtureFailures.some((item) =>
-      item.includes(`releaseScope.externalMcpFixture.status cannot be included while ${compatibilityManifestPath} target is ${localCompatibilityTarget}`)
-    )
-  ) {
-    failures.push(
-      `release-readiness self-test included external MCP fixture was not rejected: ${includedExternalMcpFixtureFailures.join("; ")}`
     );
   }
 
@@ -719,7 +718,7 @@ function checkReleaseRecordValidator() {
   });
   if (
     !includedHttpTransportFailures.some((item) =>
-      item.includes(`releaseScope.httpTransport.status cannot be included while ${compatibilityManifestPath} transport is ${localCompatibilityTransport}`)
+      item.includes(`releaseScope.httpTransport.status cannot be included while ${compatibilityManifestPath} targets are ${localCompatibilityTransport}-only`)
     )
   ) {
     failures.push(
