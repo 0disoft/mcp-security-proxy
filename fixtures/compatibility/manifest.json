@@ -412,6 +412,14 @@
       "scenario": "client-unsupported-method"
     },
     {
+      "id": "runtime-duplicate-discovery",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-duplicate-discovery.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "duplicate-discovery"
+    },
+    {
       "id": "runtime-malformed-discovery",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-malformed-discovery.json",

@@ -1,0 +1,72 @@
+{
+  "duplicateDiscoveryForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-duplicate-tools",
+    "result": {
+      "tools": [
+        {
+          "name": "read_file",
+          "description": "Read a file from a caller-provided path.",
+          "title": "Read File"
+        }
+      ]
+    }
+  },
+  "duplicateDiscoveryAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "discovery-filtered",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "discovery.filtered",
+            "reason": "1 tool(s) hidden by discovery policy"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "callAfterDuplicateDiscoveryForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-call-after-duplicate-discovery",
+    "method": "tools/call",
+    "params": {
+      "name": "read_file",
+      "arguments": {
+        "path": "workspace/public/readme.md"
+      }
+    }
+  },
+  "callAfterDuplicateDiscoveryResponse": null,
+  "callAfterDuplicateDiscoveryAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "call-decision",
+      "profileId": "local",
+      "toolName": "read_file",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "allow",
+        "evidence": [
+          {
+            "code": "policy.rule_allow",
+            "ruleId": "allow-public-files",
+            "capability": "file-read",
+            "reason": "matched allow rule"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}
