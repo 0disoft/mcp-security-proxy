@@ -2,7 +2,7 @@
   "schemaVersion": "msp.release-readiness.v1",
   "status": "blocked",
   "releaseVersion": "0.2.0-alpha.0",
-  "targetCommit": "02039a618f5ff668ccd8de5ee581ed21106df9b3",
+  "targetCommit": "3bb71ce669d342cde4fcee1108c35b65779092a6",
   "registryTarget": "npmjs.org; blocked until package ownership and artifact approval",
   "publishCredentialsOwner": "0disoft repository owner; no publish credential use approved for this blocked candidate",
   "publicPackages": [
@@ -68,8 +68,8 @@
       "evidence": "docs/architecture/08-host-approval-ux-plan.md"
     },
     "externalMcpFixture": {
-      "status": "excluded",
-      "evidence": "docs/architecture/09-external-mcp-compatibility-plan.md"
+      "status": "included",
+      "evidence": "docs/ops/external-mcp-compatibility-evidence.md"
     }
   },
   "validation": {
@@ -98,7 +98,7 @@
   "blockers": [
     "Package manifests remain private and versioned as 0.0.0 until an approved current-target release record exists.",
     "Release artifacts are represented by tracked package manifests only; publishable package archives are not approved.",
-    "External filesystem stdio harness evidence is registered as a separate compatibility target, but external MCP compatibility remains excluded from this release scope until the release record uses non-exclusion evidence and approval-grade validation output.",
+    "External MCP compatibility is included only for the pinned external-filesystem-stdio target and does not claim a broad external MCP matrix.",
     "Live external harness validation is manual/extended only: run pnpm build followed by node scripts/check-external-mcp-fixture.mjs before approval.",
     "HTTP transport and host-specific approval UX are excluded from this candidate.",
     "Approval-grade validation evidence must be rerun and recorded before this candidate can become approved."
