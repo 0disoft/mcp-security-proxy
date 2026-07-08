@@ -33,6 +33,7 @@ const releaseScopeExclusionEvidencePaths = {
   externalMcpFixture: "docs/architecture/09-external-mcp-compatibility-plan.md"
 };
 const localCompatibilityTarget = "local-stdio-mvp";
+const localCompatibilityTransport = "stdio";
 const compatibilityManifestPath = "fixtures/compatibility/manifest.json";
 const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
   cwd: root,
@@ -290,6 +291,14 @@ function checkReleaseScope(path, releaseScope) {
     if (compatibilityManifest.target === localCompatibilityTarget) {
       failures.push(
         `${path}: releaseScope.externalMcpFixture.status cannot be included while ${compatibilityManifestPath} target is ${localCompatibilityTarget}`
+      );
+    }
+  }
+  if (releaseScope.httpTransport?.status === "included") {
+    const compatibilityManifest = readJson(compatibilityManifestPath);
+    if (compatibilityManifest.transport === localCompatibilityTransport) {
+      failures.push(
+        `${path}: releaseScope.httpTransport.status cannot be included while ${compatibilityManifestPath} transport is ${localCompatibilityTransport}`
       );
     }
   }
@@ -694,6 +703,27 @@ function checkReleaseRecordValidator() {
   ) {
     failures.push(
       `release-readiness self-test included external MCP fixture was not rejected: ${includedExternalMcpFixtureFailures.join("; ")}`
+    );
+  }
+
+  const includedHttpTransportFailures = collectReleaseRecordFailures("<release-readiness-self-test-http-transport-included>", {
+    ...validRecord,
+    releaseScope: {
+      ...validRecord.releaseScope,
+      httpTransport: {
+        ...validRecord.releaseScope.httpTransport,
+        status: "included",
+        evidence: "docs/architecture/09-external-mcp-compatibility-plan.md"
+      }
+    }
+  });
+  if (
+    !includedHttpTransportFailures.some((item) =>
+      item.includes(`releaseScope.httpTransport.status cannot be included while ${compatibilityManifestPath} transport is ${localCompatibilityTransport}`)
+    )
+  ) {
+    failures.push(
+      `release-readiness self-test included HTTP transport was not rejected: ${includedHttpTransportFailures.join("; ")}`
     );
   }
 }

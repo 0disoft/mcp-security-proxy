@@ -42,6 +42,12 @@ external MCP client/server fixtures are excluded. A release that includes them m
 exclusion with tracked fixture and validation evidence. While `fixtures/compatibility/manifest.json`
 targets only `local-stdio-mvp`, `externalMcpFixture.status` must remain `excluded`.
 
+Use `docs/architecture/07-http-transport-plan.md` as the release-scope evidence when HTTP
+transport support is excluded. A release that includes HTTP transport must replace that exclusion
+with tracked implementation, ADR, fixture, and validation evidence. While
+`fixtures/compatibility/manifest.json` records `transport: "stdio"`, `httpTransport.status` must
+remain `excluded`.
+
 Use `public-release.template.json` as the starting shape. Do not put credentials, tokens, private
 audit logs, private policy files, or raw incident evidence in release records. Release artifact
 `source` paths must be safe repository-relative paths. For current-target release records, artifact
