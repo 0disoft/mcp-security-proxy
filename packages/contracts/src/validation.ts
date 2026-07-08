@@ -51,6 +51,7 @@ export function validatePolicyDocument(value: unknown): ValidationResult<PolicyD
     return invalid("policy must be an object");
   }
 
+  validateKnownProperties(value, "policy", ["schemaVersion", "defaultAction", "methodPolicy", "profiles", "redaction"], errors);
   if (value["schemaVersion"] !== POLICY_SCHEMA_VERSION) {
     errors.push(`schemaVersion must be ${POLICY_SCHEMA_VERSION}`);
   }
@@ -62,6 +63,7 @@ export function validatePolicyDocument(value: unknown): ValidationResult<PolicyD
   if (!isRecord(methodPolicy)) {
     errors.push("methodPolicy must be an object");
   } else {
+    validateKnownProperties(methodPolicy, "methodPolicy", ["allowedMethods", "denyUnsupported"], errors);
     const allowedMethods = methodPolicy["allowedMethods"];
     if (!Array.isArray(allowedMethods) || allowedMethods.length === 0) {
       errors.push("methodPolicy.allowedMethods must be a non-empty array");
@@ -93,6 +95,7 @@ export function validatePolicyDocument(value: unknown): ValidationResult<PolicyD
         errors.push(`profiles[${profileIndex}] must be an object`);
         continue;
       }
+      validateKnownProperties(profile, `profiles[${profileIndex}]`, ["id", "defaultAction", "rules", "audit"], errors);
       if (!isNonEmptyString(profile["id"])) {
         errors.push(`profiles[${profileIndex}].id must be a non-empty string`);
       } else if (seenProfileIds.has(profile["id"])) {
@@ -197,6 +200,12 @@ function validateRules(value: unknown, path: string, errors: string[]): void {
       errors.push(`${rulePath} must be an object`);
       continue;
     }
+    validateKnownProperties(
+      rule,
+      rulePath,
+      ["id", "action", "tools", "capabilities", "methods", "paths", "commands", "networks", "secrets"],
+      errors
+    );
     if (!isNonEmptyString(rule["id"])) {
       errors.push(`${rulePath}.id must be a non-empty string`);
     } else if (seenRuleIds.has(rule["id"])) {
@@ -220,6 +229,7 @@ function validateRuleMatchers(rule: PolicyRule, path: string, errors: string[]):
     if (!isRecord(rule.paths)) {
       errors.push(`${path}.paths must be an object`);
     } else {
+      validateKnownProperties(rule.paths, `${path}.paths`, ["allowedRoots", "deniedRoots"], errors);
       validateNonEmptyStringArray(rule.paths["allowedRoots"], `${path}.paths.allowedRoots`, errors, false);
       validateNonEmptyStringArray(rule.paths["deniedRoots"], `${path}.paths.deniedRoots`, errors, false);
       if (rule.paths["allowedRoots"] === undefined && rule.paths["deniedRoots"] === undefined) {
@@ -255,6 +265,7 @@ function validateRuleMatchers(rule: PolicyRule, path: string, errors: string[]):
     if (!isRecord(rule.secrets)) {
       errors.push(`${path}.secrets must be an object`);
     } else {
+      validateKnownProperties(rule.secrets, `${path}.secrets`, ["labels"], errors);
       validateNonEmptyStringArray(rule.secrets["labels"], `${path}.secrets.labels`, errors, true);
     }
   }
@@ -265,6 +276,7 @@ function validateAudit(value: unknown, path: string, errors: string[]): void {
     errors.push(`${path} must be an object`);
     return;
   }
+  validateKnownProperties(value, path, ["destination", "path", "onFailure", "includeRawArguments", "includeFullPaths"], errors);
   if (!["file", "stdout"].includes(String(value["destination"]))) {
     errors.push(`${path}.destination must be file or stdout`);
   }
@@ -293,6 +305,7 @@ function validateRedaction(value: unknown, path: string, errors: string[]): void
     errors.push(`${path} must be an object`);
     return;
   }
+  validateKnownProperties(value, path, ["detectors"], errors);
   const detectors = value["detectors"];
   if (!Array.isArray(detectors)) {
     errors.push(`${path}.detectors must be an array`);
@@ -305,6 +318,7 @@ function validateRedaction(value: unknown, path: string, errors: string[]): void
       errors.push(`${detectorPath} must be an object`);
       continue;
     }
+    validateKnownProperties(detector, detectorPath, ["id", "kind", "replacement"], errors);
     if (!isNonEmptyString(detector["id"])) {
       errors.push(`${detectorPath}.id must be a non-empty string`);
     } else if (seenDetectorIds.has(detector["id"])) {
@@ -358,6 +372,7 @@ function validateCommandRule(value: unknown, path: string, errors: string[]): vo
     errors.push(`${path} must be an object`);
     return;
   }
+  validateKnownProperties(value, path, ["executable", "argv"], errors);
   if (!isNonEmptyString(value["executable"])) {
     errors.push(`${path}.executable must be a non-empty string`);
   }
@@ -369,6 +384,7 @@ function validateNetworkRule(value: unknown, path: string, errors: string[]): vo
     errors.push(`${path} must be an object`);
     return;
   }
+  validateKnownProperties(value, path, ["domains", "ips"], errors);
   validateNonEmptyStringArray(value["domains"], `${path}.domains`, errors, false);
   validateNonEmptyStringArray(value["ips"], `${path}.ips`, errors, false);
   if (value["domains"] === undefined && value["ips"] === undefined) {
@@ -441,6 +457,20 @@ function validateCapabilityArray(value: unknown, path: string, errors: string[])
   for (const item of value) {
     if (typeof item !== "string" || !capabilities.has(item as Capability)) {
       errors.push(`${path} contains unsupported capability: ${String(item)}`);
+    }
+  }
+}
+
+function validateKnownProperties(
+  value: Readonly<Record<string, unknown>>,
+  path: string,
+  allowedKeys: readonly string[],
+  errors: string[]
+): void {
+  const allowed = new Set(allowedKeys);
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) {
+      errors.push(`${path} includes unsupported property: ${key}`);
     }
   }
 }
