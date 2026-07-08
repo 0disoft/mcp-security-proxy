@@ -1,0 +1,47 @@
+{
+  "forwarded": false,
+  "response": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+      "code": -32001,
+      "message": "MCP method denied by policy",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "method.unsupported",
+              "method": "resources/list",
+              "reason": "unsupported MCP method denied by default"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "auditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "method-denied",
+      "profileId": "local",
+      "method": "resources/list",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "method.unsupported",
+            "method": "resources/list",
+            "reason": "unsupported MCP method denied by default"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}

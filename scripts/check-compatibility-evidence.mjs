@@ -74,6 +74,7 @@ const requiredEvidenceIds = new Set([
   "runtime-approval-rejected-redacted",
   "runtime-approval-hook-error",
   "runtime-approval-timeout",
+  "runtime-client-unsupported-method",
   "runtime-server-origin-unsupported-method",
   "runtime-server-origin-ping-invalid-response"
 ]);
@@ -401,6 +402,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "approval-hook-error",
     "approval-rejected-redacted",
     "approval-timeout",
+    "client-unsupported-method",
     "server-origin-unsupported-method",
     "server-origin-ping-invalid-response"
   ]);
@@ -445,6 +447,29 @@ async function checkRuntimeSessionFixture(id, path, item) {
       serverRequestAuditEvents: serverRequest.auditEvents,
       invalidClientResponseForwarded: invalidClientResponse.forwardLine !== undefined,
       invalidClientResponseAuditEvents: invalidClientResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "client-unsupported-method") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "resources/list",
+        params: {}
+      })
+    );
+    const actual = {
+      forwarded: result.forwardLine !== undefined,
+      response: result.responseLine ? parseJsonText(result.responseLine, `${id}: responseLine`) : undefined,
+      auditEvents: result.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

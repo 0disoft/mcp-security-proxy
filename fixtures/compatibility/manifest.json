@@ -404,6 +404,14 @@
       "scenario": "approval-hook-error"
     },
     {
+      "id": "runtime-client-unsupported-method",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-client-unsupported-method.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "client-unsupported-method"
+    },
+    {
       "id": "runtime-server-origin-unsupported-method",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-server-origin-unsupported-method.json",
