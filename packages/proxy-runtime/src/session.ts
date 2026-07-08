@@ -24,6 +24,8 @@ export interface ProxySessionOptions {
   readonly approvalTimeoutMs?: number;
   readonly maxFrameBytes?: number;
   readonly maxJsonDepth?: number;
+  readonly maxPendingRequests?: number;
+  readonly pendingRequestTtlMs?: number;
 }
 
 export interface ApprovalRequest {
@@ -51,6 +53,11 @@ interface ToolMetadata {
   readonly capabilities: readonly Capability[];
 }
 
+interface PendingRequestState {
+  readonly method: string;
+  readonly expiresAt: number;
+}
+
 const policyDeniedErrorCode = -32001;
 const invalidRequestErrorCode = -32600;
 const upstreamServerOriginAllowedMethods = new Set(["ping"]);
@@ -59,22 +66,28 @@ const notificationMethods = new Set(["notifications/initialized"]);
 const redactedUpstreamErrorMessage = "upstream error message redacted";
 const defaultMaxFrameBytes = 1_048_576;
 const defaultMaxJsonDepth = 64;
+const defaultMaxPendingRequests = 1_024;
+const defaultPendingRequestTtlMs = 300_000;
 const discoveryMetadataRedactionKeys = new Set(["default", "example", "examples", "$comment", "_meta"]);
 const jsonRpcRequestEnvelopeKeys = new Set(["jsonrpc", "id", "method", "params"]);
 const jsonRpcResponseEnvelopeKeys = new Set(["jsonrpc", "id", "result", "error"]);
 const toolCallParamKeys = new Set(["name", "arguments"]);
 
 export class ProxySession {
-  private readonly pendingRequestMethods = new Map<string, string>();
-  private readonly pendingServerOriginMethods = new Map<string, string>();
+  private readonly pendingRequestMethods = new Map<string, PendingRequestState>();
+  private readonly pendingServerOriginMethods = new Map<string, PendingRequestState>();
   private readonly visibleTools = new Map<string, ToolMetadata>();
   private readonly maxFrameBytes: number;
   private readonly maxJsonDepth: number;
+  private readonly maxPendingRequests: number;
+  private readonly pendingRequestTtlMs: number;
   private readonly approvalTimeoutMs: number | undefined;
 
   constructor(private readonly options: ProxySessionOptions) {
     this.maxFrameBytes = resolvePositiveInteger(options.maxFrameBytes, defaultMaxFrameBytes);
     this.maxJsonDepth = resolvePositiveInteger(options.maxJsonDepth, defaultMaxJsonDepth);
+    this.maxPendingRequests = resolvePositiveInteger(options.maxPendingRequests, defaultMaxPendingRequests);
+    this.pendingRequestTtlMs = resolvePositiveInteger(options.pendingRequestTtlMs, defaultPendingRequestTtlMs);
     this.approvalTimeoutMs = resolveOptionalPositiveInteger(options.approvalTimeoutMs);
   }
 
@@ -189,6 +202,13 @@ export class ProxySession {
 
     const forwardLine = requestSanitized.redaction.applied ? JSON.stringify(requestSanitized.envelope) : line;
     if (requestSanitized.envelope.method !== "tools/call") {
+      const pendingDenied = this.denyPendingCapacityExceeded(requestSanitized.envelope, this.pendingRequestMethods, "client");
+      if (pendingDenied) {
+        return {
+          kind: "result",
+          result: this.withPrependedAuditEvents(requestSanitizeAuditEvents, pendingDenied)
+        };
+      }
       this.rememberPendingRequest(requestSanitized.envelope);
       return {
         kind: "result",
@@ -248,6 +268,10 @@ export class ProxySession {
     });
 
     if (decision.action === "allow") {
+      const pendingDenied = this.denyPendingCapacityExceeded(envelope, this.pendingRequestMethods, "client");
+      if (pendingDenied) {
+        return this.withPrependedAuditEvents(preparedAuditEvents, pendingDenied);
+      }
       this.rememberPendingRequest(envelope);
       return {
         forwardLine: line,
@@ -342,6 +366,10 @@ export class ProxySession {
     }
 
     if (approval.approved) {
+      const pendingDenied = this.denyPendingCapacityExceeded(envelope, this.pendingRequestMethods, "client");
+      if (pendingDenied) {
+        return this.withPrependedAuditEvents(preparedAuditEvents, pendingDenied);
+      }
       this.rememberPendingRequest(envelope);
       return {
         forwardLine: line,
@@ -404,6 +432,10 @@ export class ProxySession {
 
       const requestSanitized = sanitizeJsonRpcRequestEnvelope(envelope);
       const requestSanitizeAuditEvents = this.createRequestEnvelopeRedactionAuditEvents("upstream", requestSanitized.redaction);
+      const pendingDenied = this.denyPendingCapacityExceeded(requestSanitized.envelope, this.pendingServerOriginMethods, "upstream");
+      if (pendingDenied) {
+        return this.withPrependedAuditEvents(requestSanitizeAuditEvents, pendingDenied);
+      }
       this.rememberPendingServerOriginRequest(requestSanitized.envelope);
       return {
         forwardLine: requestSanitized.redaction.applied ? JSON.stringify(requestSanitized.envelope) : line,
@@ -467,8 +499,9 @@ export class ProxySession {
     if (envelope.id === undefined) {
       return undefined;
     }
+    this.evictExpiredPendingRequests(this.pendingRequestMethods);
     const key = requestIdKey(envelope.id);
-    const method = this.pendingRequestMethods.get(key);
+    const method = this.pendingRequestMethods.get(key)?.method;
     this.pendingRequestMethods.delete(key);
     return method;
   }
@@ -477,15 +510,16 @@ export class ProxySession {
     if (envelope.id === undefined || typeof envelope.method !== "string") {
       return;
     }
-    this.pendingRequestMethods.set(requestIdKey(envelope.id), envelope.method);
+    this.pendingRequestMethods.set(requestIdKey(envelope.id), this.createPendingRequestState(envelope.method));
   }
 
   private takePendingServerOriginMethod(envelope: JsonRpcEnvelope): string | undefined {
     if (envelope.id === undefined) {
       return undefined;
     }
+    this.evictExpiredPendingRequests(this.pendingServerOriginMethods);
     const key = requestIdKey(envelope.id);
-    const method = this.pendingServerOriginMethods.get(key);
+    const method = this.pendingServerOriginMethods.get(key)?.method;
     this.pendingServerOriginMethods.delete(key);
     return method;
   }
@@ -494,14 +528,15 @@ export class ProxySession {
     if (envelope.id === undefined || typeof envelope.method !== "string") {
       return;
     }
-    this.pendingServerOriginMethods.set(requestIdKey(envelope.id), envelope.method);
+    this.pendingServerOriginMethods.set(requestIdKey(envelope.id), this.createPendingRequestState(envelope.method));
   }
 
   private denyDuplicatePendingRequest(
     envelope: JsonRpcEnvelope,
-    pending: ReadonlyMap<string, string>,
+    pending: Map<string, PendingRequestState>,
     reason: string
   ): ProxyFrameResult | undefined {
+    this.evictExpiredPendingRequests(pending);
     if (envelope.id === undefined || !pending.has(requestIdKey(envelope.id))) {
       return undefined;
     }
@@ -514,6 +549,42 @@ export class ProxySession {
       "MCP request denied by proxy protocol state",
       "error"
     );
+  }
+
+  private denyPendingCapacityExceeded(
+    envelope: JsonRpcEnvelope,
+    pending: Map<string, PendingRequestState>,
+    direction: "client" | "upstream"
+  ): ProxyFrameResult | undefined {
+    this.evictExpiredPendingRequests(pending);
+    if (envelope.id === undefined || pending.size < this.maxPendingRequests) {
+      return undefined;
+    }
+    return this.denyEnvelope(
+      envelope,
+      denyDecision(`${direction} pending request limit exceeded`, {
+        code: "jsonrpc.invalid",
+        ...(typeof envelope.method === "string" ? { method: envelope.method } : {})
+      }),
+      "MCP request denied by proxy protocol state",
+      "error"
+    );
+  }
+
+  private createPendingRequestState(method: string): PendingRequestState {
+    return {
+      method,
+      expiresAt: Date.now() + this.pendingRequestTtlMs
+    };
+  }
+
+  private evictExpiredPendingRequests(pending: Map<string, PendingRequestState>): void {
+    const now = Date.now();
+    for (const [key, value] of pending.entries()) {
+      if (value.expiresAt <= now) {
+        pending.delete(key);
+      }
+    }
   }
 
   private denyInvalidMethodShape(envelope: JsonRpcEnvelope): ProxyFrameResult | undefined {

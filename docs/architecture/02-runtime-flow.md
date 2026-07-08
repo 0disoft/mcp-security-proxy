@@ -35,6 +35,7 @@ Current implemented responsibilities:
   optional `params`
 - track `tools/list` request IDs so discovery responses can be filtered
 - require upstream responses to match a pending client request id before forwarding
+- bound pending client and server-origin request state with a maximum in-flight count and TTL
 - rebuild forwarded JSON-RPC response envelopes with only `jsonrpc`, `id`, and exactly one of
   `result` or `error`
 - classify discovered tools and hide tools without allow or approval coverage
@@ -107,6 +108,8 @@ transports remain future runtime responsibilities.
   hook error details.
 - Approval hook unavailable: approval-required call is denied and is not passed through.
 - Unmatched upstream response: response is dropped with a redacted audit event.
+- Pending request state expiration or capacity exhaustion: stale responses are treated as
+  unmatched, and new over-capacity requests are denied before forwarding.
 - Oversized or overly deep JSON-RPC message: message is denied or dropped before forwarding.
 - Upstream error response with data, non-standard fields, or sensitive message: error is sanitized
   before forwarding.

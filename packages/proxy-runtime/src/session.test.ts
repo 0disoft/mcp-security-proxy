@@ -519,6 +519,104 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("denies new client requests when the pending client request limit is reached", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local",
+      maxPendingRequests: 1
+    });
+
+    const first = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "pending-client-1",
+        method: "tools/list"
+      })
+    );
+    expect(first.forwardLine).toBeTruthy();
+
+    const second = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "pending-client-2",
+        method: "ping"
+      })
+    );
+
+    expect(second.forwardLine).toBeUndefined();
+    expect(JSON.parse(second.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "pending-client-2",
+      error: {
+        code: -32001,
+        message: "MCP request denied by proxy protocol state",
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                method: "ping",
+                reason: "client pending request limit exceeded"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(second.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.invalid", method: "ping" }]
+      }
+    });
+  });
+
+  it("expires pending client requests before duplicate and response correlation checks", async () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local",
+      pendingRequestTtlMs: 1
+    });
+
+    const first = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "expires-client-id",
+        method: "ping"
+      })
+    );
+    expect(first.forwardLine).toBeTruthy();
+    await sleep(5);
+
+    const staleResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "expires-client-id",
+        result: {}
+      })
+    );
+    expect(staleResponse.forwardLine).toBeUndefined();
+    expect(staleResponse.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.unmatched_response" }]
+      }
+    });
+
+    const reused = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "expires-client-id",
+        method: "ping"
+      })
+    );
+    expect(reused.forwardLine).toBeTruthy();
+    expect(reused.responseLine).toBeUndefined();
+  });
+
   it("removes non-standard client JSON-RPC request envelope fields before forwarding non-tool requests", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -1868,6 +1966,60 @@ describe("proxy runtime session", () => {
       decision: {
         action: "deny",
         evidence: [{ code: "method.server_origin_ping_params", method: "ping" }]
+      }
+    });
+  });
+
+  it("denies new upstream server-origin requests when their pending limit is reached", () => {
+    const session = createProxySession({
+      policy: readPolicy(),
+      profileId: "local",
+      maxPendingRequests: 1
+    });
+
+    const first = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "pending-upstream-1",
+        method: "ping"
+      })
+    );
+    expect(first.forwardLine).toBeTruthy();
+
+    const second = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "pending-upstream-2",
+        method: "ping"
+      })
+    );
+
+    expect(second.forwardLine).toBeUndefined();
+    expect(JSON.parse(second.responseLine ?? "{}")).toMatchObject({
+      jsonrpc: "2.0",
+      id: "pending-upstream-2",
+      error: {
+        code: -32001,
+        message: "MCP request denied by proxy protocol state",
+        data: {
+          decision: {
+            action: "deny",
+            evidence: [
+              {
+                code: "jsonrpc.invalid",
+                method: "ping",
+                reason: "upstream pending request limit exceeded"
+              }
+            ]
+          }
+        }
+      }
+    });
+    expect(second.auditEvents[0]).toMatchObject({
+      kind: "error",
+      decision: {
+        action: "deny",
+        evidence: [{ code: "jsonrpc.invalid", method: "ping" }]
       }
     });
   });
@@ -3311,6 +3463,10 @@ function readApprovalPolicy(): PolicyDocument {
         : profile
     )
   };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function readJsonFixture<T>(path: string): T {
