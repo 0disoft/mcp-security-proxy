@@ -87,6 +87,7 @@ const requiredEvidenceIds = new Set([
   "runtime-server-envelope-sanitization",
   "runtime-server-origin-unsupported-method",
   "runtime-server-origin-ping-invalid-response",
+  "runtime-server-origin-ping-missing-id-denial",
   "runtime-server-origin-ping-params-denial",
   "runtime-upstream-error-data-redaction",
   "runtime-upstream-error-message-redaction",
@@ -429,6 +430,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "server-envelope-sanitization",
     "server-origin-unsupported-method",
     "server-origin-ping-invalid-response",
+    "server-origin-ping-missing-id-denial",
     "server-origin-ping-params-denial",
     "upstream-error-data-redaction",
     "upstream-error-message-redaction",
@@ -475,6 +477,27 @@ async function checkRuntimeSessionFixture(id, path, item) {
       serverRequestAuditEvents: serverRequest.auditEvents,
       invalidClientResponseForwarded: invalidClientResponse.forwardLine !== undefined,
       invalidClientResponseAuditEvents: invalidClientResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "server-origin-ping-missing-id-denial") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const missingId = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        method: "ping"
+      })
+    );
+    const actual = {
+      missingIdForwarded: missingId.forwardLine !== undefined,
+      missingIdResponse: missingId.responseLine ? parseJsonText(missingId.responseLine, `${id}: missingId.responseLine`) : null,
+      missingIdAuditEvents: missingId.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

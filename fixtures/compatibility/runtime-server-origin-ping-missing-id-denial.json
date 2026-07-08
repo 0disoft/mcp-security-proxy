@@ -1,0 +1,27 @@
+{
+  "missingIdForwarded": false,
+  "missingIdResponse": null,
+  "missingIdAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "method-denied",
+      "profileId": "local",
+      "method": "ping",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "method": "ping",
+            "reason": "server-origin ping must include a JSON-RPC id"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}
