@@ -1,0 +1,80 @@
+{
+  "deniedServerRequestForwarded": false,
+  "deniedServerRequestResponse": {
+    "jsonrpc": "2.0",
+    "id": "compat-pending-tools-list",
+    "error": {
+      "code": -32001,
+      "message": "MCP method denied by policy",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "method.unsupported",
+              "method": "sampling/createMessage",
+              "reason": "unsupported MCP method denied by default"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "deniedServerRequestAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "method-denied",
+      "profileId": "local",
+      "method": "sampling/createMessage",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "method.unsupported",
+            "method": "sampling/createMessage",
+            "reason": "unsupported MCP method denied by default"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "pendingClientResponseForwarded": {
+    "jsonrpc": "2.0",
+    "id": "compat-pending-tools-list",
+    "result": {
+      "tools": [
+        {
+          "name": "read_file",
+          "description": "Read a file from a caller-provided path."
+        }
+      ]
+    }
+  },
+  "pendingClientResponseAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "discovery-filtered",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "discovery.filtered",
+            "reason": "3 tool(s) hidden by discovery policy"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}

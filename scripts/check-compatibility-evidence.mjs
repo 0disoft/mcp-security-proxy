@@ -74,6 +74,7 @@ const requiredEvidenceIds = new Set([
   "runtime-approval-rejected-redacted",
   "runtime-approval-hook-error",
   "runtime-approval-timeout",
+  "runtime-server-origin-unsupported-method",
   "runtime-server-origin-ping-invalid-response"
 ]);
 
@@ -400,6 +401,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "approval-hook-error",
     "approval-rejected-redacted",
     "approval-timeout",
+    "server-origin-unsupported-method",
     "server-origin-ping-invalid-response"
   ]);
   if (!supportedScenarios.has(item.scenario)) {
@@ -443,6 +445,51 @@ async function checkRuntimeSessionFixture(id, path, item) {
       serverRequestAuditEvents: serverRequest.auditEvents,
       invalidClientResponseForwarded: invalidClientResponse.forwardLine !== undefined,
       invalidClientResponseAuditEvents: invalidClientResponse.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "server-origin-unsupported-method") {
+    const session = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-pending-tools-list",
+        method: "tools/list"
+      })
+    );
+    const deniedServerRequest = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-pending-tools-list",
+        method: "sampling/createMessage",
+        params: {
+          messages: []
+        }
+      })
+    );
+    const pendingClientResponse = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-pending-tools-list",
+        result: readJson("fixtures/mcp/tools-list-basic.json")
+      })
+    );
+    const actual = {
+      deniedServerRequestForwarded: deniedServerRequest.forwardLine !== undefined,
+      deniedServerRequestResponse: deniedServerRequest.responseLine
+        ? parseJsonText(deniedServerRequest.responseLine, `${id}: deniedServerRequest.responseLine`)
+        : undefined,
+      deniedServerRequestAuditEvents: deniedServerRequest.auditEvents,
+      pendingClientResponseForwarded: pendingClientResponse.forwardLine
+        ? parseJsonText(pendingClientResponse.forwardLine, `${id}: pendingClientResponse.forwardLine`)
+        : undefined,
+      pendingClientResponseAuditEvents: pendingClientResponse.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);
