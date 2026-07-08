@@ -42,7 +42,8 @@ Current implemented responsibilities:
 - evaluate `tools/call` requests using remembered tool capabilities and extracted argument facts
 - call an embedding host approval hook before forwarding approval-required tool calls
 - deny approval-required tool calls when no runtime approval hook is available
-- reject oversized JSON-RPC frames and overly deep parsed JSON messages
+- reject oversized JSON-RPC frames at the stdio transport boundary before waiting for a newline
+  delimiter, then reject overly deep parsed JSON messages after parsing
 - remove upstream JSON-RPC error data and extra fields, and redact sensitive-looking upstream error
   messages
 - avoid raw tool arguments in audit events
@@ -60,6 +61,8 @@ Current implemented responsibilities:
   `--shutdown-grace-ms`, defaulting to 1000 ms
 - allow the CLI `run` command to configure frame guards with `--max-frame-bytes`, defaulting to
   1048576 bytes, and `--max-json-depth`, defaulting to 64
+- wait for protocol writes to flush and fail closed when output streams error or close before a
+  write completes
 
 Retry policy, richer upstream stderr policy controls, broader lifecycle policy, and non-stdio
 transports remain future runtime responsibilities.

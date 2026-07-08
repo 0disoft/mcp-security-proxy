@@ -498,17 +498,11 @@ try {
   const duplicateDiscoveryToolsResult = duplicateDiscoveryOutputLines.find((line) => line.id === "duplicate-tools");
   const duplicateDiscoveryCallResult = duplicateDiscoveryOutputLines.find((line) => line.id === "duplicate-call");
   const duplicateTools = duplicateDiscoveryToolsResult?.result?.tools;
-  if (
-    !Array.isArray(duplicateTools) ||
-    duplicateTools.length !== 1 ||
-    duplicateTools[0].name !== "read_file" ||
-    duplicateTools[0].title !== "Read File" ||
-    duplicateTools[0].description !== "Read a file from a caller-provided path."
-  ) {
+  if (!Array.isArray(duplicateTools) || duplicateTools.length !== 0) {
     throw new Error(`unexpected duplicate discovery sanitized response: ${JSON.stringify(duplicateDiscoveryToolsResult)}`);
   }
-  if (duplicateDiscoveryCallResult?.error || !duplicateDiscoveryCallResult?.result) {
-    throw new Error(`expected duplicate discovery to preserve first visible tool callability: ${JSON.stringify(duplicateDiscoveryCallResult)}`);
+  if (duplicateDiscoveryCallResult?.error?.data?.decision?.evidence?.[0]?.code !== "tool.not_visible") {
+    throw new Error(`expected duplicate discovery to hide ambiguous tool callability: ${JSON.stringify(duplicateDiscoveryCallResult)}`);
   }
   const duplicateDiscoveryOutputText = duplicateDiscoveryOutputLines.map((line) => JSON.stringify(line)).join("\n");
   for (const marker of [

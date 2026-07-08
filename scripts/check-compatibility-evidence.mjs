@@ -1399,7 +1399,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
       duplicateDiscoveryAuditEvents: duplicateDiscovery.auditEvents,
       callAfterDuplicateDiscoveryForwarded: callAfterDuplicateDiscovery.forwardLine
         ? parseJsonText(callAfterDuplicateDiscovery.forwardLine, `${id}: callAfterDuplicateDiscovery.forwardLine`)
-        : undefined,
+        : null,
       callAfterDuplicateDiscoveryResponse: callAfterDuplicateDiscovery.responseLine
         ? parseJsonText(callAfterDuplicateDiscovery.responseLine, `${id}: callAfterDuplicateDiscovery.responseLine`)
         : null,

@@ -1,5 +1,5 @@
-import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
+import { StringDecoder } from "node:string_decoder";
 import type { AuditEvent, PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
 import { createAuditEvent } from "@0disoft/mcp-security-proxy-core";
 import { createProxySession, type ApprovalHook } from "./session.js";
@@ -40,6 +40,7 @@ export interface StdioProxyResult {
 class AuditFailure extends Error {}
 
 const defaultShutdownGraceMs = 1_000;
+const defaultMaxFrameBytes = 1_048_576;
 
 export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioProxyResult> {
   const profile = options.policy.profiles.find((item) => item.id === options.profileId);
@@ -54,17 +55,16 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     return { exitCode: 4 };
   }
 
+  const maxFrameBytes = resolvePositiveInteger(options.maxFrameBytes, defaultMaxFrameBytes);
   const session = createProxySession({
     policy: options.policy,
     profileId: options.profileId,
     approvalHookAvailable: Boolean(options.approveToolCall ?? options.approvalHookAvailable),
     ...(options.approvalTimeoutMs !== undefined ? { approvalTimeoutMs: options.approvalTimeoutMs } : {}),
-    ...(options.maxFrameBytes !== undefined ? { maxFrameBytes: options.maxFrameBytes } : {}),
+    maxFrameBytes,
     ...(options.maxJsonDepth !== undefined ? { maxJsonDepth: options.maxJsonDepth } : {})
   });
 
-  const clientLines = createInterface({ input: options.clientInput, crlfDelay: Number.POSITIVE_INFINITY });
-  const upstreamLines = createInterface({ input: upstream.stdout, crlfDelay: Number.POSITIVE_INFINITY });
   let fatalExitCode: number | undefined;
 
   const recordAudit = async (events: readonly AuditEvent[]): Promise<void> => {
@@ -78,29 +78,29 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       }
     }
   };
-  const stderrDone = observeUpstreamStderr(upstream.stderr, options.profileId, recordAudit);
+  const stderrDone = observeUpstreamStderr(upstream.stderr, options.profileId, recordAudit, maxFrameBytes);
 
-  const clientDone = consumeLines(clientLines, async (line) => {
+  const clientDone = consumeFrames(options.clientInput, maxFrameBytes, async (line) => {
     const result = options.approveToolCall
       ? await session.handleClientLineWithApproval(line, options.approveToolCall)
       : session.handleClientLine(line);
     await recordAudit(result.auditEvents);
     if (result.responseLine) {
-      writeLine(options.clientOutput, result.responseLine);
+      await writeLine(options.clientOutput, result.responseLine);
     }
     if (result.forwardLine) {
-      writeLine(upstream.stdin, result.forwardLine);
+      await writeLine(upstream.stdin, result.forwardLine);
     }
   });
 
-  const upstreamDone = consumeLines(upstreamLines, async (line) => {
+  const upstreamDone = consumeFrames(upstream.stdout, maxFrameBytes, async (line) => {
     const result = session.handleServerLine(line);
     await recordAudit(result.auditEvents);
     if (result.responseLine) {
-      writeLine(upstream.stdin, result.responseLine);
+      await writeLineIfOpen(upstream.stdin, result.responseLine);
     }
     if (result.forwardLine) {
-      writeLine(options.clientOutput, result.forwardLine);
+      await writeLine(options.clientOutput, result.forwardLine);
     }
   });
 
@@ -138,19 +138,98 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     upstream.kill();
     return { exitCode: fatalExitCode };
   } finally {
-    clientLines.close();
-    upstreamLines.close();
+    options.clientInput.destroy();
+    upstream.stdout.destroy();
   }
 }
 
-async function consumeLines(lines: ReturnType<typeof createInterface>, onLine: (line: string) => Promise<void>): Promise<void> {
-  for await (const line of lines) {
-    await onLine(line);
+async function consumeFrames(input: Readable, maxFrameBytes: number, onLine: (line: string) => Promise<void>): Promise<void> {
+  const decoder = new StringDecoder("utf8");
+  let buffer = "";
+  let bytes = 0;
+  let discardingOversizedFrame = false;
+
+  const consumeText = async (text: string): Promise<void> => {
+    for (const char of text) {
+      if (char === "\n") {
+        if (!discardingOversizedFrame) {
+          const line = buffer.endsWith("\r") ? buffer.slice(0, -1) : buffer;
+          await onLine(line);
+        }
+        buffer = "";
+        bytes = 0;
+        discardingOversizedFrame = false;
+        continue;
+      }
+
+      if (discardingOversizedFrame) {
+        continue;
+      }
+
+      bytes += Buffer.byteLength(char, "utf8");
+      if (bytes > maxFrameBytes) {
+        await onLine("x".repeat(maxFrameBytes + 1));
+        buffer = "";
+        bytes = 0;
+        discardingOversizedFrame = true;
+        continue;
+      }
+      buffer += char;
+    }
+  };
+
+  for await (const chunk of input) {
+    await consumeText(typeof chunk === "string" ? chunk : decoder.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+  }
+
+  const remaining = decoder.end();
+  if (remaining.length > 0) {
+    await consumeText(remaining);
+  }
+  if (!discardingOversizedFrame && buffer.length > 0) {
+    await onLine(buffer.endsWith("\r") ? buffer.slice(0, -1) : buffer);
   }
 }
 
-function writeLine(stream: Writable, line: string): void {
-  stream.write(`${line}\n`);
+async function writeLine(stream: Writable, line: string): Promise<void> {
+  if (stream.destroyed || stream.writableEnded) {
+    throw new Error("output stream is closed");
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const cleanup = (): void => {
+      stream.off("error", onError);
+      stream.off("close", onClose);
+    };
+    const settle = (callback: () => void): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const onError = (error: Error): void => settle(() => reject(error));
+    const onClose = (): void => settle(() => reject(new Error("output stream closed before write completed")));
+
+    stream.once("error", onError);
+    stream.once("close", onClose);
+    stream.write(`${line}\n`, (error?: Error | null) => {
+      if (error) {
+        settle(() => reject(error));
+        return;
+      }
+      settle(resolve);
+    });
+  });
+}
+
+async function writeLineIfOpen(stream: Writable, line: string): Promise<void> {
+  if (stream.destroyed || stream.writableEnded) {
+    return;
+  }
+  await writeLine(stream, line);
 }
 
 async function waitForUpstreamExitOrKill(
@@ -211,17 +290,17 @@ async function normalizeUpstreamExit(
 async function observeUpstreamStderr(
   stderr: Readable | undefined,
   profileId: string,
-  recordAudit: (events: readonly AuditEvent[]) => Promise<void>
+  recordAudit: (events: readonly AuditEvent[]) => Promise<void>,
+  maxFrameBytes: number
 ): Promise<void> {
   if (!stderr) {
     return;
   }
 
-  const stderrLines = createInterface({ input: stderr, crlfDelay: Number.POSITIVE_INFINITY });
   let lineCount = 0;
-  for await (const _line of stderrLines) {
+  await consumeFrames(stderr, maxFrameBytes, async () => {
     lineCount += 1;
-  }
+  });
 
   if (lineCount === 0) {
     return;
@@ -249,4 +328,11 @@ async function observeUpstreamStderr(
       }
     })
   ]);
+}
+
+function resolvePositiveInteger(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isSafeInteger(value) || value < 1) {
+    return fallback;
+  }
+  return value;
 }

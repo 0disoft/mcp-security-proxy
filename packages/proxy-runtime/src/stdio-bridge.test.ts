@@ -366,6 +366,51 @@ describe("stdio proxy bridge", () => {
     expect(harness.upstream.killed).toBe(true);
   });
 
+  it("rejects oversized client frames before a newline delimiter is received", async () => {
+    const harness = createHarness();
+    const resultPromise = runHarness(harness, { maxFrameBytes: 16 });
+
+    harness.clientInput.write("{".padEnd(32, "x"));
+    await nextTick();
+    expect(readLines(harness.upstreamInputCapture)).toEqual([]);
+    harness.clientInput.write("\n");
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(0);
+    expect(readLines(harness.upstreamInputCapture)).toEqual([]);
+    expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({
+        id: null,
+        error: expect.objectContaining({
+          data: expect.objectContaining({
+            decision: expect.objectContaining({
+              action: "deny",
+              evidence: [expect.objectContaining({ code: "jsonrpc.frame_too_large" })]
+            })
+          })
+        })
+      })
+    );
+  });
+
+  it("fails closed when protocol output writes fail", async () => {
+    const harness = createHarness();
+    const resultPromise = runHarness(harness);
+
+    harness.clientOutput.destroy();
+    harness.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: "closed-output", method: "resources/list" })}\n`);
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(1);
+    expect(harness.upstream.killed).toBe(true);
+  });
+
   it("continues when audit writing fails under warn_and_continue policy", async () => {
     const harness = createHarness({ failAuditWrites: true });
     const resultPromise = runHarness(harness, { auditOnFailure: "warn_and_continue" });
@@ -507,6 +552,7 @@ function runHarness(
     readonly policy?: PolicyDocument;
     readonly approveToolCall?: ApprovalHook;
     readonly approvalTimeoutMs?: number;
+    readonly maxFrameBytes?: number;
   } = {}
 ): Promise<{ readonly exitCode: number }> {
   return runStdioProxy({
@@ -521,6 +567,7 @@ function runHarness(
     spawnUpstream: () => harness.upstream,
     ...(options.approveToolCall ? { approveToolCall: options.approveToolCall } : {}),
     ...(options.approvalTimeoutMs !== undefined ? { approvalTimeoutMs: options.approvalTimeoutMs } : {}),
+    ...(options.maxFrameBytes !== undefined ? { maxFrameBytes: options.maxFrameBytes } : {}),
     ...(options.shutdownGraceMs !== undefined ? { shutdownGraceMs: options.shutdownGraceMs } : {}),
     writeAuditEvent: (event) => {
       if (harness.failAuditWrites) {
