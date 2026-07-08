@@ -484,6 +484,14 @@
       "scenario": "pending-discovery-id-type"
     },
     {
+      "id": "runtime-framing-boundary-denial",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-framing-boundary-denial.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "framing-boundary-denial"
+    },
+    {
       "id": "runtime-invalid-jsonrpc-envelope-shape",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-invalid-jsonrpc-envelope-shape.json",

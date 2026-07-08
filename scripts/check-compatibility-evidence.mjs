@@ -84,6 +84,7 @@ const requiredEvidenceIds = new Set([
   "runtime-duplicate-server-request-id",
   "runtime-malformed-discovery",
   "runtime-pending-discovery-id-type",
+  "runtime-framing-boundary-denial",
   "runtime-invalid-jsonrpc-envelope-shape",
   "runtime-invalid-upstream-response-shape",
   "runtime-invalid-upstream-error-object",
@@ -432,6 +433,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "duplicate-server-request-id",
     "malformed-discovery",
     "pending-discovery-id-type",
+    "framing-boundary-denial",
     "invalid-jsonrpc-envelope-shape",
     "invalid-upstream-response-shape",
     "invalid-upstream-error-object",
@@ -548,6 +550,60 @@ async function checkRuntimeSessionFixture(id, path, item) {
         ? parseJsonText(arrayParams.responseLine, `${id}: arrayParams.responseLine`)
         : undefined,
       arrayParamsAuditEvents: arrayParams.auditEvents
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
+
+  if (item.scenario === "framing-boundary-denial") {
+    const tooLargeSession = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile,
+      maxFrameBytes: 32
+    });
+    const newlineSession = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile
+    });
+    const tooDeepSession = createProxySession({
+      policy: readJson(item.policy),
+      profileId: item.profile,
+      maxJsonDepth: 3
+    });
+    const tooLarge = tooLargeSession.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-too-large-frame",
+        method: "ping"
+      })
+    );
+    const embeddedNewline = newlineSession.handleClientLine(
+      "{\"jsonrpc\":\"2.0\",\n\"id\":\"compat-embedded-newline\",\"method\":\"ping\"}"
+    );
+    const tooDeep = tooDeepSession.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "compat-too-deep",
+        result: {
+          nested: {
+            value: true
+          }
+        }
+      })
+    );
+    const actual = {
+      tooLargeForwarded: tooLarge.forwardLine !== undefined,
+      tooLargeResponse: tooLarge.responseLine ? parseJsonText(tooLarge.responseLine, `${id}: tooLarge.responseLine`) : null,
+      tooLargeAuditEvents: tooLarge.auditEvents,
+      embeddedNewlineForwarded: embeddedNewline.forwardLine !== undefined,
+      embeddedNewlineResponse: embeddedNewline.responseLine
+        ? parseJsonText(embeddedNewline.responseLine, `${id}: embeddedNewline.responseLine`)
+        : null,
+      embeddedNewlineAuditEvents: embeddedNewline.auditEvents,
+      tooDeepForwarded: tooDeep.forwardLine !== undefined,
+      tooDeepResponse: tooDeep.responseLine ? parseJsonText(tooDeep.responseLine, `${id}: tooDeep.responseLine`) : null,
+      tooDeepAuditEvents: tooDeep.auditEvents
     };
     const expected = readJson(path);
     assertJsonEqual(id, actual, expected);

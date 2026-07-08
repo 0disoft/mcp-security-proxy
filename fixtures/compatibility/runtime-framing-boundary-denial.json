@@ -1,0 +1,109 @@
+{
+  "tooLargeForwarded": false,
+  "tooLargeResponse": {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+      "code": -32600,
+      "message": "invalid MCP JSON-RPC message",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "jsonrpc.frame_too_large",
+              "reason": "JSON-RPC frame exceeds maximum size of 32 bytes"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "tooLargeAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.frame_too_large",
+            "reason": "JSON-RPC frame exceeds maximum size of 32 bytes"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "embeddedNewlineForwarded": false,
+  "embeddedNewlineResponse": {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+      "code": -32600,
+      "message": "invalid MCP JSON-RPC message",
+      "data": {
+        "decision": {
+          "schemaVersion": "msp.decision.v1",
+          "action": "deny",
+          "evidence": [
+            {
+              "code": "jsonrpc.invalid",
+              "reason": "stdio MCP messages must be newline-delimited without embedded newlines"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "embeddedNewlineAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.invalid",
+            "reason": "stdio MCP messages must be newline-delimited without embedded newlines"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ],
+  "tooDeepForwarded": false,
+  "tooDeepResponse": null,
+  "tooDeepAuditEvents": [
+    {
+      "schemaVersion": "msp.audit-event.v1",
+      "kind": "error",
+      "profileId": "local",
+      "decision": {
+        "schemaVersion": "msp.decision.v1",
+        "action": "deny",
+        "evidence": [
+          {
+            "code": "jsonrpc.too_deep",
+            "reason": "JSON-RPC message exceeds maximum depth of 3"
+          }
+        ]
+      },
+      "redaction": {
+        "applied": false,
+        "counts": {}
+      }
+    }
+  ]
+}
