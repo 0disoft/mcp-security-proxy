@@ -1,16 +1,17 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
 const workflowPath = ".github/workflows/ci.yml";
+const releaseWorkflowPath = ".github/workflows/release.yml";
 const ciDocPath = "docs/ops/ci.md";
 const failures = [];
 
 const manifest = readJson("package.json");
 const workflow = readText(workflowPath);
 const ciDoc = readText(ciDocPath);
-const trackedWorkflowFiles = listTrackedWorkflowFiles();
+const workflowFiles = listWorkflowFiles();
 
 const packageManager = parsePackageManager(manifest.packageManager);
 const engineFloor = parseNodeEngineFloor(manifest.engines?.node);
@@ -44,7 +45,7 @@ assertPinnedAction(workflowPath, workflow, "actions/setup-node");
 assertContains(workflow, "pnpm install --frozen-lockfile", `${workflowPath}: frozen lockfile install`);
 assertContains(workflow, "pnpm run check", `${workflowPath}: repository check command`);
 assertContains(workflow, "git diff --check", `${workflowPath}: diff hygiene command`);
-assertNoPublishWorkflowSurfaces(trackedWorkflowFiles);
+checkWorkflowPublishSurfaces(workflowFiles);
 
 assertContains(ciDoc, `installs Node.js ${workflowNodeVersion}`, `${ciDocPath}: documented Node.js version`);
 assertContains(ciDoc, `enables pnpm ${packageManager.version}`, `${ciDocPath}: documented pnpm version`);
@@ -52,13 +53,13 @@ assertContains(ciDoc, "runs `pnpm run check`", `${ciDocPath}: documented check c
 assertContains(ciDoc, "runs `git diff --check`", `${ciDocPath}: documented diff hygiene command`);
 assertContains(
   ciDoc,
-  "Tracked GitHub Actions workflows must not publish packages",
-  `${ciDocPath}: documented no-publish workflow guard`
+  "CI workflows must not publish packages",
+  `${ciDocPath}: documented CI no-publish workflow guard`
 );
 assertContains(
   ciDoc,
-  "explicitly approved",
-  `${ciDocPath}: documented release automation approval guard`
+  "is the only tracked workflow allowed to request `id-token: write`",
+  `${ciDocPath}: documented release workflow OIDC guard`
 );
 
 checkCiContractValidator();
@@ -152,14 +153,36 @@ function readText(path) {
   return readFileSync(join(root, path), "utf8");
 }
 
-function listTrackedWorkflowFiles() {
-  return execFileSync("git", ["ls-files", ".github/workflows"], {
-    cwd: root,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
-  })
-    .split(/\r?\n/)
-    .filter((file) => /\.(?:ya?ml)$/i.test(file));
+function listWorkflowFiles() {
+  const files = new Set(
+    execFileSync("git", ["ls-files", ".github/workflows"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"]
+    })
+      .split(/\r?\n/)
+      .filter((file) => /\.(?:ya?ml)$/i.test(file))
+      .map((file) => file.replaceAll("\\", "/"))
+  );
+  const workflowDir = join(root, ".github", "workflows");
+  if (existsSync(workflowDir)) {
+    for (const file of readdirSync(workflowDir)) {
+      if (/\.(?:ya?ml)$/i.test(file)) {
+        files.add(`.github/workflows/${file}`);
+      }
+    }
+  }
+  return [...files].sort((left, right) => left.localeCompare(right));
+}
+
+function checkWorkflowPublishSurfaces(workflowFiles, reader = readText) {
+  for (const file of workflowFiles) {
+    if (file === releaseWorkflowPath) {
+      checkReleaseWorkflowContract(reader(file));
+      continue;
+    }
+    assertNoPublishWorkflowSurfaces([file], reader);
+  }
 }
 
 function assertNoPublishWorkflowSurfaces(workflowFiles, reader = readText) {
@@ -197,6 +220,40 @@ function assertNoPublishWorkflowSurfaces(workflowFiles, reader = readText) {
           `${file}: ${check.reason} is blocked until release automation and publish ownership are approved`
         );
       }
+    }
+  }
+}
+
+function checkReleaseWorkflowContract(releaseWorkflow) {
+  assertContains(releaseWorkflow, "name: Release", `${releaseWorkflowPath}: workflow name`);
+  assertContains(releaseWorkflow, "tags:\n      - 'v[0-9]*.[0-9]*.[0-9]*'", `${releaseWorkflowPath}: semver tag trigger`);
+  assertContains(releaseWorkflow, "permissions:\n  contents: read\n  id-token: write", `${releaseWorkflowPath}: minimal publish permissions`);
+  assertContains(releaseWorkflow, "cancel-in-progress: false", `${releaseWorkflowPath}: release jobs must not cancel in progress`);
+  assertContains(releaseWorkflow, "environment: npm", `${releaseWorkflowPath}: npm Trusted Publisher environment`);
+  assertContains(releaseWorkflow, "timeout-minutes: 20", `${releaseWorkflowPath}: bounded release timeout`);
+  assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/checkout");
+  assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/setup-node");
+  assertContains(releaseWorkflow, `corepack prepare pnpm@${packageManager.version} --activate`, `${releaseWorkflowPath}: pnpm version`);
+  assertContains(releaseWorkflow, "registry-url: https://registry.npmjs.org", `${releaseWorkflowPath}: npm registry url`);
+  assertContains(releaseWorkflow, "pnpm install --frozen-lockfile", `${releaseWorkflowPath}: frozen lockfile install`);
+  assertContains(releaseWorkflow, "pnpm run check", `${releaseWorkflowPath}: repository check command`);
+  assertContains(releaseWorkflow, "node scripts/check-release-publish-plan.mjs", `${releaseWorkflowPath}: publish plan preflight`);
+  for (const packageName of [
+    "@0disoft/mcp-security-proxy-contracts",
+    "@0disoft/mcp-security-proxy-core",
+    "@0disoft/mcp-security-proxy-mcp-adapter",
+    "@0disoft/mcp-security-proxy-runtime",
+    "@0disoft/mcp-security-proxy-cli"
+  ]) {
+    assertContains(
+      releaseWorkflow,
+      `pnpm --filter ${packageName} publish --access public --provenance --no-git-checks`,
+      `${releaseWorkflowPath}: publish command for ${packageName}`
+    );
+  }
+  for (const forbidden of [/contents:\s*write/i, /\b(?:NODE_AUTH_TOKEN|NPM_TOKEN|NPM_PUBLISH_TOKEN)\b/i, /\bgh\s+release\s+create\b/i]) {
+    if (forbidden.test(releaseWorkflow)) {
+      failures.push(`${releaseWorkflowPath}: release workflow must use OIDC publishing without registry tokens or GitHub release creation`);
     }
   }
 }
@@ -259,7 +316,7 @@ function checkCiContractValidator() {
 
   const publishWorkflowFailures = collectCiContractFailures(() => {
     const workflowFiles = ["<ci-contract-self-test-publish-workflow>.yml"];
-    assertNoPublishWorkflowSurfaces(workflowFiles, readTextForPublishWorkflowSelfTest);
+    checkWorkflowPublishSurfaces(workflowFiles, readTextForPublishWorkflowSelfTest);
   });
   if (
     !publishWorkflowFailures.some((item) => item.includes("package publish command")) ||
@@ -269,6 +326,17 @@ function checkCiContractValidator() {
     !publishWorkflowFailures.some((item) => item.includes("GitHub release creation"))
   ) {
     failures.push(`ci-contract self-test publish workflow was not rejected: ${publishWorkflowFailures.join("; ")}`);
+  }
+
+  const invalidReleaseWorkflowFailures = collectCiContractFailures(() => {
+    checkWorkflowPublishSurfaces([releaseWorkflowPath], () => "name: Release\npermissions:\n  contents: write\n");
+  });
+  if (
+    !invalidReleaseWorkflowFailures.some((item) => item.includes("semver tag trigger")) ||
+    !invalidReleaseWorkflowFailures.some((item) => item.includes("minimal publish permissions")) ||
+    !invalidReleaseWorkflowFailures.some((item) => item.includes("release workflow must use OIDC publishing"))
+  ) {
+    failures.push(`ci-contract self-test invalid release workflow was not rejected: ${invalidReleaseWorkflowFailures.join("; ")}`);
   }
 }
 

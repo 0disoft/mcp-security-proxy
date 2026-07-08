@@ -46,9 +46,21 @@ GitHub Actions runs `.github/workflows/ci.yml` on `main` pushes and pull request
 
 `pnpm run ci-contract` keeps this workflow aligned with the documented Node.js version, pnpm
 version, read-only permissions, pinned actions, local check command, and diff hygiene command.
-Tracked GitHub Actions workflows must not publish packages, create releases, request write
-permissions, request `id-token: write`, or reference registry publish tokens until release
-automation is explicitly approved.
+CI workflows must not publish packages, create releases, request write permissions, request
+`id-token: write`, or reference registry publish tokens.
+
+## Release Workflow
+
+`.github/workflows/release.yml` is the only tracked workflow allowed to request `id-token: write`.
+It runs only for version tags matching `vMAJOR.MINOR.PATCH[-PRERELEASE]`, uses the npm environment
+for Trusted Publisher ownership, runs `pnpm run check`, verifies
+`scripts/check-release-publish-plan.mjs`, and publishes only the release-recorded public packages
+with provenance. It must not use long-lived npm tokens or create GitHub releases.
+
+The release workflow remains blocked until npm Trusted Publisher ownership is configured for the
+`0disoft/mcp-security-proxy` repository, the package manifests are approved for public package
+posture, and an approved release readiness record names the reachable target commit and exact
+validation evidence.
 
 ## Validation
 
