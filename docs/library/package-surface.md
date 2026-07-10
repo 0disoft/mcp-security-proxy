@@ -37,6 +37,8 @@ Until release readiness approves the recorded public package names and artifacts
 - package entrypoints must expose `./dist/index.d.ts` types and `./dist/index.js` runtime output;
 - every package must keep `src/index.ts`, `tsconfig.json`, `tsconfig.build.json`, `build`, and
   `typecheck` ownership aligned with the exported entrypoint;
+- the workspace typecheck must build dependency-ordered declaration entrypoints before checking
+  workspace imports so clean checkouts do not depend on stale ignored `dist` output;
 - package tarballs must contain only `dist`, package metadata, README, LICENSE, and the contracts
   package's versioned JSON schemas;
 - every package build must compile with `tsconfig.build.json`, which excludes `src/**/*.test.ts`

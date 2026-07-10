@@ -27,7 +27,7 @@
     "smoke": "pnpm build && node packages/cli/dist/main.js check-policy --policy fixtures/policies/local-dev.json --json && node packages/cli/dist/main.js eval-call --policy fixtures/policies/local-dev.json --profile local --input fixtures/mcp/call-file-read-denied.json --json && node scripts/smoke-live-run.mjs",
     "test": "pnpm build && pnpm -r test",
     "validation-registry": "node scripts/check-validation-registry.mjs",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm build && pnpm -r typecheck"
   },
   "devDependencies": {
     "@types/node": "^24.10.2",

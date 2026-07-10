@@ -460,6 +460,10 @@ const rootManifest = readJson(rootManifestPath);
 checkCommonManifest(rootManifest, rootManifestPath);
 assertEqual(rootManifest.name === "mcp-security-proxy-workspace", "package.json: workspace package name changed unexpectedly");
 assertEqual(rootManifest.version === "0.0.0", "package.json: workspace version must stay 0.0.0 before public release");
+assertEqual(
+  rootManifest.scripts?.typecheck === "pnpm build && pnpm -r typecheck",
+  "package.json: workspace typecheck must build declaration entrypoints before recursive typecheck"
+);
 checkDependencyDecisionGuards(rootManifest, "package.json");
 checkRootRuntimeDependencies(rootManifest, "package.json");
 checkDocumentedPackageSurfaces("docs/library/package-surface.md", expectedWorkspacePackages);
