@@ -18,7 +18,7 @@
     "docs": "node scripts/check-docs.mjs",
     "license-report": "node scripts/check-dependency-licenses.mjs",
     "migration-check": "pnpm build && node scripts/check-migration-notes.mjs",
-    "package-surface": "node scripts/check-package-surface.mjs",
+    "package-surface": "pnpm build && node scripts/check-package-surface.mjs && node scripts/check-package-consumer.mjs",
     "performance-smoke": "pnpm build && node scripts/check-performance-budget.mjs",
     "release-readiness": "node scripts/check-release-readiness.mjs",
     "repository-hygiene": "node scripts/check-repository-hygiene.mjs",

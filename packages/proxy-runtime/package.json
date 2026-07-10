@@ -1,16 +1,34 @@
 {
   "name": "@0disoft/mcp-security-proxy-runtime",
+  "description": "Stdio proxy session and subprocess runtime for MCP Security Proxy.",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0disoft/mcp-security-proxy.git",
+    "directory": "packages/proxy-runtime"
+  },
+  "homepage": "https://github.com/0disoft/mcp-security-proxy#readme",
+  "bugs": {
+    "url": "https://github.com/0disoft/mcp-security-proxy/issues"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "pnpm --filter @0disoft/mcp-security-proxy-contracts build && pnpm --filter @0disoft/mcp-security-proxy-core build && pnpm --filter @0disoft/mcp-security-proxy-mcp-adapter build && vitest run src",

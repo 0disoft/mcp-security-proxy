@@ -21,13 +21,14 @@ Status: Draft
   SECURITY.md, and vulnerability process are stable enough for external users.
 
 Implementation direction is TypeScript with pnpm. The current implementation floor is Node.js
-`>=24.0.0`. Registry targets, public package names, and release artifact names remain UNDECIDED
-until implementation-time verification records them.
+`>=24.0.0`. The blocked `0.2.0-alpha.0` release record names npmjs.org, five public package
+candidates, and their artifact names. Those decisions remain unapproved until package ownership,
+bootstrap publication, and Trusted Publisher configuration are verified.
 
 ## Public Release Readiness
 
-The repository is not ready for public npm release while package names and artifacts remain
-UNDECIDED. Before publishing any public artifact, a release record must name:
+The repository is not ready for public npm release while its current release record remains
+blocked. Before publishing any public artifact, an approved release record must name:
 
 - the public package names and package ownership boundaries;
 - the registry target and publish credentials owner;
@@ -65,6 +66,11 @@ validation evidence value. Approved release records must also use a tracked `doc
 procedure and a last-known-good version that is different from the release version being approved.
 The approved target commit must be reachable from the current repository HEAD so the release record
 remains verifiable after later commits.
+The package-surface validation also packs the five candidate artifacts, rejects undeclared tarball
+paths and unresolved workspace protocols, installs them into a clean offline npm consumer, checks
+ESM and TypeScript imports against the supported Node 24 type baseline, and runs the installed CLI
+help command. This evidence does not prove that npm ownership or Trusted Publisher configuration
+exists.
 
 ## Release Blockers
 
@@ -93,7 +99,8 @@ remains verifiable after later commits.
 - Required validation names: docs, schema-contract, migration-check, package-surface, secret-scan,
   artifact-safety, repository-hygiene, validation-registry, ci-contract, compatibility, license-report,
   release-readiness, performance-smoke, contract, test, smoke, check when commands exist.
-- Release blocker status: blocked for public npm release until package naming, artifact naming,
-  publish credentials ownership, and rollback records exist.
-- Remaining operational risk: release automation does not exist yet; manual release is not allowed
-  without a release readiness record.
+- Release blocker status: blocked for public npm release until bootstrap publication, package
+  ownership, Trusted Publisher configuration, publish credentials ownership, and artifact approval
+  are verified.
+- Remaining operational risk: release automation exists but cannot publish a package name that has
+  not yet been created and connected to the recorded Trusted Publisher identity.

@@ -6,6 +6,10 @@ const root = process.cwd();
 const releaseRecordsDir = join(root, "docs", "ops", "release-records");
 const expectedNodeEngine = ">=24.0.0";
 const expectedLicense = "Apache-2.0";
+const expectedRepositoryUrl = "https://github.com/0disoft/mcp-security-proxy.git";
+const expectedHomepage = "https://github.com/0disoft/mcp-security-proxy#readme";
+const expectedBugsUrl = "https://github.com/0disoft/mcp-security-proxy/issues";
+const expectedRegistry = "https://registry.npmjs.org";
 const expectedWorkspacePackages = [
   "cli",
   "contracts",
@@ -14,6 +18,15 @@ const expectedWorkspacePackages = [
   "proxy-runtime",
   "testkit"
 ];
+const expectedPublishablePackages = new Set(["cli", "contracts", "core", "mcp-adapter", "proxy-runtime"]);
+const expectedPackageFiles = new Map([
+  ["cli", ["dist"]],
+  ["contracts", ["dist", "schemas"]],
+  ["core", ["dist"]],
+  ["mcp-adapter", ["dist"]],
+  ["proxy-runtime", ["dist"]],
+  ["testkit", ["dist"]]
+]);
 const expectedEntrypointReExports = new Map([
   ["cli", ["./commands.js"]],
   ["contracts", ["./policy.js", "./decision.js", "./audit.js", "./ops.js", "./validation.js"]],
@@ -62,6 +75,7 @@ const checkCommonManifest = (manifest, manifestPath, options = {}) => {
 const checkWorkspacePackage = (manifest, manifestPath, packageReleaseVersions = releasePackageVersions) => {
   const file = formatPath(manifestPath);
   const packageRoot = manifestPath.slice(0, -"package.json".length);
+  const packageDirectory = file.split("/")[1];
   const releaseVersion = packageReleaseVersions.get(file);
   checkCommonManifest(manifest, manifestPath, { releaseVersion });
   if (releaseVersion) {
@@ -70,10 +84,29 @@ const checkWorkspacePackage = (manifest, manifestPath, packageReleaseVersions = 
     assertEqual(manifest.version === "0.0.0", `${file}: version must stay 0.0.0 until release readiness records a public version`);
   }
   assertEqual(typeof manifest.name === "string" && manifest.name.startsWith("@0disoft/mcp-security-proxy-"), `${file}: package name must stay under @0disoft/mcp-security-proxy-*`);
-  assertEqual(manifest.types === "./src/index.ts", `${file}: types must point at ./src/index.ts`);
-  assertEqual(manifest.exports?.["."]?.types === "./src/index.ts", `${file}: exports[.].types must point at ./src/index.ts`);
+  assertEqual(typeof manifest.description === "string" && manifest.description.trim().length > 0, `${file}: description must identify the package purpose`);
+  assertEqual(manifest.types === "./dist/index.d.ts", `${file}: types must point at ./dist/index.d.ts`);
+  assertEqual(manifest.exports?.["."]?.types === "./dist/index.d.ts", `${file}: exports[.].types must point at ./dist/index.d.ts`);
   assertEqual(manifest.exports?.["."]?.default === "./dist/index.js", `${file}: exports[.].default must point at ./dist/index.js`);
-  assertEqual(existsSync(join(packageRoot, "src", "index.ts")), `${file}: src/index.ts must exist for the exported type surface`);
+  assertEqual(manifest.repository?.type === "git", `${file}: repository.type must be git`);
+  assertEqual(manifest.repository?.url === expectedRepositoryUrl, `${file}: repository.url must match the GitHub repository`);
+  assertEqual(manifest.repository?.directory === `packages/${packageDirectory}`, `${file}: repository.directory must match its workspace path`);
+  assertEqual(manifest.homepage === expectedHomepage, `${file}: homepage must point at the repository README`);
+  assertEqual(manifest.bugs?.url === expectedBugsUrl, `${file}: bugs.url must point at the repository issues page`);
+  assertEqual(manifest.sideEffects === false, `${file}: sideEffects must be false for the ESM package entrypoint`);
+  assertEqual(
+    JSON.stringify(manifest.files) === JSON.stringify(expectedPackageFiles.get(packageDirectory)),
+    `${file}: files must include only the recorded package artifact paths`
+  );
+  if (expectedPublishablePackages.has(packageDirectory)) {
+    assertEqual(manifest.publishConfig?.access === "public", `${file}: publishConfig.access must be public for a release-recorded package`);
+    assertEqual(manifest.publishConfig?.registry === expectedRegistry, `${file}: publishConfig.registry must be npmjs.org`);
+  } else {
+    assertEqual(manifest.publishConfig === undefined, `${file}: private-only packages must not declare publishConfig`);
+  }
+  assertEqual(existsSync(join(packageRoot, "src", "index.ts")), `${file}: src/index.ts must exist as the build source entrypoint`);
+  assertEqual(existsSync(join(packageRoot, "dist", "index.js")), `${file}: dist/index.js must exist after package-surface build`);
+  assertEqual(existsSync(join(packageRoot, "dist", "index.d.ts")), `${file}: dist/index.d.ts must exist after package-surface build`);
   assertEqual(existsSync(join(packageRoot, "tsconfig.json")), `${file}: tsconfig.json must exist for package build/typecheck ownership`);
   assertEqual(existsSync(join(packageRoot, "tsconfig.build.json")), `${file}: tsconfig.build.json must exist for test-excluded package builds`);
   assertEqual(manifest.scripts?.build === "tsc -p tsconfig.build.json", `${file}: build script must use tsc -p tsconfig.build.json`);
@@ -143,17 +176,33 @@ const checkPackageSurfaceValidator = () => {
     private: false,
     type: "module",
     license: expectedLicense,
+    description: "CLI package",
+    repository: {
+      type: "git",
+      url: expectedRepositoryUrl,
+      directory: "packages/cli"
+    },
+    homepage: expectedHomepage,
+    bugs: {
+      url: expectedBugsUrl
+    },
+    files: ["dist"],
+    sideEffects: false,
     engines: {
       node: expectedNodeEngine
     },
     version: "0.1.0-alpha.0",
     name: "@0disoft/mcp-security-proxy-cli",
-    types: "./src/index.ts",
+    types: "./dist/index.d.ts",
     exports: {
       ".": {
-        types: "./src/index.ts",
+        types: "./dist/index.d.ts",
         default: "./dist/index.js"
       }
+    },
+    publishConfig: {
+      access: "public",
+      registry: expectedRegistry
     },
     scripts: {
       build: "tsc -p tsconfig.build.json",

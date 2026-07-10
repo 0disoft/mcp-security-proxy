@@ -19,8 +19,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Semantic versioning policy: docs/library/semver.md
 - Runtime and platform compatibility: TypeScript, pnpm, and Node.js `>=24.0.0` for the current
   scaffold.
-- Package artifact and export surface: private workspace packages only; public registry artifacts
-  remain UNDECIDED.
+- Package artifact and export surface: five npm package candidates are recorded and consumer-tested
+  as local tarballs, but remain private and unpublished while release readiness is blocked.
 - Deprecation and migration policy: docs/library/migration-guide.md
 
 ## Compatibility Targets
@@ -36,7 +36,8 @@ This repository type owns public API surface, package compatibility, semantic ve
   fixtures exist.
 - Client compatibility must be fixture-backed, not claimed from schema reading alone.
 - Policy and audit schemas must remain deterministic across supported runtimes.
-- Public registry compatibility is not claimed while all packages remain private.
+- Public registry compatibility is not claimed while all packages remain private. Local package
+  compatibility evidence comes from offline installation of the packed candidate artifacts.
 
 ## Compatibility Evidence Required
 

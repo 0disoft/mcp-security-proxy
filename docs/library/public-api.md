@@ -21,8 +21,9 @@ This repository type owns public API surface, package compatibility, semantic ve
   package release is cut.
 - Runtime and platform compatibility: TypeScript, pnpm, and Node.js `>=24.0.0` for the current
   private workspace packages.
-- Package artifact and export surface: private workspace package exports are documented in
-  docs/library/package-surface.md; public registry artifacts remain a release-readiness decision.
+- Package artifact and export surface: private workspace package exports and the five local
+  tarball-tested npm candidates are documented in docs/library/package-surface.md; registry
+  publication remains a release-readiness decision.
 - Deprecation and migration policy: breaking policy schema or audit schema changes require migration
   notes.
 

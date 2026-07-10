@@ -18,8 +18,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Public API ownership: docs/library/public-api.md
 - Semantic versioning policy: docs/library/semver.md
 - Runtime and platform compatibility: docs/library/compatibility.md
-- Package artifact and export surface: private pnpm workspace packages exist; public registry
-  artifacts remain UNDECIDED.
+- Package artifact and export surface: the blocked `0.2.0-alpha.0` release record names five npm
+  package candidates; manifests remain private until that record is approved.
 - Deprecation and migration policy: docs/library/migration-guide.md
 
 ## Current Package Posture
@@ -27,16 +27,18 @@ This repository type owns public API surface, package compatibility, semantic ve
 This repository is not ready for public npm publication. The current package boundary is a private
 pnpm workspace used to validate implementation ownership and internal imports.
 
-Until release readiness records public package names and artifacts:
+Until release readiness approves the recorded public package names and artifacts:
 
 - the root workspace and every `packages/*` manifest must keep `private: true`;
 - `pnpm-workspace.yaml` must include only the `packages/*` workspace package glob;
 - versions must remain `0.0.0`;
 - package names must stay under `@0disoft/mcp-security-proxy-*`;
 - Node.js compatibility must stay `>=24.0.0`;
-- package entrypoints must expose `./src/index.ts` types and `./dist/index.js` runtime output;
+- package entrypoints must expose `./dist/index.d.ts` types and `./dist/index.js` runtime output;
 - every package must keep `src/index.ts`, `tsconfig.json`, `tsconfig.build.json`, `build`, and
   `typecheck` ownership aligned with the exported entrypoint;
+- package tarballs must contain only `dist`, package metadata, README, LICENSE, and the contracts
+  package's versioned JSON schemas;
 - every package build must compile with `tsconfig.build.json`, which excludes `src/**/*.test.ts`
   from emitted `dist/` artifacts while `typecheck` continues to validate the full `tsconfig.json`
   source set;
@@ -53,6 +55,11 @@ exists. When `docs/ops/release-records/*.release.json` records a package as publ
 only that recorded `packages/*` manifest to use the recorded release version and public package
 posture. Unreachable approved release records do not unlock current package manifests. Packages not
 listed in a reachable approved release record must remain private and versioned as `0.0.0`.
+The same validation builds and packs the five release-recorded package candidates, rejects source,
+test, config, and undeclared artifact paths, checks that pnpm rewrites `workspace:*` dependencies,
+installs the tarballs into a clean offline npm consumer, resolves ESM and TypeScript declarations,
+using the workspace's supported Node 24 type baseline, and executes the installed CLI help path.
+This validates package shape without publishing it.
 
 ## Expected Package Surfaces
 
@@ -63,6 +70,9 @@ listed in a reachable approved release record must remain private and versioned 
   filtering, and stdio subprocess bridge ownership.
 - `packages/cli`: command registry, dry-run commands, and live stdio `run` entrypoint.
 - `packages/testkit`: synthetic fixtures for future integration tests.
+
+The publishable candidate set is contracts, core, mcp-adapter, proxy-runtime, and cli. Testkit is a
+private workspace-only package and must not declare registry publication metadata.
 
 ## Expected Entrypoint Re-exports
 
@@ -82,7 +92,8 @@ listed in a reachable approved release record must remain private and versioned 
 - Do not bundle generated audit logs or example secrets.
 - Keep CLI output examples synchronized with docs/cli/output-and-exit-codes.md.
 - Keep policy and audit schemas discoverable from package documentation.
-- Keep packages private until release readiness records public package names and artifacts.
+- Keep packages private until release readiness approves the recorded public package names and
+  artifacts.
 
 ## Review Blockers
 

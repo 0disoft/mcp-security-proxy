@@ -31,6 +31,8 @@ pnpm run check
 - package surface, tracked-file secret scans, public artifact safety checks, repository hygiene
   checks, validation registry checks, CI contract checks, compatibility evidence checks, dependency
   license report checks, release-readiness preflight checks, and performance smoke checks
+- package tarball allowlist, offline npm installation, ESM import, declaration resolution, and
+  installed CLI help checks for the five publishable candidates
 - CLI smoke checks against the local fixture policy and the secret-label fixture policy
 
 ## Hosted Workflow
