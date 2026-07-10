@@ -72,6 +72,14 @@ ESM and TypeScript imports against the supported Node 24 type baseline, and runs
 help command. This evidence does not prove that npm ownership or Trusted Publisher configuration
 exists.
 
+The one-time package-name initialization path is owned by `docs/ops/npm-bootstrap.md` and
+`docs/ops/npm-bootstrap-plan.json`. It stages `0.0.0-bootstrap.0` tarballs without changing source
+manifests, uses only the non-default `bootstrap` dist-tag, and cannot run through the normal release
+workflow. `pnpm run release-readiness` validates the offline bootstrap plan. Registry identity and
+package-name absence are checked only when an owner explicitly runs the optional network preflight.
+Release readiness also builds the staged bootstrap tarballs in a temporary directory, validates
+their transformed manifests and file allowlists, and removes them without publishing.
+
 ## Release Blockers
 
 - Missing LICENSE or SECURITY.md.
@@ -93,6 +101,8 @@ exists.
 - `pnpm run release-readiness` fails.
 - `pnpm run performance-smoke` fails for changed hot-path behavior.
 - Package manifests are public before release readiness records public names and artifacts.
+- Bootstrap publication proceeds without an approved bootstrap plan, exact npm owner identity,
+  absent package names, checksummed staging artifacts, or a credential-removal handoff.
 
 ## Validation
 

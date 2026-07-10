@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "msp.npm-bootstrap.v1",
+  "status": "blocked",
+  "bootstrapVersion": "0.0.0-bootstrap.0",
+  "distTag": "bootstrap",
+  "registry": "https://registry.npmjs.org",
+  "registryOwner": "0disoft",
+  "artifactDirectory": ".tmp/npm-bootstrap",
+  "credentialMode": "interactive-owner-session",
+  "credentialPersistence": "none",
+  "packages": [
+    {
+      "name": "@0disoft/mcp-security-proxy-contracts",
+      "workspacePath": "packages/contracts"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-core",
+      "workspacePath": "packages/core"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-mcp-adapter",
+      "workspacePath": "packages/mcp-adapter"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-runtime",
+      "workspacePath": "packages/proxy-runtime"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-cli",
+      "workspacePath": "packages/cli"
+    }
+  ],
+  "trustedPublisher": {
+    "repository": "0disoft/mcp-security-proxy",
+    "workflow": ".github/workflows/release.yml",
+    "environment": "npm"
+  },
+  "approval": {
+    "approvedBy": "UNRECORDED",
+    "sourceCommit": "UNRECORDED"
+  },
+  "completion": {
+    "completedBy": "UNRECORDED",
+    "sourceCommit": "UNRECORDED",
+    "registryEvidence": "UNRECORDED",
+    "trustedPublisherConfigured": false,
+    "bootstrapCredentialRemoved": false
+  },
+  "postPublish": {
+    "configureTrustedPublisher": "required",
+    "removeBootstrapCredential": "required",
+    "verifyRegistryVersions": "required",
+    "bootstrapVersionPolicy": "deprecate-after-first-oidc-release"
+  },
+  "blockers": [
+    "The npm owner must explicitly approve the one-time interactive bootstrap session.",
+    "All five package names must still be absent from npmjs.org before bootstrap publication.",
+    "Trusted Publisher configuration and bootstrap credential removal require manual registry verification."
+  ]
+}

@@ -64,6 +64,12 @@ The release workflow remains blocked until npm Trusted Publisher ownership is co
 posture, and an approved release readiness record names the reachable target commit and exact
 validation evidence.
 
+The first-package bootstrap path is not a GitHub Actions workflow. Its source of truth is
+`docs/ops/npm-bootstrap.md`; it keeps credentials in an interactive npm owner session and produces
+only ignored, checksummed staging artifacts. CI validates the blocked/approved/completed plan shape
+offline, dry-runs the staged bootstrap tarballs on the hosted runner, and rejects any bootstrap token
+path added to the normal release workflow.
+
 ## Validation
 
 - Required validation names: typecheck, test, contract, docs, schema-contract, migration-check,

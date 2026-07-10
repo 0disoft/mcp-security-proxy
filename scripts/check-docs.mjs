@@ -23,6 +23,8 @@ const requiredFiles = [
   "docs/library/decision-codes.md",
   "docs/cli/output-and-exit-codes.md",
   "docs/ops/observability.md",
+  "docs/ops/npm-bootstrap.md",
+  "docs/ops/npm-bootstrap-plan.json",
   "docs/ops/release-records/README.md",
   "docs/ops/release-records/public-release.template.json",
   "packages/contracts/schemas/policy.v1.schema.json",

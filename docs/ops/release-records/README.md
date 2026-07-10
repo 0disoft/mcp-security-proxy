@@ -14,6 +14,11 @@ but package manifests must remain at `0.0.0` until approval. Approved records mu
 commit SHA. Approved records must record `targetCommit`, and that value must be reachable from the
 current repository HEAD so historical approved records remain verifiable after later commits.
 
+The one-time npm package-name initialization is not a normal release record. It is controlled by
+`docs/ops/npm-bootstrap-plan.json` and `docs/ops/npm-bootstrap.md`, keeps source manifests private,
+uses only `0.0.0-bootstrap.0` under the non-default `bootstrap` dist-tag, and must not create a Git
+tag or add a token path to the normal release workflow.
+
 Release records must include validation evidence for: `docs`, `schema-contract`,
 `migration-check`, `package-surface`, `secret-scan`, `artifact-safety`, `repository-hygiene`,
 `validation-registry`, `ci-contract`, `compatibility`, `license-report`, `release-readiness`,

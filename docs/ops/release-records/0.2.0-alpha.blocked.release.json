@@ -97,6 +97,7 @@
   },
   "blockers": [
     "Package manifests remain private and versioned as 0.0.0 until an approved release record with a reachable target commit exists.",
+    "The one-time npm package-name bootstrap remains blocked by docs/ops/npm-bootstrap-plan.json and requires owner-only registry verification.",
     "Release artifacts are represented by tracked package manifests only; publishable package archives are not approved.",
     "External MCP compatibility is included only for the pinned external-filesystem-stdio target and does not claim a broad external MCP matrix.",
     "HTTP transport and host-specific approval UX are excluded from this candidate.",
