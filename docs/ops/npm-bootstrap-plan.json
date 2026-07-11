@@ -1,6 +1,6 @@
 {
   "schemaVersion": "msp.npm-bootstrap.v1",
-  "status": "blocked",
+  "status": "approved",
   "bootstrapVersion": "0.0.0-bootstrap.0",
   "distTag": "bootstrap",
   "registry": "https://registry.npmjs.org",
@@ -36,8 +36,8 @@
     "environment": "npm"
   },
   "approval": {
-    "approvedBy": "UNRECORDED",
-    "sourceCommit": "UNRECORDED"
+    "approvedBy": "0disoft",
+    "sourceCommit": "933a42b67c041cc97615eb2b803ba065d12ac381"
   },
   "completion": {
     "completedBy": "UNRECORDED",
