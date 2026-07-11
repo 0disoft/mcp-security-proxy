@@ -9,7 +9,9 @@ Publisher configuration is package-owned, so each name needs one controlled boot
 before the normal OIDC release workflow can own later versions.
 
 Bootstrap publication is package-name initialization, not a product release. It uses version
-`0.0.0-bootstrap.0` and the `bootstrap` dist-tag so it cannot become `latest`.
+`0.0.0-bootstrap.0` and the `bootstrap` dist-tag. npm may still create `latest` automatically for
+a package's first publication, so the owner must remove that tag immediately after each package
+is published and verify that only `bootstrap` remains.
 Do not create a Git tag for the bootstrap version or run `.github/workflows/release.yml` for it.
 
 The source package manifests remain `private: true` and versioned as `0.0.0`. The artifact helper
@@ -69,7 +71,9 @@ node scripts/prepare-npm-bootstrap-artifacts.mjs --write
 ```
 
 Review `.tmp/npm-bootstrap/manifest.json`. It records the current source commit, package order,
-bootstrap version, dist-tag, tarball paths, and SHA-256 digests. `credentialIncluded` must be false.
+bootstrap version, dist-tag, tarball paths, SHA-256 digests, and the first-publication `latest`
+removal requirement. `credentialIncluded` must be false and
+`firstPublishLatestTagRemovalRequired` must be true.
 
 ## Owner-Only Publication
 
@@ -85,6 +89,18 @@ npm publish .tmp/npm-bootstrap/artifacts/0disoft-mcp-security-proxy-mcp-adapter-
 npm publish .tmp/npm-bootstrap/artifacts/0disoft-mcp-security-proxy-runtime-0.0.0-bootstrap.0.tgz --access public --tag bootstrap
 npm publish .tmp/npm-bootstrap/artifacts/0disoft-mcp-security-proxy-cli-0.0.0-bootstrap.0.tgz --access public --tag bootstrap
 ```
+
+Immediately after each successful first publication, remove npm's automatically created `latest`
+tag and verify the remaining tags before publishing the next package:
+
+```powershell
+npm dist-tag rm @0disoft/mcp-security-proxy-contracts latest
+npm dist-tag ls @0disoft/mcp-security-proxy-contracts
+```
+
+Repeat those two commands with the package name that was just published. The listing must contain
+`bootstrap: 0.0.0-bootstrap.0` and no `latest` entry. Treat failure to remove or verify `latest` as
+a stop condition; do not continue with the next package.
 
 If publication stops partway through, do not republish successful package versions. Verify each
 name individually and continue only with the missing package in the recorded dependency order.
@@ -129,7 +145,7 @@ users to the real alpha version. Do not unpublish or reuse the bootstrap version
 - The plan is not approved or the worktree is dirty.
 - A generated SHA-256 value changes after review.
 - A tarball contains source tests, local config, credentials, logs, or unapproved paths.
-- Any package is published under `latest` instead of `bootstrap`.
+- A first publication creates `latest` and the owner cannot immediately remove and verify its removal.
 - Trusted Publisher fields do not exactly match the recorded GitHub repository, workflow, and
   environment.
 

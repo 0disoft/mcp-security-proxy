@@ -52,7 +52,7 @@ function collectPlanFailures(plan, label) {
   assert(plan?.schemaVersion === "msp.npm-bootstrap.v1", "schemaVersion must be msp.npm-bootstrap.v1");
   assert(["blocked", "approved", "completed"].includes(plan?.status), "status must be blocked, approved, or completed");
   assert(plan?.bootstrapVersion === "0.0.0-bootstrap.0", "bootstrapVersion must be 0.0.0-bootstrap.0");
-  assert(plan?.distTag === "bootstrap", "distTag must be bootstrap so the marker never becomes latest");
+  assert(plan?.distTag === "bootstrap", "distTag must be bootstrap for the bootstrap marker");
   assert(plan?.registry === expectedRegistry, `registry must be ${expectedRegistry}`);
   assert(plan?.registryOwner === "0disoft", "registryOwner must be 0disoft");
   assert(plan?.artifactDirectory === ".tmp/npm-bootstrap", "artifactDirectory must stay under the ignored bootstrap path");
@@ -66,6 +66,10 @@ function collectPlanFailures(plan, label) {
   assert(plan?.trustedPublisher?.workflow === releaseWorkflowPath, `trustedPublisher.workflow must be ${releaseWorkflowPath}`);
   assert(plan?.trustedPublisher?.environment === "npm", "trustedPublisher.environment must be npm");
   assert(plan?.postPublish?.configureTrustedPublisher === "required", "Trusted Publisher configuration must be required");
+  assert(
+    plan?.postPublish?.removeInitialLatestTag === "required-after-each-first-publish",
+    "initial latest dist-tag removal must be required after each first publication"
+  );
   assert(plan?.postPublish?.removeBootstrapCredential === "required", "bootstrap credential removal must be required");
   assert(plan?.postPublish?.verifyRegistryVersions === "required", "registry version verification must be required");
   assert(
@@ -133,6 +137,7 @@ function checkRunbookAndWorkflow() {
       "--tag bootstrap",
       "node scripts/check-npm-bootstrap-plan.mjs --registry-check",
       "node scripts/prepare-npm-bootstrap-artifacts.mjs --write",
+      "npm dist-tag rm",
       "npm logout",
       "Do not create a Git tag for the bootstrap version"
     ]) {
@@ -196,6 +201,19 @@ function checkPlanValidator() {
   const unsafeTagFailures = collectPlanFailures({ ...plan, distTag: "latest" }, "<npm-bootstrap-self-test-tag>");
   if (!unsafeTagFailures.some((item) => item.includes("distTag"))) {
     failures.push("npm bootstrap self-test latest dist-tag was not rejected");
+  }
+  const missingLatestRemovalFailures = collectPlanFailures(
+    {
+      ...plan,
+      postPublish: {
+        ...plan.postPublish,
+        removeInitialLatestTag: "not-required"
+      }
+    },
+    "<npm-bootstrap-self-test-latest-removal>"
+  );
+  if (!missingLatestRemovalFailures.some((item) => item.includes("latest dist-tag removal"))) {
+    failures.push("npm bootstrap self-test missing initial latest removal was not rejected");
   }
   const approvedWithoutEvidenceFailures = collectPlanFailures(
     {

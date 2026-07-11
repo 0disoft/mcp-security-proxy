@@ -85,6 +85,7 @@ try {
       sourceCommit,
       registry: plan.registry,
       credentialIncluded: false,
+      firstPublishLatestTagRemovalRequired: true,
       artifacts
     }, null, 2)}\n`,
     "utf8"
