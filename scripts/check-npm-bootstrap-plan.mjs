@@ -198,7 +198,15 @@ function checkPlanValidator() {
     failures.push("npm bootstrap self-test latest dist-tag was not rejected");
   }
   const approvedWithoutEvidenceFailures = collectPlanFailures(
-    { ...plan, status: "approved" },
+    {
+      ...plan,
+      status: "approved",
+      approval: {
+        ...plan.approval,
+        approvedBy: "UNRECORDED",
+        sourceCommit: "UNRECORDED"
+      }
+    },
     "<npm-bootstrap-self-test-approval>"
   );
   if (
