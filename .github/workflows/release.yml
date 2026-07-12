@@ -48,6 +48,9 @@ jobs:
       - name: Verify release publish plan
         run: node scripts/check-release-publish-plan.mjs
 
+      - name: Verify pinned external MCP fixture
+        run: pnpm run external-compatibility
+
       - name: Publish contracts package
         run: pnpm --filter @0disoft/mcp-security-proxy-contracts publish --access public --provenance --no-git-checks
 

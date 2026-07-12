@@ -23,13 +23,21 @@ try {
   }
 
   const expected = JSON.parse(readFileSync(expectedPath, "utf8"));
-  if (stableJson(actual) !== stableJson(expected)) {
+  if (stableJson(forCompatibilityComparison(actual)) !== stableJson(forCompatibilityComparison(expected))) {
     console.error(`${fixturePath}: external MCP fixture drifted from current implementation`);
     console.error("Run `pnpm run external-compatibility -- --update` after reviewing the drift.");
     process.exit(1);
   }
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
+}
+
+function forCompatibilityComparison(summary) {
+  const comparable = structuredClone(summary);
+  if (comparable?.scenarios?.audit) {
+    delete comparable.scenarios.audit.stderrLineCount;
+  }
+  return comparable;
 }
 
 function installExternalPackages(cwd) {

@@ -70,6 +70,7 @@ approval-grade validation output for the target commit. At minimum, record exit 
 - `pnpm run artifact-safety`
 - `pnpm run release-readiness`
 - `pnpm build` followed by `node scripts/check-external-mcp-fixture.mjs`
+- Release workflow gate: `pnpm run external-compatibility`
 - `pnpm check`
 
 The release record still owns the exact command output summary, target commit, package posture, and
@@ -90,6 +91,8 @@ This evidence does not claim:
 Synthetic local fixtures remain the regression source for malformed envelopes, unmatched responses,
 server-origin request direction checks, upstream error redaction edge cases, frame guards, and
 JSON-RPC id correlation edge cases that the external filesystem target cannot safely produce.
+The exact upstream stderr line count is diagnostic only because package-manager and upstream
+startup notices are not part of the MCP behavior contract.
 
 ## Release Use
 

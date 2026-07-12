@@ -63,8 +63,9 @@ records remain historical evidence, but they do not unlock current package manif
 release records must include the executed validation command and `exit 0` for every required
 validation evidence value. Approved release records must also use a tracked `docs/ops` rollback
 procedure and a last-known-good version that is different from the release version being approved.
-The approved target commit must be reachable from the current repository HEAD so the release record
-remains verifiable after later commits.
+The approved target commit must be reachable from the release tag commit. The publish preflight
+permits only the matching release-record file to change between those commits; any source,
+workflow, package, test, or unrelated documentation change requires a new approved target.
 The package-surface validation also packs the five candidate artifacts, rejects undeclared tarball
 paths and unresolved workspace protocols, installs them into a clean offline npm consumer, checks
 ESM and TypeScript imports against the supported Node 24 type baseline, and runs the installed CLI

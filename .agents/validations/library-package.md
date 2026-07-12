@@ -24,6 +24,7 @@ This document owns stable validation names for this scaffold.
 - validation-registry
 - ci-contract
 - compatibility
+- external-compatibility
 - license-report
 - release-readiness
 - performance-smoke

@@ -241,6 +241,11 @@ function checkReleaseWorkflowContract(releaseWorkflow) {
   assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/setup-node");
   assertContains(releaseWorkflow, `corepack prepare pnpm@${packageManager.version} --activate`, `${releaseWorkflowPath}: pnpm version`);
   assertContains(releaseWorkflow, "registry-url: https://registry.npmjs.org", `${releaseWorkflowPath}: npm registry url`);
+  assertContains(
+    releaseWorkflow,
+    "pnpm run external-compatibility",
+    `${releaseWorkflowPath}: pinned external MCP fixture verification`
+  );
   assertContains(releaseWorkflow, "pnpm install --frozen-lockfile", `${releaseWorkflowPath}: frozen lockfile install`);
   assertContains(releaseWorkflow, "pnpm run check", `${releaseWorkflowPath}: repository check command`);
   assertContains(releaseWorkflow, "node scripts/check-release-publish-plan.mjs", `${releaseWorkflowPath}: publish plan preflight`);

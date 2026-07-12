@@ -25,9 +25,9 @@ if (!tagVersionMatch) {
   failures.push(`release tag must match vMAJOR.MINOR.PATCH[-PRERELEASE], got ${tagName || "<missing>"}`);
 } else {
   const releaseVersion = tagVersionMatch[1];
-  const releaseRecord = findApprovedReleaseRecord(releaseVersion);
-  if (releaseRecord) {
-    checkReleaseRecord(releaseRecord, releaseVersion);
+  const releaseEntry = findApprovedReleaseRecord(releaseVersion);
+  if (releaseEntry) {
+    checkReleaseRecord(releaseEntry.record, releaseVersion, releaseEntry.path);
   }
 }
 
@@ -48,8 +48,8 @@ function findApprovedReleaseRecord(releaseVersion) {
   const records = readdirSync(releaseRecordsDir)
     .filter((name) => name.endsWith(".release.json"))
     .sort((left, right) => left.localeCompare(right))
-    .map((name) => readJson(join(releaseRecordsDir, name)));
-  const matches = records.filter((record) => record.status === "approved" && record.releaseVersion === releaseVersion);
+    .map((name) => ({ path: join(releaseRecordsDir, name), record: readJson(join(releaseRecordsDir, name)) }));
+  const matches = records.filter((entry) => entry.record.status === "approved" && entry.record.releaseVersion === releaseVersion);
   if (matches.length === 0) {
     failures.push(`no approved release record found for ${releaseVersion}`);
     return undefined;
@@ -61,9 +61,11 @@ function findApprovedReleaseRecord(releaseVersion) {
   return matches[0];
 }
 
-function checkReleaseRecord(record, releaseVersion) {
+function checkReleaseRecord(record, releaseVersion, recordPath) {
   if (!isReachableCommit(record.targetCommit)) {
     failures.push(`release record targetCommit must be reachable from current HEAD: ${record.targetCommit || "<missing>"}`);
+  } else {
+    checkChangesAfterApprovedTarget(record.targetCommit, recordPath);
   }
   if (!String(record.registryTarget ?? "").includes("npmjs.org")) {
     failures.push("release record registryTarget must name npmjs.org");
@@ -84,6 +86,24 @@ function checkReleaseRecord(record, releaseVersion) {
       continue;
     }
     checkPackageManifest(item, releaseVersion);
+  }
+}
+
+function checkChangesAfterApprovedTarget(targetCommit, recordPath) {
+  const changedPaths = execFileSync("git", ["diff", "--name-only", `${targetCommit}..${currentHead}`], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  })
+    .split(/\r?\n/u)
+    .filter(Boolean)
+    .map((path) => path.replaceAll("\\", "/"));
+  const allowedPath = recordPath.slice(root.length + 1).replaceAll("\\", "/");
+  const unexpectedPaths = changedPaths.filter((path) => path !== allowedPath);
+  if (unexpectedPaths.length > 0) {
+    failures.push(
+      `release tag contains changes after targetCommit outside its approval record: ${unexpectedPaths.join(", ")}`
+    );
   }
 }
 

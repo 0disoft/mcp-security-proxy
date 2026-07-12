@@ -70,7 +70,7 @@
         "tool.not_visible"
       ],
       "redactionAppliedCount": 1,
-      "stderrLineCount": 4,
+      "stderrLineCount": 2,
       "containsRawFixtureRoot": false
     }
   }
