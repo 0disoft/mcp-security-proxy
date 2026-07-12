@@ -29,6 +29,7 @@ export const DECISION_REASON_CODES = [
   "policy.secret_capability_required",
   "policy.unknown_capability",
   "policy.approval_denied",
+  "policy.approval_granted",
   "policy.approval_hook_failed",
   "policy.approval_hook_missing",
   "runtime.upstream_exit",

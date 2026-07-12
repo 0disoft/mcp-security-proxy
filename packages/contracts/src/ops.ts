@@ -15,6 +15,7 @@ export interface StdioProxyMetrics {
   readonly upstreamDenials: number;
   readonly protocolResponsesWritten: number;
   readonly auditEventsWritten: number;
+  readonly auditWriteFailures: number;
 }
 
 export type StdioProxyOpsEvent =

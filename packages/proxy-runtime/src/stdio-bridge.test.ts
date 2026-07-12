@@ -276,8 +276,8 @@ describe("stdio proxy bridge", () => {
         kind: "call-decision",
         toolName: "run_command",
         decision: expect.objectContaining({
-          action: "approval_required",
-          evidence: [expect.objectContaining({ ruleId: "approval-shell" })]
+          action: "allow",
+          evidence: [expect.objectContaining({ code: "policy.approval_granted", ruleId: "approval-shell" })]
         })
       })
     );
@@ -537,6 +537,10 @@ describe("stdio proxy bridge", () => {
 
     const result = await resultPromise;
     expect(result.exitCode).toBe(0);
+    expect(harness.opsEvents.at(-1)).toMatchObject({
+      event: "proxy.stop",
+      metrics: { auditEventsWritten: 0, auditWriteFailures: 1 }
+    });
     expect(harness.upstream.killed).toBe(false);
     expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
       expect.objectContaining({

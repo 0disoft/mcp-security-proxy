@@ -640,7 +640,7 @@ describe("proxy runtime session", () => {
     });
   });
 
-  it("expires pending client requests before duplicate and response correlation checks", async () => {
+  it("keeps pending client requests correlated beyond the server-origin TTL", async () => {
     const session = createProxySession({
       policy: readPolicy(),
       profileId: "local",
@@ -657,21 +657,15 @@ describe("proxy runtime session", () => {
     expect(first.forwardLine).toBeTruthy();
     await sleep(5);
 
-    const staleResponse = session.handleServerLine(
+    const lateResponse = session.handleServerLine(
       JSON.stringify({
         jsonrpc: "2.0",
         id: "expires-client-id",
         result: {}
       })
     );
-    expect(staleResponse.forwardLine).toBeUndefined();
-    expect(staleResponse.auditEvents[0]).toMatchObject({
-      kind: "error",
-      decision: {
-        action: "deny",
-        evidence: [{ code: "jsonrpc.unmatched_response" }]
-      }
-    });
+    expect(lateResponse.forwardLine).toBeTruthy();
+    expect(lateResponse.auditEvents).toEqual([]);
 
     const reused = session.handleClientLine(
       JSON.stringify({
@@ -2201,6 +2195,44 @@ describe("proxy runtime session", () => {
     });
   });
 
+  it("accumulates visible tools across a paginated discovery cursor chain", () => {
+    const session = createProxySession({ policy: readPolicy(), profileId: "local" });
+
+    session.handleClientLine(JSON.stringify({ jsonrpc: "2.0", id: "tools-page-1", method: "tools/list" }));
+    session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-page-1",
+        result: {
+          tools: [{ name: "read_file", description: "Read a file" }],
+          nextCursor: "page-2"
+        }
+      })
+    );
+    session.handleClientLine(
+      JSON.stringify({ jsonrpc: "2.0", id: "tools-page-2", method: "tools/list", params: { cursor: "page-2" } })
+    );
+    session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "tools-page-2",
+        result: { tools: [{ name: "read_text_file", description: "Read another file" }] }
+      })
+    );
+
+    const firstPageCall = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-page-1-tool",
+        method: "tools/call",
+        params: { name: "read_file", arguments: { path: "workspace/public/readme.md" } }
+      })
+    );
+
+    expect(firstPageCall.forwardLine).toBeTruthy();
+    expect(firstPageCall.responseLine).toBeUndefined();
+  });
+
   it("shows secret tools in discovery only when a secret label policy covers them", () => {
     const session = createProxySession({
       policy: readSecretLabelPolicy(),
@@ -3238,8 +3270,8 @@ describe("proxy runtime session", () => {
       kind: "call-decision",
       toolName: "run_command",
       decision: {
-        action: "approval_required",
-        evidence: [{ ruleId: "approval-shell" }]
+        action: "allow",
+        evidence: [{ code: "policy.approval_granted", ruleId: "approval-shell" }]
       }
     });
   });

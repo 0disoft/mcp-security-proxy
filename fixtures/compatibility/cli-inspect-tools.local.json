@@ -30,7 +30,7 @@
           "reason": "tool text mentions shell or command"
         }
       ],
-      "policyCovered": true
+      "policyCovered": false
     },
     {
       "name": "read_secret",

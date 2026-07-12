@@ -32,7 +32,9 @@ non-secret convenience defaults.
 - Live `run` reads policy at startup; hot reload is not implemented.
 - Audit output is append-oriented JSONL at the selected path.
 - Ops output is append-oriented JSONL at the selected path when configured.
-- Upstream environment passthrough must stay allowlist-based if environment support is added.
+- Live `run` does not inherit the full parent environment. It passes only `PATH` and `TMPDIR` on
+  POSIX, and `PATH`, `PATHEXT`, `SystemRoot`, `WINDIR`, `ComSpec`, `TEMP`, and `TMP` on Windows.
+  Arbitrary upstream environment values require a future explicit allowlist contract.
 - Secret values must not be stored in policy examples, audit events, CLI JSON output, or error
   messages.
 

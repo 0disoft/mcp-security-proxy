@@ -78,6 +78,8 @@ Before public release, validation evidence must include:
 - operator guidance for audit log path ownership and retention;
 - export guidance that names the audit field allowlist and forbidden raw data;
 - lifecycle metrics evidence for live `run` when `--ops-log` is configured;
+- `auditWriteFailures` distinguishes an empty audit stream from failed writes under
+  `warn_and_continue`;
 - incident evidence that does not require raw prompts, raw tool arguments, or raw secrets.
 
 ## Validation

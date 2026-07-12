@@ -3,6 +3,7 @@
   "action": "deny",
   "evidence": [
     {
+      "capability": "network",
       "code": "policy.default_deny",
       "reason": "default deny"
     }

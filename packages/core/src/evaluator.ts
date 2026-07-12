@@ -46,17 +46,53 @@ export function evaluateToolCall(options: EvaluateToolCallOptions): PolicyDecisi
     return deny("unknown capability denied by default", "unknown", "policy.unknown_capability");
   }
 
+  const capabilities = [...new Set(options.call.capabilities)];
+  if (capabilities.length === 0) {
+    return deny("tool call has no classified capability", undefined, "policy.default_deny");
+  }
+
+  const decisions = capabilities.map((capability) =>
+    evaluateCapability(profile.rules, options.call, capability, options.approvalHookAvailable)
+  );
+  const denied = decisions.find((decision) => decision.action === "deny");
+  if (denied) {
+    return denied;
+  }
+  const approvalEvidence = decisions
+    .filter((decision) => decision.action === "approval_required")
+    .flatMap((decision) => decision.evidence);
+  if (approvalEvidence.length > 0) {
+    return {
+      schemaVersion: DECISION_SCHEMA_VERSION,
+      action: "approval_required",
+      evidence: approvalEvidence
+    };
+  }
+  return {
+    schemaVersion: DECISION_SCHEMA_VERSION,
+    action: "allow",
+    evidence: decisions.flatMap((decision) => decision.evidence)
+  };
+}
+
+function evaluateCapability(
+  rules: readonly PolicyRule[],
+  call: NormalizedToolCall,
+  capability: Capability,
+  approvalHookAvailable: boolean | undefined
+): PolicyDecision {
+  const capabilityCall: NormalizedToolCall = { ...call, capabilities: [capability] };
   for (const action of ["deny", "approval_required", "allow"] as const) {
-    const rule = profile.rules.find((candidate) => candidate.action === action && ruleMatches(candidate, options.call));
+    const rule = rules.find((candidate) => candidate.action === action && ruleMatches(candidate, capabilityCall));
     if (rule) {
       const evidence: DecisionEvidence = {
         code: codeForRuleAction(action),
         ruleId: rule.id,
-        ...withCapability(firstMatchingCapability(rule, options.call)),
+        capability,
         reason: `matched ${action} rule`
       };
 
-      if (action === "approval_required" && !options.approvalHookAvailable) {
+      if (action === "approval_required" && !approvalHookAvailable) {
         return {
           schemaVersion: DECISION_SCHEMA_VERSION,
           action: "deny",
@@ -78,13 +114,12 @@ export function evaluateToolCall(options: EvaluateToolCallOptions): PolicyDecisi
     }
   }
 
-  return deny("default deny", undefined, "policy.default_deny");
+  return deny("default deny", capability, "policy.default_deny");
 }
 
 function ruleMatches(rule: PolicyRule, call: NormalizedToolCall): boolean {
   const toolMatches = !rule.tools || rule.tools.includes(call.toolName);
-  const capabilityMatches =
-    !rule.capabilities || call.capabilities.some((capability) => rule.capabilities?.includes(capability));
+  const capabilityMatches = !rule.capabilities || call.capabilities.every((capability) => rule.capabilities?.includes(capability));
   const methodMatches = !rule.methods || rule.methods.includes(call.method);
   const pathMatches = matcherMatches("path", rule, call);
   const commandMatches = matcherMatches("command", rule, call);
@@ -92,10 +127,6 @@ function ruleMatches(rule: PolicyRule, call: NormalizedToolCall): boolean {
   const secretMatches = matcherMatches("secret", rule, call);
 
   return toolMatches && capabilityMatches && methodMatches && pathMatches && commandMatches && networkMatches && secretMatches;
-}
-
-function firstMatchingCapability(rule: PolicyRule, call: NormalizedToolCall): Capability | undefined {
-  return call.capabilities.find((capability) => rule.capabilities?.includes(capability));
 }
 
 function withCapability(capability: Capability | undefined): { readonly capability: Capability } | Record<string, never> {

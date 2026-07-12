@@ -6,7 +6,12 @@ import {
   type NormalizedToolCall,
   type PolicyDocument
 } from "@0disoft/mcp-security-proxy-contracts";
-import { classifyToolDescriptor, evaluateToolCall, formatAuditEventJsonLine } from "@0disoft/mcp-security-proxy-core";
+import {
+  classifyToolDescriptor,
+  evaluateToolCall,
+  formatAuditEventJsonLine,
+  toolHasNonDenyPolicyCoverage
+} from "@0disoft/mcp-security-proxy-core";
 import {
   formatStdioOpsEventJsonLine,
   runStdioProxy,
@@ -50,6 +55,23 @@ interface ParsedArgs {
 const maximumShutdownGraceMs = 2_147_483_647;
 const maximumFrameBytes = 16_777_216;
 const maximumJsonDepth = 256;
+const allowedFlagsByCommand: Readonly<Record<CommandName, ReadonlySet<string>>> = {
+  run: new Set([
+    "policy",
+    "profile",
+    "audit-log",
+    "ops-log",
+    "shutdown-grace-ms",
+    "max-frame-bytes",
+    "max-json-depth",
+    "approval-hook",
+    "json",
+    "help"
+  ]),
+  "check-policy": new Set(["policy", "json", "help"]),
+  "inspect-tools": new Set(["input", "policy", "profile", "json", "help"]),
+  "eval-call": new Set(["policy", "input", "profile", "approval-hook", "json", "help"])
+};
 
 export function createCommandRegistry(): readonly CommandContract[] {
   return [
@@ -90,6 +112,7 @@ export function runCli(argv: readonly string[], io: CliIo): CliResult {
   }
 
   try {
+    assertAllowedFlags(command, parsed.flags);
     if (command === "run") {
       writeError(io, 2, "run requires async CLI IO; use runCliAsync for live proxy execution", parsed.flags["json"] === true);
       return { exitCode: 2 };
@@ -122,6 +145,7 @@ export async function runCliAsync(argv: readonly string[], io: CliRunIo): Promis
   }
 
   try {
+    assertAllowedFlags("run", parsed.flags);
     return await runProxy(parsed.flags, parsed.positionals, parsed.separatorSeen, io);
   } catch (error) {
     if (error instanceof CliError) {
@@ -202,7 +226,9 @@ function inspectTools(flags: Readonly<Record<string, string | true>>, io: CliIo)
         source: item.source,
         reason: item.reason
       })),
-      policyCovered: profile ? profile.rules.some((rule) => ruleCoversTool(rule, classified.descriptor.name, classified.descriptor.capabilities)) : false
+      policyCovered: profile
+        ? toolHasNonDenyPolicyCoverage(profile.rules, classified.descriptor.name, classified.descriptor.capabilities)
+        : false
     };
   });
 
@@ -319,6 +345,13 @@ function readFlag(argv: readonly string[], index: number, flags: Record<string, 
   }
   flags[name] = next;
   return index + 2;
+}
+
+function assertAllowedFlags(command: CommandName, flags: Readonly<Record<string, string | true>>): void {
+  const unknown = Object.keys(flags).filter((name) => !allowedFlagsByCommand[command].has(name));
+  if (unknown.length > 0) {
+    throw new CliError(2, `unknown flag for ${command}: --${unknown[0]}`);
+  }
 }
 
 function isHelpRequest(parsed: ParsedArgs): boolean {
@@ -559,12 +592,6 @@ async function runProxy(
 
 function isCommandName(value: string): value is CommandName {
   return ["run", "check-policy", "inspect-tools", "eval-call"].includes(value);
-}
-
-function ruleCoversTool(rule: PolicyDocument["profiles"][number]["rules"][number], toolName: string, capabilities: readonly string[]): boolean {
-  const toolCovered = rule.tools?.includes(toolName) ?? false;
-  const capabilityCovered = capabilities.some((capability) => rule.capabilities?.includes(capability as never));
-  return toolCovered || capabilityCovered;
 }
 
 function stripUndefined(value: unknown): unknown {

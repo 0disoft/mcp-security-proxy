@@ -14,7 +14,8 @@
       "clientDenials": 0,
       "upstreamDenials": 0,
       "protocolResponsesWritten": 0,
-      "auditEventsWritten": 0
+      "auditEventsWritten": 0,
+      "auditWriteFailures": 0
     }
   },
   {
@@ -33,7 +34,8 @@
       "clientDenials": 1,
       "upstreamDenials": 0,
       "protocolResponsesWritten": 1,
-      "auditEventsWritten": 1
+      "auditEventsWritten": 1,
+      "auditWriteFailures": 0
     }
   }
 ]

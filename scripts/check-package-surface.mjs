@@ -30,7 +30,18 @@ const expectedPackageFiles = new Map([
 const expectedEntrypointReExports = new Map([
   ["cli", ["./commands.js"]],
   ["contracts", ["./policy.js", "./decision.js", "./audit.js", "./ops.js", "./validation.js"]],
-  ["core", ["./method-policy.js", "./matchers.js", "./classifier.js", "./evaluator.js", "./redactor.js", "./audit.js"]],
+  [
+    "core",
+    [
+      "./method-policy.js",
+      "./matchers.js",
+      "./classifier.js",
+      "./evaluator.js",
+      "./redactor.js",
+      "./audit.js",
+      "./tool-policy-coverage.js"
+    ]
+  ],
   ["mcp-adapter", ["./jsonrpc.js", "./method-policy.js", "./tool-call.js"]],
   ["proxy-runtime", ["./startup-plan.js", "./session.js", "./stdio-bridge.js"]],
   ["testkit", ["./fixtures.js"]]

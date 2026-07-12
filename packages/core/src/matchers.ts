@@ -146,6 +146,9 @@ function isWithinRoot(value: string, root: string): boolean {
 }
 
 function executableMatches(ruleExecutable: string, factExecutable: string): boolean {
+  if (/[\\/]/u.test(ruleExecutable)) {
+    return ruleExecutable.replaceAll("\\", "/") === factExecutable.replaceAll("\\", "/");
+  }
   return basename(ruleExecutable).toLowerCase() === basename(factExecutable).toLowerCase();
 }
 

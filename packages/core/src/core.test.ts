@@ -13,6 +13,7 @@ import { classifyToolDescriptor } from "./classifier.js";
 import { evaluateToolCall } from "./evaluator.js";
 import { evaluateMcpMethod } from "./method-policy.js";
 import { redactText } from "./redactor.js";
+import { toolHasNonDenyPolicyCoverage } from "./tool-policy-coverage.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -49,6 +50,67 @@ describe("MCP Security Proxy core", () => {
     expect(decision.action).toBe("allow");
     expect(decision.evidence[0]?.code).toBe("policy.rule_allow");
     expect(decision.evidence[0]?.ruleId).toBe("allow-public-files");
+  });
+
+  it("requires every classified capability to receive a non-deny decision", () => {
+    const policy = policyWithRule({
+      id: "allow-file-read",
+      action: "allow",
+      capabilities: ["file-read"]
+    });
+    const profile = policy.profiles.find((item) => item.id === "local");
+    if (!profile) {
+      throw new Error("local profile missing");
+    }
+
+    const decision = evaluateToolCall({
+      policy,
+      profileId: "local",
+      call: {
+        method: "tools/call",
+        toolName: "read_file_command",
+        capabilities: ["file-read", "shell"],
+        argumentFacts: []
+      }
+    });
+
+    expect(decision).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.default_deny", capability: "shell" }]
+    });
+    expect(
+      toolHasNonDenyPolicyCoverage(profile.rules, "read_file_command", ["file-read", "shell"])
+    ).toBe(false);
+  });
+
+  it("allows multi-capability calls only when every capability is covered", () => {
+    const policy = readFixture<PolicyDocument>("fixtures/policies/local-dev.json");
+    const profile = policy.profiles.find((item) => item.id === "local");
+    if (!profile) {
+      throw new Error("local profile missing");
+    }
+    const rules = [
+      { id: "allow-file-read", action: "allow", capabilities: ["file-read"] },
+      { id: "allow-shell", action: "allow", capabilities: ["shell"] }
+    ] as const;
+    const multiCapabilityPolicy: PolicyDocument = {
+      ...policy,
+      profiles: policy.profiles.map((item) => (item.id === "local" ? { ...item, rules } : item))
+    };
+
+    expect(
+      evaluateToolCall({
+        policy: multiCapabilityPolicy,
+        profileId: "local",
+        call: {
+          method: "tools/call",
+          toolName: "read_file_command",
+          capabilities: ["file-read", "shell"],
+          argumentFacts: []
+        }
+      })
+    ).toMatchObject({ action: "allow" });
+    expect(toolHasNonDenyPolicyCoverage(rules, "read_file_command", ["file-read", "shell"])).toBe(true);
   });
 
   it("denies file-read when any path fact falls outside the allow root", () => {
@@ -156,6 +218,28 @@ describe("MCP Security Proxy core", () => {
     expect(decision.action).toBe("deny");
     expect(decision.evidence[0]?.code).toBe("policy.free_form_shell");
     expect(decision.evidence[0]?.reason).toBe("free-form shell command denied by default");
+  });
+
+  it("does not collapse an absolute executable policy to a bare basename", () => {
+    const policy = policyWithRule({
+      id: "allow-system-git",
+      action: "allow",
+      capabilities: ["shell"],
+      commands: [{ executable: "/usr/bin/git", argv: ["status"] }]
+    });
+
+    expect(
+      evaluateToolCall({
+        policy,
+        profileId: "local",
+        call: {
+          method: "tools/call",
+          toolName: "run_command",
+          capabilities: ["shell"],
+          argumentFacts: [{ kind: "command", executable: "git", argv: ["status"] }]
+        }
+      })
+    ).toMatchObject({ action: "deny", evidence: [{ code: "policy.default_deny" }] });
   });
 
   it("denies interpreter inline-code flags before shell allow rules can match", () => {

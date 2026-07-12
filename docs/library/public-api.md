@@ -34,6 +34,7 @@ This repository type owns public API surface, package compatibility, semantic ve
 - `method-policy`: classify supported, unsupported, and denied MCP methods.
 - `classifier`: map MCP tool descriptors to capability labels.
 - `evaluator`: evaluate tool calls against policy and return allow, deny, or approval-required.
+- `tool-policy-coverage`: require non-deny discovery coverage for every classified capability.
 - `redactor`: redact secret-like values before output.
 - `audit`: create audit event objects with `createAuditEvent` and format one JSON Lines record
   with `formatAuditEventJsonLine`.

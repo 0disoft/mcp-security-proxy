@@ -59,7 +59,8 @@
         "clientDenials",
         "upstreamDenials",
         "protocolResponsesWritten",
-        "auditEventsWritten"
+        "auditEventsWritten",
+        "auditWriteFailures"
       ],
       "properties": {
         "clientFrames": { "type": "integer", "minimum": 0 },
@@ -69,7 +70,8 @@
         "clientDenials": { "type": "integer", "minimum": 0 },
         "upstreamDenials": { "type": "integer", "minimum": 0 },
         "protocolResponsesWritten": { "type": "integer", "minimum": 0 },
-        "auditEventsWritten": { "type": "integer", "minimum": 0 }
+        "auditEventsWritten": { "type": "integer", "minimum": 0 },
+        "auditWriteFailures": { "type": "integer", "minimum": 0 }
       },
       "additionalProperties": false
     }

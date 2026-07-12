@@ -63,7 +63,9 @@ All other outcomes fail closed without forwarding the call:
 - missing hook in a path that requires one.
 
 Host-provided rejection reasons are host-owned input. They are not forwarded or stored verbatim.
-Audit and denial output use stable decision codes such as `policy.approval_denied`,
+Approval hooks fail closed after 30 seconds unless an embedding host configures a shorter positive
+timeout. Successful approval audit output records the final `allow` action with
+`policy.approval_granted`. Audit and denial output use stable decision codes such as `policy.approval_denied`,
 `policy.approval_hook_failed`, and `policy.approval_hook_missing`.
 
 ## Non-Goals

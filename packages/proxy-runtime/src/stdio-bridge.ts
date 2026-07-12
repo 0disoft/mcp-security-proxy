@@ -19,7 +19,7 @@ export interface UpstreamProcess {
   readonly stdout: Readable;
   readonly stderr?: Readable;
   readonly exit: Promise<number>;
-  readonly kill: () => void;
+  readonly kill: (force?: boolean) => void;
 }
 
 export interface StdioProxyOptions {
@@ -85,7 +85,8 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     clientDenials: 0,
     upstreamDenials: 0,
     protocolResponsesWritten: 0,
-    auditEventsWritten: 0
+    auditEventsWritten: 0,
+    auditWriteFailures: 0
   };
 
   const recordAudit = async (events: readonly AuditEvent[]): Promise<void> => {
@@ -94,6 +95,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
         await options.writeAuditEvent(event);
         metrics.auditEventsWritten += 1;
       } catch {
+        metrics.auditWriteFailures += 1;
         if (profile.audit.onFailure === "fail_closed") {
           throw new AuditFailure("audit write failed");
         }
@@ -238,7 +240,8 @@ function snapshotMetrics(metrics: StdioProxyMetrics): StdioProxyMetrics {
     clientDenials: metrics.clientDenials,
     upstreamDenials: metrics.upstreamDenials,
     protocolResponsesWritten: metrics.protocolResponsesWritten,
-    auditEventsWritten: metrics.auditEventsWritten
+    auditEventsWritten: metrics.auditEventsWritten,
+    auditWriteFailures: metrics.auditWriteFailures
   };
 }
 
@@ -358,8 +361,18 @@ async function waitForUpstreamExitOrKill(
 ): Promise<number> {
   const timeoutExit = new Promise<number>((resolve) => {
     const timer = setTimeout(() => {
-      upstream.kill();
-      resolve(timeoutExitCode);
+      upstream.kill(false);
+      const forceTimer = setTimeout(() => {
+        upstream.kill(true);
+        upstream.stdin.destroy();
+        upstream.stdout.destroy();
+        upstream.stderr?.destroy();
+        resolve(timeoutExitCode);
+      }, 250);
+      upstreamExit.finally(() => {
+        clearTimeout(forceTimer);
+        resolve(timeoutExitCode);
+      });
     }, Math.max(0, shutdownGraceMs));
     upstreamExit.finally(() => clearTimeout(timer));
   });

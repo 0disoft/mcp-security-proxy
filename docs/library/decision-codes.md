@@ -56,6 +56,7 @@ must move together. After public release, semantic versioning and migration guid
 | `policy.secret_capability_required` | A secret-like argument fact appeared without explicit secret capability. |
 | `policy.unknown_capability` | An unknown capability was denied before rule evaluation. |
 | `policy.approval_denied` | A host approval hook rejected an approval-required call. |
+| `policy.approval_granted` | A host approval hook approved an approval-required call and the final enforcement action is allow. |
 | `policy.approval_hook_failed` | A host approval hook errored or timed out and the call failed closed. |
 | `policy.approval_hook_missing` | No approval hook was available for an approval-required call. |
 | `runtime.upstream_exit` | The upstream process exited non-zero or terminated unexpectedly. |

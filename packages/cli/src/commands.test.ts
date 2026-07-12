@@ -54,6 +54,19 @@ describe("dry-run CLI commands", () => {
     });
   });
 
+  it("rejects unknown command flags instead of silently using defaults", () => {
+    const output = invoke([
+      "check-policy",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--max-fram-bytes",
+      "1024"
+    ]);
+
+    expect(output.exitCode).toBe(2);
+    expect(output.stderr).toEqual(["unknown flag for check-policy: --max-fram-bytes"]);
+  });
+
   it("classifies captured tool lists without forwarding calls", () => {
     const output = invoke([
       "inspect-tools",

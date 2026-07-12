@@ -6,10 +6,15 @@ import {
   type NormalizedToolCall,
   type PolicyDecision,
   type PolicyDocument,
-  type PolicyRule,
   type RedactionSummary
 } from "@0disoft/mcp-security-proxy-contracts";
-import { classifyToolDescriptor, createAuditEvent, evaluateToolCall, redactText } from "@0disoft/mcp-security-proxy-core";
+import {
+  classifyToolDescriptor,
+  createAuditEvent,
+  evaluateToolCall,
+  redactText,
+  toolHasNonDenyPolicyCoverage
+} from "@0disoft/mcp-security-proxy-core";
 import {
   evaluateEnvelopeMethod,
   isJsonRpcErrorResponse,
@@ -62,6 +67,7 @@ interface ToolMetadata {
 interface PendingRequestState {
   readonly method: string;
   readonly expiresAt: number;
+  readonly continuesDiscovery?: boolean;
 }
 
 type JsonRpcRequestEnvelope = JsonRpcRequest | JsonRpcNotification;
@@ -76,6 +82,7 @@ const defaultMaxFrameBytes = 1_048_576;
 const defaultMaxJsonDepth = 64;
 const defaultMaxPendingRequests = 1_024;
 const defaultPendingRequestTtlMs = 300_000;
+const defaultApprovalTimeoutMs = 30_000;
 const discoveryMetadataRedactionKeys = new Set(["default", "example", "examples", "$comment", "_meta"]);
 const jsonRpcRequestEnvelopeKeys = new Set(["jsonrpc", "id", "method", "params"]);
 const jsonRpcResponseEnvelopeKeys = new Set(["jsonrpc", "id", "result", "error"]);
@@ -89,14 +96,14 @@ export class ProxySession {
   private readonly maxJsonDepth: number;
   private readonly maxPendingRequests: number;
   private readonly pendingRequestTtlMs: number;
-  private readonly approvalTimeoutMs: number | undefined;
+  private readonly approvalTimeoutMs: number;
 
   constructor(private readonly options: ProxySessionOptions) {
     this.maxFrameBytes = resolvePositiveInteger(options.maxFrameBytes, defaultMaxFrameBytes);
     this.maxJsonDepth = resolvePositiveInteger(options.maxJsonDepth, defaultMaxJsonDepth);
     this.maxPendingRequests = resolvePositiveInteger(options.maxPendingRequests, defaultMaxPendingRequests);
     this.pendingRequestTtlMs = resolvePositiveInteger(options.pendingRequestTtlMs, defaultPendingRequestTtlMs);
-    this.approvalTimeoutMs = resolveOptionalPositiveInteger(options.approvalTimeoutMs);
+    this.approvalTimeoutMs = resolvePositiveInteger(options.approvalTimeoutMs, defaultApprovalTimeoutMs);
   }
 
   handleClientLine(line: string): ProxyFrameResult {
@@ -390,9 +397,18 @@ export class ProxySession {
         return this.withPrependedAuditEvents(preparedAuditEvents, pendingDenied);
       }
       this.rememberPendingRequest(envelope);
+      const finalDecision: PolicyDecision = {
+        schemaVersion: decision.schemaVersion,
+        action: "allow",
+        evidence: decision.evidence.map((evidence) => ({
+          ...evidence,
+          code: "policy.approval_granted",
+          reason: "approval required call approved by approval hook"
+        }))
+      };
       return {
         forwardLine: line,
-        auditEvents: [...preparedAuditEvents, this.createAudit("call-decision", decision, normalized.toolName)]
+        auditEvents: [...preparedAuditEvents, this.createAudit("call-decision", finalDecision, normalized.toolName)]
       };
     }
 
@@ -413,9 +429,6 @@ export class ProxySession {
 
   private async callApprovalHook(approvalHook: ApprovalHook, call: NormalizedToolCall, decision: PolicyDecision): Promise<ApprovalResult> {
     const approval = approvalHook({ call, decision });
-    if (this.approvalTimeoutMs === undefined) {
-      return await approval;
-    }
     return await withApprovalTimeout(approval, this.approvalTimeoutMs);
   }
 
@@ -474,8 +487,8 @@ export class ProxySession {
     ];
     const responseLine = sanitized.redactionApplied ? JSON.stringify(sanitized.envelope) : line;
 
-    const requestMethod = this.takePendingMethod(sanitized.envelope);
-    if (!requestMethod) {
+    const pendingRequest = this.takePendingRequest(sanitized.envelope);
+    if (!pendingRequest) {
       return {
         auditEvents: [
           ...sanitizeAuditEvents,
@@ -487,7 +500,7 @@ export class ProxySession {
       };
     }
 
-    if (requestMethod !== "tools/list") {
+    if (pendingRequest.method !== "tools/list") {
       return {
         forwardLine: responseLine,
         auditEvents: sanitizeAuditEvents
@@ -495,7 +508,9 @@ export class ProxySession {
     }
 
     if ("error" in sanitized.envelope) {
-      this.visibleTools.clear();
+      if (!pendingRequest.continuesDiscovery) {
+        this.visibleTools.clear();
+      }
       return {
         forwardLine: responseLine,
         auditEvents: sanitizeAuditEvents
@@ -503,7 +518,9 @@ export class ProxySession {
     }
 
     const result = filterToolListResult(sanitized.envelope, this.options.policy, this.options.profileId);
-    this.visibleTools.clear();
+    if (!pendingRequest.continuesDiscovery) {
+      this.visibleTools.clear();
+    }
     for (const tool of result.visibleTools) {
       this.visibleTools.set(tool.name, tool);
     }
@@ -514,22 +531,25 @@ export class ProxySession {
     };
   }
 
-  private takePendingMethod(envelope: JsonRpcResponse): string | undefined {
+  private takePendingRequest(envelope: JsonRpcResponse): PendingRequestState | undefined {
     if (envelope.id === undefined) {
       return undefined;
     }
-    this.evictExpiredPendingRequests(this.pendingRequestMethods);
     const key = requestIdKey(envelope.id);
-    const method = this.pendingRequestMethods.get(key)?.method;
+    const pending = this.pendingRequestMethods.get(key);
     this.pendingRequestMethods.delete(key);
-    return method;
+    return pending;
   }
 
   private rememberPendingRequest(envelope: JsonRpcRequestEnvelope): void {
     if (!hasJsonRpcRequestId(envelope)) {
       return;
     }
-    this.pendingRequestMethods.set(requestIdKey(envelope.id), this.createPendingRequestState(envelope.method));
+    this.pendingRequestMethods.set(requestIdKey(envelope.id), {
+      method: envelope.method,
+      expiresAt: Number.POSITIVE_INFINITY,
+      ...(envelope.method === "tools/list" && hasDiscoveryCursor(envelope) ? { continuesDiscovery: true } : {})
+    });
   }
 
   private takePendingServerOriginMethod(envelope: JsonRpcResponse): string | undefined {
@@ -1144,6 +1164,10 @@ function readToolCallName(envelope: JsonRpcEnvelope): string {
   return typeof params["name"] === "string" ? params["name"] : "";
 }
 
+function hasDiscoveryCursor(envelope: JsonRpcRequestEnvelope): boolean {
+  return isRecord(envelope.params) && typeof envelope.params["cursor"] === "string";
+}
+
 function filterToolListResult(
   envelope: JsonRpcEnvelope,
   policy: PolicyDocument,
@@ -1296,16 +1320,7 @@ function toolIsDiscoverable(tool: ToolMetadata, policy: PolicyDocument, profileI
     return false;
   }
 
-  return profile.rules.some((rule) => {
-    if (rule.action === "deny") {
-      return false;
-    }
-    return ruleCoversTool(rule, tool);
-  });
-}
-
-function ruleCoversTool(rule: PolicyRule, tool: ToolMetadata): boolean {
-  return Boolean(rule.tools?.includes(tool.name)) || tool.capabilities.some((capability) => rule.capabilities?.includes(capability));
+  return toolHasNonDenyPolicyCoverage(profile.rules, tool.name, tool.capabilities);
 }
 
 function encodeJsonRpcError(id: string | number | null, code: number, message: string, decision: PolicyDecision): string {
@@ -1389,13 +1404,6 @@ function approvalEvidence(decision: PolicyDecision): Omit<DecisionEvidence, "cod
 function resolvePositiveInteger(value: number | undefined, fallback: number): number {
   if (value === undefined || !Number.isSafeInteger(value) || value < 1) {
     return fallback;
-  }
-  return value;
-}
-
-function resolveOptionalPositiveInteger(value: number | undefined): number | undefined {
-  if (value === undefined || !Number.isSafeInteger(value) || value < 1) {
-    return undefined;
   }
   return value;
 }
