@@ -1,7 +1,7 @@
 {
   "name": "@0disoft/mcp-security-proxy-core",
   "description": "IO-free policy evaluation, classification, redaction, and audit helpers for MCP Security Proxy.",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {

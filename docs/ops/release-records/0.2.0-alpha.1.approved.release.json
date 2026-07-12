@@ -1,8 +1,8 @@
 {
   "schemaVersion": "msp.release-readiness.v1",
   "status": "approved",
-  "releaseVersion": "0.2.0-alpha.0",
-  "targetCommit": "1d6713c21d2c0c92f4e4223e416d3f39b1b84b5a",
+  "releaseVersion": "0.2.0-alpha.1",
+  "targetCommit": "7fc65b616fe079c0c50eec75c45bbd01e080a9aa",
   "registryTarget": "npmjs.org via npm Trusted Publisher",
   "publishCredentialsOwner": "npm Trusted Publisher configured by 0disoft for GitHub Actions release.yml environment npm",
   "publicPackages": [

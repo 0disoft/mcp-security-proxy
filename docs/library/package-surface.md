@@ -18,14 +18,14 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Public API ownership: docs/library/public-api.md
 - Semantic versioning policy: docs/library/semver.md
 - Runtime and platform compatibility: docs/library/compatibility.md
-- Package artifact and export surface: the blocked `0.2.0-alpha.0` release record names five npm
-  package candidates; manifests remain private until that record is approved.
+- Package artifact and export surface: the approved `0.2.0-alpha.1` release record names five
+  public npm packages.
 - Deprecation and migration policy: docs/library/migration-guide.md
 
 ## Current Package Posture
 
-This repository is not ready for public npm publication. The current package boundary is a private
-pnpm workspace used to validate implementation ownership and internal imports.
+The root workspace and testkit remain private. The five release-recorded packages use the approved
+public `0.2.0-alpha.1` posture while preserving workspace ownership and internal imports.
 
 Until release readiness approves the recorded public package names and artifacts:
 
