@@ -55,11 +55,12 @@ CI workflows must not publish packages, create releases, request write permissio
 
 `.github/workflows/release.yml` is the only tracked workflow allowed to request `id-token: write`.
 It runs only for version tags matching `vMAJOR.MINOR.PATCH[-PRERELEASE]`, uses the npm environment
-for Trusted Publisher ownership, runs `pnpm run check`, verifies
-`scripts/check-release-publish-plan.mjs`, and publishes only the release-recorded public packages
-with provenance. It must not use long-lived npm tokens or create GitHub releases.
+for Trusted Publisher ownership, fetches full Git history so reachable historical approval commits
+can be verified, runs `pnpm run check`, verifies `scripts/check-release-publish-plan.mjs`, and
+publishes only the release-recorded public packages with provenance. It must not use long-lived npm
+tokens or create GitHub releases.
 
-The release workflow remains blocked until npm Trusted Publisher ownership is configured for the
+The release workflow requires npm Trusted Publisher ownership configured for the
 `0disoft/mcp-security-proxy` repository, the package manifests are approved for public package
 posture, and an approved release readiness record names the reachable target commit and exact
 validation evidence.

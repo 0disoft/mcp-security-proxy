@@ -41,6 +41,7 @@ assertContains(workflow, "cancel-in-progress: true", `${workflowPath}: concurren
 assertContains(workflow, "runs-on: ubuntu-latest", `${workflowPath}: Ubuntu runner`);
 assertContains(workflow, "timeout-minutes: 15", `${workflowPath}: bounded timeout`);
 assertPinnedAction(workflowPath, workflow, "actions/checkout");
+assertContains(workflow, "fetch-depth: 0", `${workflowPath}: full history for reachable release target validation`);
 assertPinnedAction(workflowPath, workflow, "actions/setup-node");
 assertContains(workflow, "pnpm install --frozen-lockfile", `${workflowPath}: frozen lockfile install`);
 assertContains(workflow, "pnpm run check", `${workflowPath}: repository check command`);
@@ -232,6 +233,11 @@ function checkReleaseWorkflowContract(releaseWorkflow) {
   assertContains(releaseWorkflow, "environment: npm", `${releaseWorkflowPath}: npm Trusted Publisher environment`);
   assertContains(releaseWorkflow, "timeout-minutes: 20", `${releaseWorkflowPath}: bounded release timeout`);
   assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/checkout");
+  assertContains(
+    releaseWorkflow,
+    "fetch-depth: 0",
+    `${releaseWorkflowPath}: full history for reachable release target validation`
+  );
   assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/setup-node");
   assertContains(releaseWorkflow, `corepack prepare pnpm@${packageManager.version} --activate`, `${releaseWorkflowPath}: pnpm version`);
   assertContains(releaseWorkflow, "registry-url: https://registry.npmjs.org", `${releaseWorkflowPath}: npm registry url`);
