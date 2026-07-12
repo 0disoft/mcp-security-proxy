@@ -67,8 +67,8 @@ function collectPlanFailures(plan, label) {
   assert(plan?.trustedPublisher?.environment === "npm", "trustedPublisher.environment must be npm");
   assert(plan?.postPublish?.configureTrustedPublisher === "required", "Trusted Publisher configuration must be required");
   assert(
-    plan?.postPublish?.removeInitialLatestTag === "required-after-each-first-publish",
-    "initial latest dist-tag removal must be required after each first publication"
+    plan?.postPublish?.replaceInitialLatestTag === "required-by-first-oidc-release",
+    "initial latest dist-tag replacement must be required by the first OIDC release"
   );
   assert(plan?.postPublish?.removeBootstrapCredential === "required", "bootstrap credential removal must be required");
   assert(plan?.postPublish?.verifyRegistryVersions === "required", "registry version verification must be required");
@@ -137,7 +137,7 @@ function checkRunbookAndWorkflow() {
       "--tag bootstrap",
       "node scripts/check-npm-bootstrap-plan.mjs --registry-check",
       "node scripts/prepare-npm-bootstrap-artifacts.mjs --write",
-      "npm dist-tag rm",
+      "npm dist-tag ls",
       "npm logout",
       "Do not create a Git tag for the bootstrap version"
     ]) {
@@ -202,18 +202,18 @@ function checkPlanValidator() {
   if (!unsafeTagFailures.some((item) => item.includes("distTag"))) {
     failures.push("npm bootstrap self-test latest dist-tag was not rejected");
   }
-  const missingLatestRemovalFailures = collectPlanFailures(
+  const missingLatestReplacementFailures = collectPlanFailures(
     {
       ...plan,
       postPublish: {
         ...plan.postPublish,
-        removeInitialLatestTag: "not-required"
+        replaceInitialLatestTag: "not-required"
       }
     },
-    "<npm-bootstrap-self-test-latest-removal>"
+    "<npm-bootstrap-self-test-latest-replacement>"
   );
-  if (!missingLatestRemovalFailures.some((item) => item.includes("latest dist-tag removal"))) {
-    failures.push("npm bootstrap self-test missing initial latest removal was not rejected");
+  if (!missingLatestReplacementFailures.some((item) => item.includes("latest dist-tag replacement"))) {
+    failures.push("npm bootstrap self-test missing initial latest replacement was not rejected");
   }
   const approvedWithoutEvidenceFailures = collectPlanFailures(
     {

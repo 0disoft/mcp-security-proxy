@@ -9,9 +9,10 @@ Publisher configuration is package-owned, so each name needs one controlled boot
 before the normal OIDC release workflow can own later versions.
 
 Bootstrap publication is package-name initialization, not a product release. It uses version
-`0.0.0-bootstrap.0` and the `bootstrap` dist-tag. npm may still create `latest` automatically for
-a package's first publication, so the owner must remove that tag immediately after each package
-is published and verify that only `bootstrap` remains.
+`0.0.0-bootstrap.0` and the `bootstrap` dist-tag. npm still creates `latest` automatically for a
+package's first publication and may reject deleting it while that bootstrap marker is the only
+published version. Record both tags during bootstrap; the first OIDC product release must displace
+`latest` from the bootstrap marker immediately after Trusted Publisher setup.
 Do not create a Git tag for the bootstrap version or run `.github/workflows/release.yml` for it.
 
 The source package manifests remain `private: true` and versioned as `0.0.0`. The artifact helper
@@ -71,9 +72,9 @@ node scripts/prepare-npm-bootstrap-artifacts.mjs --write
 ```
 
 Review `.tmp/npm-bootstrap/manifest.json`. It records the current source commit, package order,
-bootstrap version, dist-tag, tarball paths, SHA-256 digests, and the first-publication `latest`
-removal requirement. `credentialIncluded` must be false and
-`firstPublishLatestTagRemovalRequired` must be true.
+bootstrap version, dist-tag, tarball paths, SHA-256 digests, and the requirement for the first OIDC
+release to displace bootstrap from `latest`. `credentialIncluded` must be false and
+`bootstrapLatestDisplacementRequired` must be true.
 
 ## Owner-Only Publication
 
@@ -90,17 +91,17 @@ npm publish .tmp/npm-bootstrap/artifacts/0disoft-mcp-security-proxy-runtime-0.0.
 npm publish .tmp/npm-bootstrap/artifacts/0disoft-mcp-security-proxy-cli-0.0.0-bootstrap.0.tgz --access public --tag bootstrap
 ```
 
-Immediately after each successful first publication, remove npm's automatically created `latest`
-tag and verify the remaining tags before publishing the next package:
+Immediately after each successful first publication, record npm's tags before publishing the next
+package:
 
 ```powershell
-npm dist-tag rm @0disoft/mcp-security-proxy-contracts latest
 npm dist-tag ls @0disoft/mcp-security-proxy-contracts
 ```
 
-Repeat those two commands with the package name that was just published. The listing must contain
-`bootstrap: 0.0.0-bootstrap.0` and no `latest` entry. Treat failure to remove or verify `latest` as
-a stop condition; do not continue with the next package.
+Repeat that command with the package name that was just published. The listing must contain
+`bootstrap: 0.0.0-bootstrap.0`. If `latest` also points to the bootstrap version, record it as a
+temporary bootstrap state; do not claim completion until the first OIDC release moves `latest` to
+the product version and a follow-up listing proves the displacement.
 
 If publication stops partway through, do not republish successful package versions. Verify each
 name individually and continue only with the missing package in the recorded dependency order.
@@ -115,14 +116,16 @@ For every package, configure npm Trusted Publisher with these exact values:
 - environment: `npm`
 - allowed action: npm publish
 
-Then end and remove the bootstrap credential:
+Publish the first product version through the OIDC workflow before declaring bootstrap complete.
+Verify `latest` points to that product version while `bootstrap` still points to
+`0.0.0-bootstrap.0`. Then end and remove the bootstrap credential:
 
 ```powershell
 npm logout --registry https://registry.npmjs.org
 ```
 
-Verify the bootstrap version exists only under the `bootstrap` dist-tag, verify `latest` was not
-created by bootstrap, and confirm the repository contains no project `.npmrc` or registry secret.
+Verify `latest` no longer points to the bootstrap marker and confirm the repository contains no
+project `.npmrc` or registry secret.
 
 ## Completion Record
 
@@ -145,7 +148,7 @@ users to the real alpha version. Do not unpublish or reuse the bootstrap version
 - The plan is not approved or the worktree is dirty.
 - A generated SHA-256 value changes after review.
 - A tarball contains source tests, local config, credentials, logs, or unapproved paths.
-- A first publication creates `latest` and the owner cannot immediately remove and verify its removal.
+- The first OIDC product release does not displace `latest` from the bootstrap marker.
 - Trusted Publisher fields do not exactly match the recorded GitHub repository, workflow, and
   environment.
 
