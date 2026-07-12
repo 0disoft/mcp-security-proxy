@@ -76,7 +76,12 @@ function collectPlanFailures(plan, label) {
     plan?.postPublish?.bootstrapVersionPolicy === "deprecate-after-first-oidc-release",
     "bootstrap version must be deprecated after the first OIDC release"
   );
-  assert(Array.isArray(plan?.blockers) && plan.blockers.length > 0, "blockers must record the remaining manual gates");
+  assert(Array.isArray(plan?.blockers), "blockers must be an array");
+  if (plan?.status === "completed") {
+    assert(plan.blockers.length === 0, "completed plan blockers must be empty");
+  } else {
+    assert(plan?.blockers?.length > 0, "incomplete plan blockers must record the remaining manual gates");
+  }
 
   if (plan?.status === "approved" || plan?.status === "completed") {
     assert(plan?.approval?.approvedBy === plan.registryOwner, "approvedBy must match registryOwner after approval");
@@ -88,12 +93,22 @@ function collectPlanFailures(plan, label) {
   if (plan?.status === "completed") {
     assert(plan?.completion?.completedBy === plan.registryOwner, "completedBy must match registryOwner after completion");
     assert(isFullCommitSha(plan?.completion?.sourceCommit), "completion.sourceCommit must be a full Git commit SHA");
+    assert(
+      Array.isArray(plan?.completion?.artifactSourceCommits) &&
+        plan.completion.artifactSourceCommits.length > 0 &&
+        plan.completion.artifactSourceCommits.every(isFullCommitSha),
+      "completion.artifactSourceCommits must contain full Git commit SHAs"
+    );
     assert(isRecorded(plan?.completion?.registryEvidence), "completion.registryEvidence must record the registry verification");
     assert(plan?.completion?.trustedPublisherConfigured === true, "Trusted Publisher completion evidence must be true");
     assert(plan?.completion?.bootstrapCredentialRemoved === true, "bootstrap credential removal evidence must be true");
   } else {
     assert(plan?.completion?.completedBy === "UNRECORDED", "incomplete plan completedBy must stay UNRECORDED");
     assert(plan?.completion?.sourceCommit === "UNRECORDED", "incomplete plan completion sourceCommit must stay UNRECORDED");
+    assert(
+      plan?.completion?.artifactSourceCommits === undefined,
+      "incomplete plan artifactSourceCommits must stay absent"
+    );
     assert(plan?.completion?.registryEvidence === "UNRECORDED", "incomplete plan registryEvidence must stay UNRECORDED");
     assert(plan?.completion?.trustedPublisherConfigured === false, "incomplete plan must not claim Trusted Publisher configuration");
     assert(plan?.completion?.bootstrapCredentialRemoved === false, "incomplete plan must not claim credential removal");

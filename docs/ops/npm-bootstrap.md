@@ -135,7 +135,8 @@ credential is removed, and the first OIDC product release has displaced bootstra
 change the plan to `completed` and record:
 
 - `completion.completedBy`: `0disoft`
-- `completion.sourceCommit`: the full commit used to prepare the artifacts
+- `completion.sourceCommit`: the final full commit used to prepare bootstrap artifacts
+- `completion.artifactSourceCommits`: every full commit represented by published bootstrap artifacts
 - `completion.registryEvidence`: a concise npm-view verification reference without credentials
 - `completion.trustedPublisherConfigured`: `true`
 - `completion.bootstrapCredentialRemoved`: `true`
