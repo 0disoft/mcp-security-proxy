@@ -16,8 +16,9 @@ current repository HEAD so historical approved records remain verifiable after l
 
 The one-time npm package-name initialization is not a normal release record. It is controlled by
 `docs/ops/npm-bootstrap-plan.json` and `docs/ops/npm-bootstrap.md`, keeps source manifests private,
-uses only `0.0.0-bootstrap.0` under the non-default `bootstrap` dist-tag, and must not create a Git
-tag or add a token path to the normal release workflow.
+uses `0.0.0-bootstrap.0` under the `bootstrap` dist-tag, and must not create a Git tag or add a
+token path to the normal release workflow. npm may temporarily point `latest` at the only published
+bootstrap version; the first OIDC product release must displace it before bootstrap completion.
 
 Release records must include validation evidence for: `docs`, `schema-contract`,
 `migration-check`, `package-surface`, `secret-scan`, `artifact-safety`, `repository-hygiene`,

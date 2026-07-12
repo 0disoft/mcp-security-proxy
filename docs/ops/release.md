@@ -21,14 +21,13 @@ Status: Draft
   SECURITY.md, and vulnerability process are stable enough for external users.
 
 Implementation direction is TypeScript with pnpm. The current implementation floor is Node.js
-`>=24.0.0`. The blocked `0.2.0-alpha.0` release record names npmjs.org, five public package
-candidates, and their artifact names. Those decisions remain unapproved until package ownership,
-bootstrap publication, and Trusted Publisher configuration are verified.
+`>=24.0.0`. The approved `0.2.0-alpha.0` release record names npmjs.org, five public packages,
+their artifact names, and npm Trusted Publisher ownership. The package names were initialized with
+the bootstrap marker before the first OIDC product release.
 
 ## Public Release Readiness
 
-The repository is not ready for public npm release while its current release record remains
-blocked. Before publishing any public artifact, an approved release record must name:
+Before publishing any public product artifact, an approved release record must name:
 
 - the public package names and package ownership boundaries;
 - the registry target and publish credentials owner;

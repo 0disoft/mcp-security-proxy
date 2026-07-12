@@ -1,10 +1,10 @@
 {
   "schemaVersion": "msp.release-readiness.v1",
-  "status": "blocked",
+  "status": "approved",
   "releaseVersion": "0.2.0-alpha.0",
-  "targetCommit": "d5d73aa715470e5c175be089436960274e4a6c38",
-  "registryTarget": "npmjs.org; blocked until package ownership and artifact approval",
-  "publishCredentialsOwner": "0disoft repository owner; no publish credential use approved for this blocked candidate",
+  "targetCommit": "4adf7137288bbfc9e91c9814a940d4c42a7c7691",
+  "registryTarget": "npmjs.org via npm Trusted Publisher",
+  "publishCredentialsOwner": "npm Trusted Publisher configured by 0disoft for GitHub Actions release.yml environment npm",
   "publicPackages": [
     {
       "name": "@0disoft/mcp-security-proxy-contracts",
@@ -92,15 +92,8 @@
     "check": "2026-07-09 target d5d73aa: pnpm check exit 0"
   },
   "rollback": {
-    "lastKnownGoodVersion": "none; first public release remains blocked",
+    "lastKnownGoodVersion": "none; first public product release",
     "procedure": "docs/ops/rollback.md"
   },
-  "blockers": [
-    "Package manifests remain private and versioned as 0.0.0 until an approved release record with a reachable target commit exists.",
-    "The one-time npm package-name bootstrap remains blocked by docs/ops/npm-bootstrap-plan.json and requires owner-only registry verification.",
-    "Release artifacts are represented by tracked package manifests only; publishable package archives are not approved.",
-    "External MCP compatibility is included only for the pinned external-filesystem-stdio target and does not claim a broad external MCP matrix.",
-    "HTTP transport and host-specific approval UX are excluded from this candidate.",
-    "Package publish posture, publish credentials ownership, and publishable artifact approval remain blocked before this candidate can become approved."
-  ]
+  "blockers": []
 }

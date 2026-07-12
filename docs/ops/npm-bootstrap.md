@@ -129,8 +129,9 @@ project `.npmrc` or registry secret.
 
 ## Completion Record
 
-After all five registry versions exist, all five Trusted Publishers are configured, and the
-bootstrap credential is removed, change the plan to `completed` and record:
+After all five registry versions exist, all five Trusted Publishers are configured, the bootstrap
+credential is removed, and the first OIDC product release has displaced bootstrap from `latest`,
+change the plan to `completed` and record:
 
 - `completion.completedBy`: `0disoft`
 - `completion.sourceCommit`: the full commit used to prepare the artifacts
