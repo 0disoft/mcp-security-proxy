@@ -37,7 +37,7 @@
   },
   "approval": {
     "approvedBy": "0disoft",
-    "sourceCommit": "e691dbe720da352b38937872e56ae1a9e6225c9d"
+    "sourceCommit": "bba8f94d53cb0efd5bfd25e7bd25f4cf64e0f2d3"
   },
   "completion": {
     "completedBy": "UNRECORDED",
@@ -48,7 +48,7 @@
   },
   "postPublish": {
     "configureTrustedPublisher": "required",
-    "removeInitialLatestTag": "required-after-each-first-publish",
+    "replaceInitialLatestTag": "required-by-first-oidc-release",
     "removeBootstrapCredential": "required",
     "verifyRegistryVersions": "required",
     "bootstrapVersionPolicy": "deprecate-after-first-oidc-release"
