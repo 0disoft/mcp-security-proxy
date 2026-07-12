@@ -15,7 +15,8 @@ published version. Record both tags during bootstrap; the first OIDC product rel
 `latest` from the bootstrap marker immediately after Trusted Publisher setup.
 Do not create a Git tag for the bootstrap version or run `.github/workflows/release.yml` for it.
 
-The source package manifests remain `private: true` and versioned as `0.0.0`. The artifact helper
+The source package manifests remain `private: true` and versioned as `0.0.0` until a reachable
+approved product release record unlocks public package posture. The artifact helper
 copies only approved package files into an ignored staging directory, changes only the staged
 manifest version and workspace dependency versions, removes staged `private`, and emits checksummed
 tarballs. It never publishes or reads a credential.

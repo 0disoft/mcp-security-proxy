@@ -253,7 +253,7 @@ function checkTargetCommit(path, record) {
 }
 
 function usesCurrentWorkspaceState(record) {
-  return record.status !== "approved" || record.targetCommit === currentHead;
+  return record.targetCommit === currentHead;
 }
 
 function checkReleaseScope(path, releaseScope) {
@@ -479,6 +479,7 @@ function checkReleaseRecordValidator() {
 
   const untrackedArtifactFailures = collectReleaseRecordFailures("<release-readiness-self-test-untracked-artifact>", {
     ...validRecord,
+    targetCommit: currentHead,
     artifacts: [
       {
         name: "release-records-directory",
@@ -732,7 +733,7 @@ function createReleaseRecordSelfTestFixture() {
   return {
     schemaVersion: "msp.release-readiness.v1",
     status: "blocked",
-    releaseVersion: cliManifest.version,
+    releaseVersion: "0.0.0",
     targetCommit: "UNRECORDED",
     registryTarget: "npm",
     publishCredentialsOwner: "0disoft",
@@ -769,7 +770,7 @@ function createReleaseRecordSelfTestFixture() {
     },
     validation: Object.fromEntries(requiredValidations.map((name) => [name, "self-test recorded"])),
     rollback: {
-      lastKnownGoodVersion: cliManifest.version,
+      lastKnownGoodVersion: "none; self-test fixture",
       procedure: "docs/ops/rollback.md"
     }
   };

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const root = process.cwd();
@@ -102,6 +102,7 @@ function collectPlanFailures(plan, label) {
 }
 
 function checkWorkspaceManifests(plan) {
+  const productReleaseVersion = findApprovedProductReleaseVersion(plan);
   for (const [name, workspacePath] of expectedPackages) {
     const manifestPath = `${workspacePath}/package.json`;
     if (!existsSync(join(root, manifestPath))) {
@@ -112,8 +113,13 @@ function checkWorkspaceManifests(plan) {
     if (manifest.name !== name) {
       failures.push(`${manifestPath}: name must be ${name}`);
     }
-    if (manifest.private !== true || manifest.version !== "0.0.0") {
-      failures.push(`${manifestPath}: source manifest must stay private and versioned 0.0.0 during bootstrap`);
+    const isBootstrapSourcePosture = manifest.private === true && manifest.version === "0.0.0";
+    const isApprovedProductReleasePosture =
+      productReleaseVersion !== undefined && manifest.private !== true && manifest.version === productReleaseVersion;
+    if (!isBootstrapSourcePosture && !isApprovedProductReleasePosture) {
+      failures.push(
+        `${manifestPath}: source manifest must stay private at 0.0.0 or match the reachable approved product release`
+      );
     }
     if (manifest.repository?.url !== expectedRepositoryUrl) {
       failures.push(`${manifestPath}: repository.url must match the Trusted Publisher repository`);
@@ -125,6 +131,39 @@ function checkWorkspaceManifests(plan) {
       failures.push(`${manifestPath}: package metadata must not contain registry credentials`);
     }
   }
+}
+
+function findApprovedProductReleaseVersion(plan) {
+  const releaseRecordsDirectory = join(root, "docs", "ops", "release-records");
+  if (!existsSync(releaseRecordsDirectory)) {
+    return undefined;
+  }
+  const expectedNames = [...plan.packages].map((item) => item.name).sort((left, right) => left.localeCompare(right));
+  const matches = readdirSync(releaseRecordsDirectory)
+    .filter((name) => name.endsWith(".release.json"))
+    .map((name) => readJson(`docs/ops/release-records/${name}`))
+    .filter((record) => {
+      if (record?.status !== "approved" || !isFullCommitSha(record?.targetCommit)) {
+        return false;
+      }
+      const ancestry = spawnSync("git", ["merge-base", "--is-ancestor", record.targetCommit, "HEAD"], {
+        cwd: root,
+        stdio: "ignore",
+        windowsHide: true
+      });
+      if (ancestry.status !== 0) {
+        return false;
+      }
+      const names = (record.publicPackages ?? [])
+        .map((item) => item?.name)
+        .filter(Boolean)
+        .sort((left, right) => left.localeCompare(right));
+      return JSON.stringify(names) === JSON.stringify(expectedNames);
+    });
+  if (matches.length !== 1 || typeof matches[0].releaseVersion !== "string") {
+    return undefined;
+  }
+  return matches[0].releaseVersion;
 }
 
 function checkRunbookAndWorkflow() {
