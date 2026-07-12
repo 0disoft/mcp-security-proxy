@@ -1,6 +1,6 @@
 {
   "schemaVersion": "msp.npm-bootstrap.v1",
-  "status": "approved",
+  "status": "completed",
   "bootstrapVersion": "0.0.0-bootstrap.0",
   "distTag": "bootstrap",
   "registry": "https://registry.npmjs.org",
@@ -40,11 +40,15 @@
     "sourceCommit": "bba8f94d53cb0efd5bfd25e7bd25f4cf64e0f2d3"
   },
   "completion": {
-    "completedBy": "UNRECORDED",
-    "sourceCommit": "UNRECORDED",
-    "registryEvidence": "UNRECORDED",
-    "trustedPublisherConfigured": false,
-    "bootstrapCredentialRemoved": false
+    "completedBy": "0disoft",
+    "sourceCommit": "4adf7137288bbfc9e91c9814a940d4c42a7c7691",
+    "artifactSourceCommits": [
+      "a0c73103fca7ec1e95301c04ba77543587724648",
+      "4adf7137288bbfc9e91c9814a940d4c42a7c7691"
+    ],
+    "registryEvidence": "2026-07-12 npm registry verification: five packages latest=0.2.0-alpha.1, bootstrap=0.0.0-bootstrap.0, provenance present, bootstrap deprecated; GitHub Actions run 29175131591 succeeded",
+    "trustedPublisherConfigured": true,
+    "bootstrapCredentialRemoved": true
   },
   "postPublish": {
     "configureTrustedPublisher": "required",
@@ -53,7 +57,5 @@
     "verifyRegistryVersions": "required",
     "bootstrapVersionPolicy": "deprecate-after-first-oidc-release"
   },
-  "blockers": [
-    "All five 0.0.0-bootstrap.0 versions must be deprecated after the first successful OIDC release."
-  ]
+  "blockers": []
 }
