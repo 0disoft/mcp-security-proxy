@@ -19,7 +19,7 @@ Track product and security risks that can make MCP Security Proxy misleading or 
 | --- | --- | --- |
 | Proxy is mistaken for an OS sandbox | Users over-trust protection and run dangerous servers | State protocol-boundary scope in README, AGENTS, docs, and CLI help |
 | Tool schema misclassification | Dangerous tool is shown or allowed as low risk | Keep deny-by-default behavior and require explicit policy for risky capabilities |
-| Path matcher bypass | File policy can be escaped through normalization or symlink edge cases | Normalize paths, reject ambiguous paths, and add fixture tests before implementation |
+| Path policy overclaim | A lexical allow is mistaken for proof of the file opened by the upstream server | Name the mode lexical, reject ambiguous strings, keep symlink/junction/mount/TOCTOU outside the claim, and require a separate host-attestation contract for stronger evidence |
 | Shell allowlist too broad | Arbitrary commands slip through a convenience pattern | Prefer exact commands or narrow argv patterns; document shell expansion behavior |
 | Unsupported MCP method pass-through | Resources, prompts, sampling, roots, elicitation, or future methods bypass tool policy | Keep a method allowlist and deny unsupported methods by default |
 | Upstream startup side effect | Server reads files or opens network before any MCP tool call | State the proxy only controls the MCP protocol boundary and treat upstream servers as untrusted |

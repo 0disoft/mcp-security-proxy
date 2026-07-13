@@ -39,7 +39,8 @@ Status: Draft
 - Tool schema or description hides dangerous behavior.
 - Unsupported MCP method bypasses tool-call policy.
 - Server performs file, shell, or network side effects outside MCP messages.
-- Path traversal, symlink, platform, or Unicode behavior bypasses path policy.
+- Lexical path policy is mistaken for symlink, junction, mount, platform, or actual-open
+  containment.
 - Broad command allowlists permit arbitrary shell execution.
 - Network argument policy is mistaken for socket enforcement.
 - Audit logs expose raw secrets, prompts, environment values, or sensitive arguments.
@@ -51,7 +52,8 @@ Status: Draft
 
 - Deny by default for unknown capability and unsupported method.
 - Keep classifier evidence separate from permission decisions.
-- Keep path, command, and network matcher semantics explicit and fixture-backed.
+- Keep lexical path, command, and network matcher semantics explicit and fixture-backed; require a
+  separate host-attestation or OS boundary for stronger filesystem claims.
 - Use redacted summaries for audit and JSON output.
 - Keep approval as an optional hook, not the default product center.
 - Keep core evaluation independent from runtime IO and SDK dependencies.

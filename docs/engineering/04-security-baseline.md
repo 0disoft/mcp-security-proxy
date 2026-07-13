@@ -24,8 +24,8 @@ Status: Draft
 
 ## Matcher Requirements
 
-- Path matching must define normalization, realpath behavior, missing write-target behavior,
-  symlink handling, Windows drive/UNC behavior, case sensitivity, and Unicode normalization.
+- Path matching is lexical argument policy. Its contract must state that realpath, missing
+  write-target, symlink, junction, mount, case-folding, and TOCTOU behavior are not enforced.
 - Command matching must prefer executable plus argv arrays.
 - Network matching must document which argument fields were inspected and which fields were not.
 - Redaction must report replacement counts without returning the original values.

@@ -74,7 +74,8 @@ discovery and tool calls through explicit policy, redaction, and audit events.
 - Deny approval-required calls when an approval hook rejects them, without forwarding or storing
   the hook's raw rejection reason.
 - Fail closed per call when an approval hook errors, without storing hook error details.
-- Match file paths against allow and deny scopes.
+- Match lexical path arguments against allow and deny scopes without claiming filesystem
+  containment or symlink enforcement.
 - Match shell commands against executable and argv allowlists.
 - Express network domain allow and deny rules as argument-level intent policy.
 - Redact environment values, secret-like strings, and sensitive audit fields.
@@ -96,7 +97,7 @@ The policy model should be explicit and boring:
 - server profile: named policy section for one MCP server
 - method policy: allow supported methods and deny unsupported method families
 - tool rule: allow, deny, or require approval by tool name and capability
-- path rule: allowed roots and denied roots after normalized path resolution
+- path rule: allowed roots and denied roots after lexical string normalization
 - command rule: executable plus argv pattern, not free-form shell acceptance
 - network rule: domain allowlist and denylist for values present in tool-call arguments
 - secret rule: label allowlist for redacted secret facts such as `api-key`, never raw values

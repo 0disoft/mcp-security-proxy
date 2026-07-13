@@ -19,6 +19,7 @@ const requiredFiles = [
   "docs/adr/0001-initial-architecture-boundaries.md",
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
+  "docs/adr/0006-lexical-path-policy-boundary.md",
   "docs/library/approval-hooks.md",
   "docs/library/decision-codes.md",
   "docs/cli/output-and-exit-codes.md",
@@ -68,6 +69,7 @@ const cliContractFailures = [
   ...checkHostApprovalUxPlanDocs(),
   ...checkExternalMcpCompatibilityPlanDocs(),
   ...checkAuditCorrelationPlanDocs(),
+  ...checkPathPolicyBoundaryDocs(),
   ...checkDecisionCodeDocs(),
   ...checkApprovalHookDocs()
 ];
@@ -295,6 +297,43 @@ function checkAuditCorrelationPlanDocs() {
       failures.push(`${path}: missing audit correlation plan phrase: ${phrase}`);
     }
   }
+  return failures;
+}
+
+function checkPathPolicyBoundaryDocs() {
+  const failures = [];
+  const adrPath = "docs/adr/0006-lexical-path-policy-boundary.md";
+  const productSpecPath = "docs/product/02-spec.md";
+  const publicApiPath = "docs/library/public-api.md";
+  const adr = readFileSync(join(root, adrPath), "utf8");
+  const productSpec = readFileSync(join(root, productSpecPath), "utf8");
+  const publicApi = readFileSync(join(root, publicApiPath), "utf8");
+  const normalizedAdr = adr.replace(/\s+/g, " ");
+  const normalizedProductSpec = productSpec.replace(/\s+/g, " ");
+  const normalizedPublicApi = publicApi.replace(/\s+/g, " ");
+
+  for (const phrase of [
+    "The implemented path policy mode is `lexical`",
+    "does not call filesystem APIs",
+    "Windows junction",
+    "time-of-check/time-of-use",
+    "fail closed",
+    "Host attestation may strengthen an argument-intent decision, but it is not containment",
+    "No host attestation callback is implemented or exported by this ADR"
+  ]) {
+    if (!normalizedAdr.includes(phrase)) {
+      failures.push(`${adrPath}: missing lexical path policy boundary phrase: ${phrase}`);
+    }
+  }
+
+  if (!normalizedProductSpec.includes("lexical string normalization")) {
+    failures.push(`${productSpecPath}: path rules must be described as lexical string normalization`);
+  }
+
+  if (!normalizedPublicApi.includes("No filesystem resolver or containment API is exported")) {
+    failures.push(`${publicApiPath}: public API docs must state the filesystem containment boundary`);
+  }
+
   return failures;
 }
 

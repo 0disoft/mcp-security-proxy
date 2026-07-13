@@ -7,6 +7,7 @@ Status: Draft
 - Product scope source: docs/product/02-spec.md
 - Architecture decisions source: docs/adr/*.md
 - Policy model source: docs/architecture/04-policy-model.md
+- Path policy boundary source: docs/adr/0006-lexical-path-policy-boundary.md
 - MCP method policy source: docs/architecture/05-mcp-method-policy.md
 - Data flow and privacy source: docs/architecture/06-data-flow-and-privacy.md
 - Audit correlation plan source: docs/architecture/10-audit-correlation-plan.md

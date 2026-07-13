@@ -65,6 +65,10 @@ policy, audit, CLI, or API contracts.
 - Current draft runtime lifecycle note: `UpstreamProcess.kill` may now return a promise so hosts can
   complete process-tree termination. Existing synchronous implementations remain valid. The stdio
   bridge bounds a hanging or rejected termination callback and continues shutdown escalation.
+- Current draft path-policy clarification: existing `msp.policy.v1` path rules retain lexical
+  behavior. They do not resolve symlinks or prove the target opened by an upstream server. No policy
+  edit is required; integrations making stronger claims must narrow those claims or add a separate
+  host/OS enforcement boundary.
 - `pnpm run migration-check` verifies that current schema versions and migration-note blockers stay
   represented here before release validation passes.
 

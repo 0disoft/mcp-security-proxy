@@ -20,6 +20,7 @@ Track durable architecture decisions for MCP Security Proxy.
 - 0003: open source license and private data boundary
 - 0004: implementation stack direction
 - 0005: external MCP compatibility target
+- 0006: lexical path policy boundary
 
 ## Review Blockers
 
