@@ -131,6 +131,27 @@ describe("policy document parsing", () => {
     });
   });
 
+  it("rejects full path capture because audit events do not implement that policy mode", () => {
+    const policy = createDenyByDefaultPolicy("local");
+    const result = validatePolicyDocument({
+      ...policy,
+      profiles: [
+        {
+          ...policy.profiles[0],
+          audit: {
+            ...policy.profiles[0]?.audit,
+            includeFullPaths: true
+          }
+        }
+      ]
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      errors: expect.arrayContaining(["profiles[0].audit.includeFullPaths must be false"])
+    });
+  });
+
   it("rejects path matcher roots that cannot be canonicalized safely", () => {
     const policy = createDenyByDefaultPolicy("local");
     const result = validatePolicyDocument({

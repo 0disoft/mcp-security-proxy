@@ -4,7 +4,8 @@ Status: Draft
 
 ## Startup Flow
 
-1. CLI receives a profile name, policy path, server command or endpoint, and audit output path.
+1. CLI receives a profile name, policy path, server command or endpoint, and optional audit path
+   override.
 2. Policy file is parsed and validated.
 3. Proxy starts the upstream MCP server or connects to it.
 4. Proxy initializes MCP session negotiation through the supported method policy.
@@ -52,7 +53,7 @@ Current implemented responsibilities:
 - include stable decision evidence codes in audit decisions
 - start one upstream stdio process from the CLI command after `--`
 - keep stdout reserved for MCP protocol messages
-- append audit events to the file selected by `--audit-log`
+- append audit events to the selected profile audit file or the explicit `--audit-log` override
 - summarize upstream stderr as redacted audit metadata without storing raw stderr lines
 - map non-zero upstream exits to the CLI upstream-failure exit code and record a redacted audit event
 - after client input closes, end upstream stdin and kill the upstream process if it does not exit

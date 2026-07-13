@@ -72,7 +72,7 @@ export interface AuditPolicy {
   readonly path?: string;
   readonly onFailure: (typeof AUDIT_FAILURE_ACTIONS)[number];
   readonly includeRawArguments: false;
-  readonly includeFullPaths: boolean;
+  readonly includeFullPaths: false;
 }
 
 export interface RedactionDetector {

@@ -19,7 +19,9 @@ non-secret convenience defaults.
 
 - `--policy`: local policy file path.
 - `--profile`: named server profile inside the policy file.
-- `--audit-log`: local JSONL audit output path for live `run`.
+- Profile `audit.destination` and `audit.path`: CLI `run` requires a file destination and uses its
+  path by default.
+- `--audit-log`: optional local JSONL path override for live `run`.
 - `--ops-log`: optional local JSONL lifecycle metrics output path for live `run`.
 - `--shutdown-grace-ms`: bounded upstream shutdown window.
 - `--max-frame-bytes`: newline-delimited JSON-RPC frame size limit.
@@ -31,6 +33,9 @@ non-secret convenience defaults.
 - Default policy posture is deny-by-default.
 - Live `run` reads policy at startup; hot reload is not implemented.
 - Audit output is append-oriented JSONL at the selected path.
+- CLI `run` rejects stdout audit destinations before spawning upstream because stdout carries MCP.
+- `includeRawArguments` and `includeFullPaths` are fixed to `false`; unsupported capture modes fail
+  policy validation instead of being silently ignored.
 - Ops output is append-oriented JSONL at the selected path when configured.
 - Live `run` does not inherit the full parent environment. It passes only `PATH` and `TMPDIR` on
   POSIX, and `PATH`, `PATHEXT`, `SystemRoot`, `WINDIR`, `ComSpec`, `TEMP`, and `TMP` on Windows.

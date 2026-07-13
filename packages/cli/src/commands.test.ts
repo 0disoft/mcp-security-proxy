@@ -179,6 +179,66 @@ describe("dry-run CLI commands", () => {
     expect(output.auditWrites()[0]?.slice(0, -1)).not.toContain("\n");
   });
 
+  it("uses the selected profile audit path when --audit-log is omitted", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server"
+    ]);
+
+    output.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: "policy-audit-path", method: "resources/list" })}\n`);
+    output.clientInput.end();
+    output.upstream.stdout.end();
+
+    expect((await output.result).exitCode).toBe(0);
+    expect(output.auditLines()).toHaveLength(1);
+    expect(output.stdout).toEqual([]);
+  });
+
+  it("lets an explicit --audit-log override the selected profile path", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--audit-log",
+      "override-audit.jsonl",
+      "--",
+      "fixture-server"
+    ]);
+
+    output.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: "audit-override", method: "resources/list" })}\n`);
+    output.clientInput.end();
+    output.upstream.stdout.end();
+
+    expect((await output.result).exitCode).toBe(0);
+    expect(output.writesAt("override-audit.jsonl")).toHaveLength(1);
+    expect(output.auditWrites()).toHaveLength(0);
+  });
+
+  it("rejects stdout audit policies before spawning because CLI stdout carries MCP", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/deny-by-default.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server"
+    ]);
+
+    expect((await output.result).exitCode).toBe(3);
+    expect(output.stderr).toEqual([
+      "profile local audit.destination must be file for CLI run; stdout is reserved for MCP messages"
+    ]);
+    expect(output.spawned).toBe(false);
+  });
+
   it("writes optional ops metrics to a separate JSONL file", async () => {
     const output = await invokeAsync([
       "run",
@@ -585,6 +645,7 @@ async function invokeAsync(
   readonly upstreamInputLines: () => readonly string[];
   readonly auditWrites: () => readonly string[];
   readonly auditLines: () => readonly string[];
+  readonly writesAt: (path: string) => readonly string[];
   readonly opsLines: () => readonly string[];
   readonly spawned: boolean;
   readonly stdout: readonly string[];
@@ -646,6 +707,7 @@ async function invokeAsync(
     upstreamInputLines: () => readLines(upstreamInputChunks),
     auditWrites: () => writesByPath.get("audit.jsonl") ?? [],
     auditLines: () => readTextLines(writesByPath.get("audit.jsonl") ?? []),
+    writesAt: (path) => writesByPath.get(path) ?? [],
     opsLines: () => readTextLines(writesByPath.get("ops.jsonl") ?? []),
     get spawned() {
       return spawned;

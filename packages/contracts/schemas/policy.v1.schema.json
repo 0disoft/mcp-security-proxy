@@ -182,7 +182,7 @@
         "path": { "type": "string", "minLength": 1 },
         "onFailure": { "enum": ["fail_closed", "warn_and_continue"] },
         "includeRawArguments": { "const": false },
-        "includeFullPaths": { "type": "boolean" }
+        "includeFullPaths": { "const": false }
       },
       "additionalProperties": false,
       "allOf": [

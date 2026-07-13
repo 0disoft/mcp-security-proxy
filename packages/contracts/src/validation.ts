@@ -444,8 +444,8 @@ function parseAudit(value: unknown, path: string, errors: string[]): AuditPolicy
   if (value["includeRawArguments"] !== false) {
     errors.push(`${path}.includeRawArguments must be false`);
   }
-  if (typeof value["includeFullPaths"] !== "boolean") {
-    errors.push(`${path}.includeFullPaths must be boolean`);
+  if (value["includeFullPaths"] !== false) {
+    errors.push(`${path}.includeFullPaths must be false`);
   }
   if (value["destination"] === "file" && !isNonEmptyString(value["path"])) {
     errors.push(`${path}.path must be a non-empty string when destination is file`);
@@ -457,13 +457,13 @@ function parseAudit(value: unknown, path: string, errors: string[]): AuditPolicy
   return isAuditDestination(value["destination"]) &&
     isAuditFailureAction(value["onFailure"]) &&
     value["includeRawArguments"] === false &&
-    typeof value["includeFullPaths"] === "boolean"
+    value["includeFullPaths"] === false
     ? {
         destination: value["destination"],
         ...(isNonEmptyString(value["path"]) ? { path: value["path"] } : {}),
         onFailure: value["onFailure"],
         includeRawArguments: false,
-        includeFullPaths: value["includeFullPaths"]
+        includeFullPaths: false
       }
     : undefined;
 }

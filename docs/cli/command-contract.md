@@ -29,7 +29,8 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 
 Implemented for newline-delimited stdio MCP servers. The command starts the upstream process named
 after `--`, gates client and upstream JSON-RPC lines through policy, writes only MCP messages to
-stdout, and writes JSON Lines audit events to the file named by `--audit-log`.
+stdout, and writes JSON Lines audit events to the selected profile's `audit.path`. An explicit
+`--audit-log` overrides that path.
 When `--ops-log` is supplied, the command also writes structured JSON Lines lifecycle metrics to
 that file. Ops events are diagnostic and do not replace audit events.
 Upstream stderr is not relayed to stdout or copied into audit logs; the runtime records only a
@@ -40,10 +41,11 @@ Required inputs:
 - policy path
 - profile name
 - `--` separator followed by the upstream server command
-- audit output file path
+- profile with a file audit destination and path
 
 Optional inputs:
 
+- audit output path override
 - `--shutdown-grace-ms <0..2147483647>` controls how long `run` waits after client input closes
   before killing the upstream process. The default is 1000 ms.
 - `--max-frame-bytes <1..16777216>` controls the maximum UTF-8 byte length of one JSON-RPC line.
@@ -75,7 +77,8 @@ prints the decision without forwarding it.
 - `--profile` selects the server policy profile.
 - `--input` points to captured tool-list or tool-call JSON for dry-run commands.
 - `--approval-hook` marks approval hook availability for dry-run call evaluation.
-- `--audit-log` selects JSON Lines audit output for live proxy behavior.
+- `--audit-log` optionally overrides the selected profile's JSON Lines audit file for live proxy
+  behavior. CLI `run` rejects profiles configured with `audit.destination: stdout`.
 - `--ops-log` selects optional JSON Lines operational metrics output for live proxy behavior.
 - `--shutdown-grace-ms` selects the live proxy shutdown grace window in milliseconds.
 - `--max-frame-bytes` and `--max-json-depth` select live proxy frame guards.

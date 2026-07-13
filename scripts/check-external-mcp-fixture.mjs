@@ -123,7 +123,7 @@ mkdirSync(publicDir, { recursive: true });
 mkdirSync(privateDir, { recursive: true });
 writeFileSync(publicFile, "hello from external fixture\n", "utf8");
 writeFileSync(privateFile, "private fixture value\n", "utf8");
-writePolicy(policyPath, publicDir, privateDir);
+writePolicy(policyPath, publicDir, privateDir, auditLog);
 
 const client = new Client({ name: "msp-external-fixture", version: "0.0.0" });
 const transport = new StdioClientTransport({
@@ -196,7 +196,7 @@ const summary = {
 
 writeFileSync(config.outputPath, JSON.stringify(summary, null, 2) + "\n", "utf8");
 
-function writePolicy(path, allowedRoot, deniedRoot) {
+function writePolicy(path, allowedRoot, deniedRoot, auditPath) {
   writeFileSync(
     path,
     JSON.stringify(
@@ -240,7 +240,8 @@ function writePolicy(path, allowedRoot, deniedRoot) {
               }
             ],
             audit: {
-              destination: "stdout",
+              destination: "file",
+              path: auditPath,
               onFailure: "fail_closed",
               includeRawArguments: false,
               includeFullPaths: false

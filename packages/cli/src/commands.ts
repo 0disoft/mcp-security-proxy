@@ -383,12 +383,12 @@ function writeHelp(io: CliIo, command?: CommandName): void {
 function commandHelp(command: CommandName): string {
   if (command === "run") {
     return [
-      "Usage: mcp-security-proxy run --policy <path> --profile <name> --audit-log <path> [options] -- <upstream> [args...]",
+      "Usage: mcp-security-proxy run --policy <path> --profile <name> [--audit-log <path>] [options] -- <upstream> [args...]",
       "",
       "Options:",
       "  --policy <path>                local policy file",
       "  --profile <name>               policy profile to apply",
-      "  --audit-log <path>             JSON Lines audit output file",
+      "  --audit-log <path>             override the profile JSON Lines audit file",
       "  --ops-log <path>               optional JSON Lines ops metrics output file",
       "  --shutdown-grace-ms <0..2147483647>",
       "                                 milliseconds to wait before killing upstream after client input closes",
@@ -545,7 +545,7 @@ async function runProxy(
   }
   const policyPath = readRequiredStringFlag(flags, "policy");
   const profileId = readRequiredStringFlag(flags, "profile");
-  const auditLogPath = readRequiredStringFlag(flags, "audit-log");
+  const auditLogOverride = readOptionalStringFlag(flags, "audit-log");
   const opsLogPath = readOptionalStringFlag(flags, "ops-log");
   const shutdownGraceMs = readOptionalShutdownGraceMsFlag(flags);
   const maxFrameBytes = readOptionalFrameBytesFlag(flags);
@@ -553,7 +553,7 @@ async function runProxy(
   if (flags["approval-hook"] === true) {
     throw new CliError(2, "run does not support --approval-hook; approval hooks must be provided by an embedding host");
   }
-  if (auditLogPath === "-") {
+  if (auditLogOverride === "-") {
     throw new CliError(2, "run requires --audit-log to be a file path; stdout is reserved for MCP messages");
   }
   if (opsLogPath === "-") {
@@ -568,9 +568,14 @@ async function runProxy(
   }
 
   const policy = readRequiredPolicy(io, policyPath);
-  if (!policy.profiles.some((profile) => profile.id === profileId)) {
+  const profile = policy.profiles.find((item) => item.id === profileId);
+  if (!profile) {
     throw new CliError(3, `profile not found: ${profileId}`);
   }
+  if (profile.audit.destination !== "file" || !profile.audit.path) {
+    throw new CliError(3, `profile ${profileId} audit.destination must be file for CLI run; stdout is reserved for MCP messages`);
+  }
+  const auditLogPath = auditLogOverride ?? profile.audit.path;
 
   return runStdioProxy({
     policy,

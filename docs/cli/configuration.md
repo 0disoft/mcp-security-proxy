@@ -40,12 +40,14 @@ Proposed precedence:
 ## Safe Defaults
 
 - Default action: deny
-- Audit content capture: summary only
+- Audit content capture: summary only; `includeRawArguments` and `includeFullPaths` must both be
+  `false` in the current schema.
 - Redaction: enabled
 - Unknown capability: deny
 - Shell command matching: exact or narrow argv pattern only
 - CLI `run` stdout: MCP protocol messages only
-- CLI `run` audit output: JSON Lines file selected by `--audit-log`
+- CLI `run` audit output: JSON Lines file from the selected profile's `audit.path`, optionally
+  overridden by `--audit-log`. CLI `run` rejects `audit.destination: stdout`.
 - CLI `run` ops output: optional JSON Lines file selected by `--ops-log`
 - CLI `run` shutdown grace: 1000 ms unless `--shutdown-grace-ms` supplies an integer between
   0 and 2147483647

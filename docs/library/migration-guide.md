@@ -54,6 +54,10 @@ policy, audit, CLI, or API contracts.
   fail-closed decisions now emit stable codes so consumers do not parse human-readable reason text.
 - Current draft runtime API note: proxy session and stdio bridge options may include an optional
   approval timeout. Existing embedders that omit it keep the previous no-runtime-timeout behavior.
+- Current draft audit policy note: `includeFullPaths` is fixed to `false` because full-path capture
+  is not implemented. CLI `run` requires `audit.destination: file`, uses the profile `audit.path`
+  by default, and treats `--audit-log` as an explicit path override. Embedding hosts may still own
+  a stdout sink when they can keep it separate from MCP protocol output.
 - `pnpm run migration-check` verifies that current schema versions and migration-note blockers stay
   represented here before release validation passes.
 

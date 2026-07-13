@@ -17,7 +17,8 @@ Cover logs, metrics, traces, dashboards, alerts, health checks, sampling, retent
 
 - CLI stderr is human-readable operational output.
 - CLI stdout is reserved for MCP protocol frames in live `run` mode.
-- `--audit-log` writes redacted JSONL audit events.
+- The selected profile's file audit destination writes redacted JSONL audit events; `--audit-log`
+  may override the profile path.
 - `--ops-log` optionally writes structured JSONL lifecycle events with bounded counters.
 - Upstream stderr is summarized by line count and is not copied raw.
 - Upstream response `error.data` is stripped before forwarding.
@@ -25,7 +26,7 @@ Cover logs, metrics, traces, dashboards, alerts, health checks, sampling, retent
 
 ## Audit Export Rules
 
-Audit export is append-only JSON Lines at the path selected by `--audit-log`. Each line is one
+Audit export is append-only JSON Lines at the selected profile path or its CLI override. Each line is one
 `msp.audit-event.v1` object. Export tools may forward those lines to local files, object storage,
 or external log collectors, but this repository does not own collector agents, hosted storage,
 dashboards, alert routing, or SIEM integrations.
