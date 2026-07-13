@@ -56,10 +56,13 @@ Current implemented responsibilities:
 - append audit events to the selected profile audit file or the explicit `--audit-log` override
 - summarize upstream stderr as redacted audit metadata without storing raw stderr lines
 - map non-zero upstream exits to the CLI upstream-failure exit code and record a redacted audit event
-- after client input closes, end upstream stdin and kill the upstream process if it does not exit
-  within a bounded grace window
-- after upstream stdout closes, kill the upstream process if it does not exit within the same
-  bounded grace window
+- after client input closes, end upstream stdin and terminate the upstream process tree if it does
+  not exit within a bounded grace window
+- after upstream stdout closes, terminate the upstream process tree if it does not exit within the
+  same bounded grace window
+- create a dedicated POSIX process group and signal the group with `SIGTERM`, then `SIGKILL`
+- on Windows, call `taskkill.exe` directly with `/PID` and `/T`, adding `/F` only during forced
+  escalation; fall back to direct child termination when tree termination fails
 - allow the CLI `run` command to configure the shutdown grace window with
   `--shutdown-grace-ms`, defaulting to 1000 ms
 - allow the CLI `run` command to configure frame guards with `--max-frame-bytes`, defaulting to
@@ -130,3 +133,5 @@ transports remain future runtime responsibilities.
   redacted upstream-failure audit event.
 - Upstream stdout close without process exit: proxy kills the process after the shutdown grace
   window and records a redacted upstream-failure audit event.
+- Abrupt proxy termination outside the managed shutdown path can still leave descendants behind.
+  Windows Job Object kill-on-close and an equivalent crash supervisor are not implemented.

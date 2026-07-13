@@ -51,6 +51,7 @@ Proposed precedence:
 - CLI `run` ops output: optional JSON Lines file selected by `--ops-log`
 - CLI `run` shutdown grace: 1000 ms unless `--shutdown-grace-ms` supplies an integer between
   0 and 2147483647
+- CLI `run` managed shutdown targets the upstream process tree, not only the immediate child.
 - CLI `run` frame size: 1048576 bytes unless `--max-frame-bytes` supplies an integer between
   1 and 16777216
 - CLI `run` JSON depth: 64 unless `--max-json-depth` supplies an integer between 1 and 256

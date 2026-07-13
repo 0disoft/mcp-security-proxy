@@ -1,4 +1,6 @@
 import { createInterface } from "node:readline";
+import { writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 
 if (process.argv.includes("--exit-nonzero")) {
   process.exit(19);
@@ -17,6 +19,21 @@ const requireInitialized = process.argv.includes("--require-initialized");
 const rejectRequestExtraFields = process.argv.includes("--reject-request-extra-fields");
 const responseExtraFields = process.argv.includes("--response-extra-fields");
 const unmatchedResponseOnToolsList = process.argv.includes("--unmatched-response-on-tools-list");
+const descendantModeIndex = process.argv.indexOf("--spawn-descendant-and-hang");
+const descendantPidPath = descendantModeIndex >= 0 ? process.argv[descendantModeIndex + 1] : undefined;
+if (descendantModeIndex >= 0) {
+  if (!descendantPidPath) {
+    throw new Error("--spawn-descendant-and-hang requires a PID output path");
+  }
+  const descendant = spawn(process.execPath, ["-e", "setInterval(() => undefined, 1000)"], {
+    stdio: "ignore",
+    windowsHide: true
+  });
+  if (!descendant.pid) {
+    throw new Error("failed to start descendant fixture process");
+  }
+  writeFileSync(descendantPidPath, String(descendant.pid), "utf8");
+}
 const serverPingId = "live-server-origin-ping";
 const serverPingWithParamsId = "live-server-origin-ping-with-params";
 const requestEnvelopeKeys = new Set(["jsonrpc", "id", "method", "params"]);
@@ -304,6 +321,10 @@ for await (const line of lines) {
     }
     process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { content: [] } })}\n`);
   }
+}
+
+if (descendantModeIndex >= 0) {
+  await new Promise(() => undefined);
 }
 
 function hasRequestExtraFields(message) {

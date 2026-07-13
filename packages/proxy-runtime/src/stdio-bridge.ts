@@ -20,7 +20,7 @@ export interface UpstreamProcess {
   readonly stdout: Readable;
   readonly stderr?: Readable;
   readonly exit: Promise<number>;
-  readonly kill: (force?: boolean) => void;
+  readonly kill: (force?: boolean) => void | Promise<void>;
 }
 
 export interface StdioProxyOptions {
@@ -186,7 +186,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     } else {
       fatalExitCode = 1;
     }
-    upstream.kill();
+    await requestUpstreamTermination(upstream, true);
     return await finish(fatalExitCode);
   } finally {
     options.clientInput.destroy();
@@ -364,9 +364,9 @@ async function waitForUpstreamExitOrKill(
 ): Promise<number> {
   const timeoutExit = new Promise<number>((resolve) => {
     const timer = setTimeout(() => {
-      upstream.kill(false);
-      const forceTimer = setTimeout(() => {
-        upstream.kill(true);
+      void requestUpstreamTermination(upstream, false);
+      const forceTimer = setTimeout(async () => {
+        await requestUpstreamTermination(upstream, true);
         upstream.stdin.destroy();
         upstream.stdout.destroy();
         upstream.stderr?.destroy();
@@ -380,6 +380,25 @@ async function waitForUpstreamExitOrKill(
     upstreamExit.finally(() => clearTimeout(timer));
   });
   return Promise.race([upstreamExit, timeoutExit]);
+}
+
+async function requestUpstreamTermination(upstream: UpstreamProcess, force: boolean): Promise<void> {
+  const termination = Promise.resolve()
+    .then(() => upstream.kill(force))
+    .catch(() => undefined);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      termination,
+      new Promise<void>((resolve) => {
+        timeout = setTimeout(resolve, 1_000);
+      })
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 async function normalizeUpstreamExit(

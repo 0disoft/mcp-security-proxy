@@ -47,7 +47,8 @@ Optional inputs:
 
 - audit output path override
 - `--shutdown-grace-ms <0..2147483647>` controls how long `run` waits after client input closes
-  before killing the upstream process. The default is 1000 ms.
+  before terminating the upstream process tree. The default is 1000 ms. Managed shutdown uses a
+  POSIX process group or Windows `taskkill.exe /T`, then escalates to forced termination.
 - `--max-frame-bytes <1..16777216>` controls the maximum UTF-8 byte length of one JSON-RPC line.
   The default is 1048576 bytes.
 - `--max-json-depth <1..256>` controls the maximum parsed JSON nesting depth. The default is 64.

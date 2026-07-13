@@ -26,6 +26,7 @@ discovery and tool calls through explicit policy, redaction, and audit events.
 ## MVP Scope
 
 - Start an MCP server behind a stdio proxy.
+- Terminate the managed upstream process tree after the bounded shutdown grace period.
 - Read a local policy file.
 - Support a narrow method allowlist for `initialize`, `notifications/initialized`, `ping`,
   `tools/list`, and `tools/call`.

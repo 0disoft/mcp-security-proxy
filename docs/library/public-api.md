@@ -40,6 +40,8 @@ This repository type owns public API surface, package compatibility, semantic ve
   with `formatAuditEventJsonLine`.
 - `audit correlation`: use the optional `AuditCorrelation` event field and runtime
   `AuditCorrelator` to connect redacted protocol events without exposing raw JSON-RPC IDs.
+- `runtime lifecycle`: `UpstreamProcess.kill(force?)` accepts synchronous or asynchronous
+  process-tree termination implementations.
 - `ops`: structured local runtime lifecycle metrics types and the `msp.ops-event.v1` schema
   contract.
 - `mcp`: protocol adapter types for MCP messages and `normalizeToolCallEnvelope` for deriving

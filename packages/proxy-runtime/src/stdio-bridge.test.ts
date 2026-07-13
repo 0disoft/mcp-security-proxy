@@ -622,6 +622,7 @@ describe("stdio proxy bridge", () => {
     const result = await resultPromise;
     expect(result.exitCode).toBe(4);
     expect(harness.upstream.killed).toBe(true);
+    expect(harness.upstream.killCalls).toEqual([false, true]);
     expect(harness.auditEvents).toContainEqual(
       expect.objectContaining({
         kind: "error",
@@ -647,6 +648,7 @@ describe("stdio proxy bridge", () => {
     const result = await resultPromise;
     expect(result.exitCode).toBe(4);
     expect(harness.upstream.killed).toBe(true);
+    expect(harness.upstream.killCalls).toEqual([false, true]);
     expect(harness.auditEvents).toContainEqual(
       expect.objectContaining({
         kind: "error",
@@ -706,7 +708,12 @@ function createHarness(
   readonly clientInput: PassThrough;
   readonly clientOutput: PassThrough;
   readonly clientOutputCapture: Buffer[];
-  readonly upstream: UpstreamProcess & { readonly stdout: PassThrough; readonly stderr: PassThrough; readonly killed: boolean };
+  readonly upstream: UpstreamProcess & {
+    readonly stdout: PassThrough;
+    readonly stderr: PassThrough;
+    readonly killed: boolean;
+    readonly killCalls: readonly boolean[];
+  };
   readonly upstreamInputCapture: Buffer[];
   readonly auditEvents: AuditEvent[];
   readonly opsEvents: StdioProxyOpsEvent[];
@@ -720,6 +727,7 @@ function createHarness(
   const clientOutputCapture: Buffer[] = [];
   const upstreamInputCapture: Buffer[] = [];
   let killed = false;
+  const killCalls: boolean[] = [];
 
   clientOutput.on("data", (chunk: Buffer) => clientOutputCapture.push(chunk));
   upstreamInput.on("data", (chunk: Buffer) => upstreamInputCapture.push(chunk));
@@ -735,11 +743,15 @@ function createHarness(
       exit: options.upstreamNeverExits
         ? new Promise(() => undefined)
         : new Promise((resolve) => upstreamOutput.once("end", () => resolve(options.upstreamExitCode ?? 0))),
-      kill: () => {
+      kill: (force = false) => {
         killed = true;
+        killCalls.push(force);
       },
       get killed() {
         return killed;
+      },
+      get killCalls() {
+        return killCalls;
       }
     },
     upstreamInputCapture,

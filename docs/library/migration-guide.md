@@ -62,6 +62,9 @@ policy, audit, CLI, or API contracts.
   object with `correlationVersion: msp.audit-correlation.v2`. Existing v1 consumers must ignore
   unknown optional fields. Opt-in consumers may route by session ID, transport event ID, sequence,
   and HMAC-hashed JSON-RPC ID; they must not expect hashes to remain stable across sessions.
+- Current draft runtime lifecycle note: `UpstreamProcess.kill` may now return a promise so hosts can
+  complete process-tree termination. Existing synchronous implementations remain valid. The stdio
+  bridge bounds a hanging or rejected termination callback and continues shutdown escalation.
 - `pnpm run migration-check` verifies that current schema versions and migration-note blockers stay
   represented here before release validation passes.
 

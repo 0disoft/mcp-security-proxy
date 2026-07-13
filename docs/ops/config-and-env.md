@@ -42,6 +42,8 @@ non-secret convenience defaults.
   Arbitrary upstream environment values require a future explicit allowlist contract.
 - Secret values must not be stored in policy examples, audit events, CLI JSON output, or error
   messages.
+- Managed shutdown terminates POSIX process groups or Windows process trees. Operators must still
+  use an external supervisor when descendants must be reclaimed after abrupt proxy termination.
 
 ## Drift Handling
 
