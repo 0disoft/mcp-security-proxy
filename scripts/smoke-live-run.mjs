@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -23,8 +23,6 @@ const invalidPingResponseAuditLog = join(tempDir, "invalid-ping-response-audit.j
 const deniedPingAuditLog = join(tempDir, "denied-ping-audit.jsonl");
 const failedAuditLog = join(tempDir, "failed-audit.jsonl");
 const secretAuditLog = join(tempDir, "secret-audit.jsonl");
-const processTreeAuditLog = join(tempDir, "process-tree-audit.jsonl");
-const descendantPidPath = join(tempDir, "descendant.pid");
 
 try {
   mkdirSync(auditFailurePath);
@@ -1409,77 +1407,8 @@ try {
     throw new Error(`expected secret deny audit event, got ${secretAudit}`);
   }
 
-  const processTreeChild = spawn(
-    process.execPath,
-    [
-      "packages/cli/dist/main.js",
-      "run",
-      "--policy",
-      "fixtures/policies/local-dev.json",
-      "--profile",
-      "local",
-      "--audit-log",
-      processTreeAuditLog,
-      "--shutdown-grace-ms",
-      "1",
-      "--",
-      process.execPath,
-      "scripts/fixture-mcp-server.mjs",
-      "--spawn-descendant-and-hang",
-      descendantPidPath
-    ],
-    {
-      cwd: repoRoot,
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true
-    }
-  );
-  const processTreeStderrChunks = [];
-  processTreeChild.stderr.on("data", (chunk) => processTreeStderrChunks.push(chunk));
-  await waitForFile(descendantPidPath, 2_000);
-  const descendantPid = Number(readFileSync(descendantPidPath, "utf8"));
-  processTreeChild.stdin.end();
-  const processTreeExitCode = await new Promise((resolve, reject) => {
-    processTreeChild.once("error", reject);
-    processTreeChild.once("exit", (code) => resolve(code ?? 1));
-  });
-  if (processTreeExitCode !== 4) {
-    throw new Error(
-      `expected process-tree shutdown smoke to exit 4, got ${processTreeExitCode}: ${Buffer.concat(processTreeStderrChunks).toString("utf8")}`
-    );
-  }
-  await waitForProcessExit(descendantPid, 2_000);
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
-}
-
-async function waitForFile(path, timeoutMs) {
-  const deadline = Date.now() + timeoutMs;
-  while (!existsSync(path)) {
-    if (Date.now() >= deadline) {
-      throw new Error(`timed out waiting for fixture file: ${path}`);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-}
-
-async function waitForProcessExit(pid, timeoutMs) {
-  const deadline = Date.now() + timeoutMs;
-  while (isProcessAlive(pid)) {
-    if (Date.now() >= deadline) {
-      throw new Error(`descendant process ${pid} survived proxy shutdown`);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-}
-
-function isProcessAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error?.code !== "ESRCH";
-  }
 }
 
 function waitForJsonLine(stream, predicate) {

@@ -28,6 +28,7 @@ This document owns stable validation names for this scaffold.
 - license-report
 - release-readiness
 - performance-smoke
+- process-tree-smoke
 - check
 
 ## Required Final Report

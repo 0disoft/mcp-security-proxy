@@ -45,9 +45,11 @@ GitHub Actions runs `.github/workflows/ci.yml` on `main` pushes and pull request
 - installs the locked dependency graph
 - runs `pnpm run check`
 - runs `git diff --check`
+- runs `pnpm run process-tree-smoke` on Ubuntu and Windows in a focused matrix job
 
 `pnpm run ci-contract` keeps this workflow aligned with the documented Node.js version, pnpm
-version, read-only permissions, pinned actions, local check command, and diff hygiene command.
+version, read-only permissions, pinned actions, local check command, diff hygiene command, and the
+cross-platform process-tree smoke matrix.
 CI workflows must not publish packages, create releases, request write permissions, request
 `id-token: write`, or reference registry publish tokens.
 
@@ -77,5 +79,6 @@ path added to the normal release workflow.
   package-surface, secret-scan, artifact-safety, repository-hygiene, validation-registry, ci-contract,
   compatibility, license-report, release-readiness, performance-smoke, check.
 - Release blocker status: public behavior changes are blocked when local `check` or hosted CI fails.
-- Remaining operational risk: hosted CI covers one Ubuntu runner; future OS-specific proxy behavior
-  still needs targeted validation before release.
+- Remaining operational risk: the focused matrix covers managed process-tree shutdown on hosted
+  Ubuntu and Windows runners, but abrupt runner or proxy termination still does not exercise a
+  Windows Job Object kill-on-close guarantee.

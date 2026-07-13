@@ -46,12 +46,17 @@ assertPinnedAction(workflowPath, workflow, "actions/setup-node");
 assertContains(workflow, "pnpm install --frozen-lockfile", `${workflowPath}: frozen lockfile install`);
 assertContains(workflow, "pnpm run check", `${workflowPath}: repository check command`);
 assertContains(workflow, "git diff --check", `${workflowPath}: diff hygiene command`);
+assertContains(workflow, "process-tree-smoke:", `${workflowPath}: process-tree smoke job`);
+assertContains(workflow, "- ubuntu-latest\n          - windows-latest", `${workflowPath}: process-tree OS matrix`);
+assertContains(workflow, "pnpm run process-tree-smoke", `${workflowPath}: process-tree smoke command`);
+assertContains(workflow, "fail-fast: false", `${workflowPath}: process-tree matrix completion`);
 checkWorkflowPublishSurfaces(workflowFiles);
 
 assertContains(ciDoc, `installs Node.js ${workflowNodeVersion}`, `${ciDocPath}: documented Node.js version`);
 assertContains(ciDoc, `enables pnpm ${packageManager.version}`, `${ciDocPath}: documented pnpm version`);
 assertContains(ciDoc, "runs `pnpm run check`", `${ciDocPath}: documented check command`);
 assertContains(ciDoc, "runs `git diff --check`", `${ciDocPath}: documented diff hygiene command`);
+assertContains(ciDoc, "runs `pnpm run process-tree-smoke` on Ubuntu and Windows", `${ciDocPath}: documented process-tree matrix`);
 assertContains(
   ciDoc,
   "CI workflows must not publish packages",

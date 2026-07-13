@@ -11,7 +11,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "artifact-safety": "node scripts/check-artifact-safety.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs && pnpm run schema-contract && pnpm run migration-check && pnpm run package-surface && pnpm run secret-scan && pnpm run artifact-safety && pnpm run repository-hygiene && pnpm run validation-registry && pnpm run ci-contract && pnpm run compatibility && pnpm run external-compatibility && pnpm run license-report && pnpm run release-readiness && pnpm run performance-smoke && pnpm run smoke",
+    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs && pnpm run schema-contract && pnpm run migration-check && pnpm run package-surface && pnpm run secret-scan && pnpm run artifact-safety && pnpm run repository-hygiene && pnpm run validation-registry && pnpm run ci-contract && pnpm run compatibility && pnpm run external-compatibility && pnpm run license-report && pnpm run release-readiness && pnpm run performance-smoke && pnpm run process-tree-smoke && pnpm run smoke",
     "ci-contract": "node scripts/check-ci-contract.mjs",
     "compatibility": "pnpm build && node scripts/check-compatibility-evidence.mjs",
     "contract": "pnpm build && pnpm --filter @0disoft/mcp-security-proxy-contracts typecheck && pnpm --filter @0disoft/mcp-security-proxy-core test",
@@ -21,6 +21,7 @@
     "migration-check": "pnpm build && node scripts/check-migration-notes.mjs",
     "package-surface": "pnpm build && node scripts/check-package-surface.mjs && node scripts/check-package-consumer.mjs",
     "performance-smoke": "pnpm build && node scripts/check-performance-budget.mjs",
+    "process-tree-smoke": "pnpm build && node scripts/check-process-tree-smoke.mjs",
     "release-readiness": "node scripts/check-release-readiness.mjs && node scripts/check-npm-bootstrap-plan.mjs && node scripts/prepare-npm-bootstrap-artifacts.mjs --dry-run",
     "repository-hygiene": "node scripts/check-repository-hygiene.mjs",
     "schema-contract": "pnpm build && node scripts/check-schema-contracts.mjs",
