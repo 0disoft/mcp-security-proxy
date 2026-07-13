@@ -58,6 +58,10 @@ policy, audit, CLI, or API contracts.
   is not implemented. CLI `run` requires `audit.destination: file`, uses the profile `audit.path`
   by default, and treats `--audit-log` as an explicit path override. Embedding hosts may still own
   a stdout sink when they can keep it separate from MCP protocol output.
+- Current draft audit correlation note: audit events may now include an optional `correlation`
+  object with `correlationVersion: msp.audit-correlation.v2`. Existing v1 consumers must ignore
+  unknown optional fields. Opt-in consumers may route by session ID, transport event ID, sequence,
+  and HMAC-hashed JSON-RPC ID; they must not expect hashes to remain stable across sessions.
 - `pnpm run migration-check` verifies that current schema versions and migration-note blockers stay
   represented here before release validation passes.
 

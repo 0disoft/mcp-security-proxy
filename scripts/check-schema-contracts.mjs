@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   AUDIT_DESTINATIONS,
+  AUDIT_CORRELATION_VERSION,
+  AUDIT_DIRECTIONS,
   AUDIT_EVENT_KINDS,
   AUDIT_EVENT_SCHEMA_VERSION,
   AUDIT_FAILURE_ACTIONS,
@@ -9,6 +11,7 @@ import {
   DECISION_REASON_CODES,
   DECISION_SCHEMA_VERSION,
   MVP_ALLOWED_METHODS,
+  JSON_RPC_ID_TYPES,
   OPS_EVENT_KINDS,
   OPS_EVENT_SCHEMA_VERSION,
   OPS_LIFECYCLE_EVENTS,
@@ -66,6 +69,13 @@ assertArrayEqual(
 
 assertEqual("audit.schemaVersion", auditSchema.properties?.schemaVersion?.const, AUDIT_EVENT_SCHEMA_VERSION);
 assertArrayEqual("audit.kind", auditSchema.properties?.kind?.enum, AUDIT_EVENT_KINDS);
+assertEqual(
+  "audit.correlation.version",
+  auditSchema.$defs?.correlation?.properties?.correlationVersion?.const,
+  AUDIT_CORRELATION_VERSION
+);
+assertArrayEqual("audit.correlation.direction", auditSchema.$defs?.correlation?.properties?.direction?.enum, AUDIT_DIRECTIONS);
+assertArrayEqual("audit.correlation.jsonRpcIdType", auditSchema.$defs?.correlation?.properties?.jsonRpcIdType?.enum, JSON_RPC_ID_TYPES);
 
 assertEqual("ops.schemaVersion", opsSchema.$defs?.base?.properties?.schemaVersion?.const, OPS_EVENT_SCHEMA_VERSION);
 assertArrayEqual("ops.kind", opsSchema.$defs?.base?.properties?.kind?.enum, OPS_EVENT_KINDS);

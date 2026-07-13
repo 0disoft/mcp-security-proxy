@@ -1,6 +1,6 @@
 # Audit Correlation Plan
 
-Status: Draft
+Status: Implemented
 
 ## Purpose
 
@@ -8,8 +8,9 @@ Define the v2 audit correlation metadata needed to connect protocol boundary eve
 storing raw MCP payloads, raw prompt text, raw tool arguments, environment values, credentials, or
 full unredacted paths.
 
-Audit correlation v2 is not implemented. This plan is a design constraint for a future audit schema
-and runtime change.
+Audit correlation v2 is implemented as an optional `correlation` object on
+`msp.audit-event.v1`. Existing consumers may ignore the optional object; consumers that opt in use
+`correlationVersion: msp.audit-correlation.v2` as the nested contract discriminator.
 
 ## Scope
 
@@ -25,9 +26,9 @@ correlation work should add enough metadata for local operators and host integra
 This plan does not approve a hosted control plane, SIEM integration, raw log upload path, or
 cross-machine identity graph.
 
-## Proposed Metadata
+## Metadata
 
-Each audit event that is tied to a protocol frame should be able to carry an optional correlation
+Each audit event that is tied to a protocol frame can carry an optional correlation
 object with these fields:
 
 - `correlationVersion`: fixed string for the new correlation contract.
@@ -74,6 +75,9 @@ object with these fields:
 
 ## Compatibility and Migration
 
+Runtime audit correlation fixture evidence covers matched response routing, keyed ID hashing, and
+raw-ID absence.
+
 Audit correlation v2 requires a schema change, new compatibility fixtures, and migration notes.
 Before implementation lands:
 
@@ -85,11 +89,11 @@ Before implementation lands:
   to v2 correlation;
 - keep `decision.evidence[].code` as the routing source for policy outcomes.
 
-## Open Questions
+## Implemented Decisions
 
-- Whether `sessionId` should reset only per process or per upstream restart inside a future
-  supervisor mode.
-- Whether `jsonRpcIdHash` should use an internal HMAC key or a non-exported random salt with a
-  standard hash.
-- Whether host integrations need a separate host-supplied correlation id and how to reject unsafe
-  host-supplied raw identifiers.
+- `sessionId` resets for each `ProxySession`. A future supervisor creates a new session and salt
+  for each upstream restart.
+- `jsonRpcIdHash` is HMAC-SHA-256 with a random, non-exported per-session key.
+- Host-supplied correlation identifiers are not accepted by the current API.
+- `sessionId`, `transportEventId`, and `jsonRpcIdHash` are stable routing keys only within one
+  session. `sequence` orders audit events within that session.

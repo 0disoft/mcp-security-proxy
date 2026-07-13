@@ -1,0 +1,70 @@
+{
+  "requestAuditEvent": {
+    "schemaVersion": "msp.audit-event.v1",
+    "kind": "error",
+    "profileId": "local",
+    "decision": {
+      "schemaVersion": "msp.decision.v1",
+      "action": "deny",
+      "evidence": [
+        {
+          "code": "jsonrpc.request_extra_fields_redacted",
+          "reason": "client JSON-RPC request extra fields removed before forwarding"
+        }
+      ]
+    },
+    "redaction": {
+      "applied": true,
+      "counts": {
+        "jsonrpc_request_extra_fields": 1
+      }
+    },
+    "correlation": {
+      "correlationVersion": "msp.audit-correlation.v2",
+      "sessionId": "<session-id>",
+      "sequence": 1,
+      "direction": "client_to_upstream",
+      "transport": "stdio",
+      "transportEventId": "stdio-1",
+      "jsonRpcIdHash": "<json-rpc-id-hash>",
+      "jsonRpcIdType": "string",
+      "method": "ping",
+      "discoveryGeneration": 0
+    }
+  },
+  "responseAuditEvent": {
+    "schemaVersion": "msp.audit-event.v1",
+    "kind": "error",
+    "profileId": "local",
+    "decision": {
+      "schemaVersion": "msp.decision.v1",
+      "action": "deny",
+      "evidence": [
+        {
+          "code": "jsonrpc.response_extra_fields_redacted",
+          "reason": "upstream JSON-RPC response extra fields removed before forwarding"
+        }
+      ]
+    },
+    "redaction": {
+      "applied": true,
+      "counts": {
+        "jsonrpc_response_extra_fields": 1
+      }
+    },
+    "correlation": {
+      "correlationVersion": "msp.audit-correlation.v2",
+      "sessionId": "<session-id>",
+      "sequence": 2,
+      "direction": "upstream_to_client",
+      "transport": "stdio",
+      "transportEventId": "stdio-1",
+      "jsonRpcIdHash": "<json-rpc-id-hash>",
+      "jsonRpcIdType": "string",
+      "matchedRequestMethod": "ping",
+      "discoveryGeneration": 0,
+      "pendingAgeMs": "<elapsed-ms>"
+    }
+  },
+  "rawIdAbsent": true
+}

@@ -24,7 +24,41 @@
         }
       },
       "additionalProperties": false
-    }
+    },
+    "correlation": { "$ref": "#/$defs/correlation" }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "correlation": {
+      "type": "object",
+      "required": [
+        "correlationVersion",
+        "sessionId",
+        "sequence",
+        "direction",
+        "transport",
+        "transportEventId",
+        "jsonRpcIdType",
+        "discoveryGeneration"
+      ],
+      "properties": {
+        "correlationVersion": { "const": "msp.audit-correlation.v2" },
+        "sessionId": { "type": "string", "minLength": 1 },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "direction": {
+          "enum": ["client_to_upstream", "upstream_to_client", "server_origin", "runtime"]
+        },
+        "transport": { "const": "stdio" },
+        "transportEventId": { "type": "string", "minLength": 1 },
+        "jsonRpcIdHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "jsonRpcIdType": { "enum": ["string", "number", "null", "absent"] },
+        "method": { "type": "string", "minLength": 1 },
+        "matchedRequestMethod": { "type": "string", "minLength": 1 },
+        "discoveryGeneration": { "type": "integer", "minimum": 0 },
+        "pendingAgeMs": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "durationMs": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+      },
+      "additionalProperties": false
+    }
+  }
 }

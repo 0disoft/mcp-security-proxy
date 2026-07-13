@@ -27,6 +27,7 @@ import {
   type JsonRpcRequest,
   type JsonRpcResponse
 } from "@0disoft/mcp-security-proxy-mcp-adapter";
+import { AuditCorrelator, type PendingAuditCorrelation } from "./audit-correlation.js";
 
 export interface ProxySessionOptions {
   readonly policy: PolicyDocument;
@@ -37,6 +38,7 @@ export interface ProxySessionOptions {
   readonly maxJsonDepth?: number;
   readonly maxPendingRequests?: number;
   readonly pendingRequestTtlMs?: number;
+  readonly auditCorrelator?: AuditCorrelator;
 }
 
 export interface ApprovalRequest {
@@ -68,6 +70,7 @@ interface PendingRequestState {
   readonly method: string;
   readonly expiresAt: number;
   readonly continuesDiscovery?: boolean;
+  readonly correlation: PendingAuditCorrelation;
 }
 
 type JsonRpcRequestEnvelope = JsonRpcRequest | JsonRpcNotification;
@@ -97,6 +100,7 @@ export class ProxySession {
   private readonly maxPendingRequests: number;
   private readonly pendingRequestTtlMs: number;
   private readonly approvalTimeoutMs: number;
+  private readonly auditCorrelator: AuditCorrelator;
 
   constructor(private readonly options: ProxySessionOptions) {
     this.maxFrameBytes = resolvePositiveInteger(options.maxFrameBytes, defaultMaxFrameBytes);
@@ -104,22 +108,27 @@ export class ProxySession {
     this.maxPendingRequests = resolvePositiveInteger(options.maxPendingRequests, defaultMaxPendingRequests);
     this.pendingRequestTtlMs = resolvePositiveInteger(options.pendingRequestTtlMs, defaultPendingRequestTtlMs);
     this.approvalTimeoutMs = resolvePositiveInteger(options.approvalTimeoutMs, defaultApprovalTimeoutMs);
+    this.auditCorrelator = options.auditCorrelator ?? new AuditCorrelator();
   }
 
   handleClientLine(line: string): ProxyFrameResult {
-    const prepared = this.prepareClientLine(line);
-    if (prepared.kind === "result") {
-      return prepared.result;
-    }
-    return this.handlePreparedClientRequest(prepared.line, prepared.envelope, prepared.auditEvents);
+    return this.auditCorrelator.runFrame("client_to_upstream", () => {
+      const prepared = this.prepareClientLine(line);
+      if (prepared.kind === "result") {
+        return prepared.result;
+      }
+      return this.handlePreparedClientRequest(prepared.line, prepared.envelope, prepared.auditEvents);
+    });
   }
 
   async handleClientLineWithApproval(line: string, approvalHook: ApprovalHook): Promise<ProxyFrameResult> {
-    const prepared = this.prepareClientLine(line);
-    if (prepared.kind === "result") {
-      return prepared.result;
-    }
-    return this.handlePreparedClientRequestWithApproval(prepared.line, prepared.envelope, approvalHook, prepared.auditEvents);
+    return await this.auditCorrelator.runFrame("client_to_upstream", async () => {
+      const prepared = this.prepareClientLine(line);
+      if (prepared.kind === "result") {
+        return prepared.result;
+      }
+      return await this.handlePreparedClientRequestWithApproval(prepared.line, prepared.envelope, approvalHook, prepared.auditEvents);
+    });
   }
 
   private prepareClientLine(
@@ -140,9 +149,10 @@ export class ProxySession {
     }
 
     const envelope = parsed.value;
+    this.auditCorrelator.attachEnvelope(envelope);
     if (!isJsonRpcRequest(envelope)) {
-      const serverOriginMethod = this.takePendingServerOriginMethod(envelope);
-      if (!serverOriginMethod) {
+      const serverOriginPending = this.takePendingServerOriginRequest(envelope);
+      if (!serverOriginPending) {
         return {
           kind: "result",
           result: {
@@ -155,7 +165,7 @@ export class ProxySession {
           }
         };
       }
-      if (serverOriginMethod === "ping" && !isEmptyPingResponse(envelope)) {
+      if (serverOriginPending.method === "ping" && !isEmptyPingResponse(envelope)) {
         return {
           kind: "result",
           result: {
@@ -164,7 +174,7 @@ export class ProxySession {
                 "error",
                 denyDecision("client response to server-origin ping must be an empty result", {
                   code: "jsonrpc.invalid",
-                  method: serverOriginMethod
+                  method: serverOriginPending.method
                 })
               )
             ]
@@ -372,9 +382,11 @@ export class ProxySession {
     }
 
     let approval: ApprovalResult;
+    const approvalStartedAt = Date.now();
     try {
       approval = await this.callApprovalHook(approvalHook, normalized, decision);
     } catch (error) {
+      this.auditCorrelator.setDuration(approvalStartedAt);
       const reason = error instanceof ApprovalHookTimeout ? "approval hook timed out" : "approval hook failed closed";
       return this.withPrependedAuditEvents(
         preparedAuditEvents,
@@ -390,6 +402,7 @@ export class ProxySession {
         )
       );
     }
+    this.auditCorrelator.setDuration(approvalStartedAt);
 
     if (approval.approved) {
       const pendingDenied = this.denyPendingCapacityExceeded(envelope, this.pendingRequestMethods, "client");
@@ -433,6 +446,10 @@ export class ProxySession {
   }
 
   handleServerLine(line: string): ProxyFrameResult {
+    return this.auditCorrelator.runFrame("upstream_to_client", () => this.handleServerFrame(line));
+  }
+
+  private handleServerFrame(line: string): ProxyFrameResult {
     const parsed = parseJsonLine(line, this.maxFrameBytes, this.maxJsonDepth);
     if (!parsed.ok) {
       const decision = denyDecision(parsed.reason, { code: parsed.code });
@@ -442,7 +459,9 @@ export class ProxySession {
     }
 
     const envelope = parsed.value;
+    this.auditCorrelator.attachEnvelope(envelope);
     if (isJsonRpcRequest(envelope)) {
+      this.auditCorrelator.setDirection("server_origin");
       const methodDecision = evaluateServerOriginMethod(envelope, this.options.policy);
       if (methodDecision.action !== "allow") {
         return this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied");
@@ -481,13 +500,13 @@ export class ProxySession {
       envelope: envelopeSanitized.envelope,
       redactionApplied: errorSanitized.redaction.applied || envelopeSanitized.redaction.applied
     };
+    const responseLine = sanitized.redactionApplied ? JSON.stringify(sanitized.envelope) : line;
+
+    const pendingRequest = this.takePendingRequest(sanitized.envelope);
     const sanitizeAuditEvents = [
       ...this.createUpstreamErrorRedactionAuditEvents(errorSanitized.redaction),
       ...this.createResponseEnvelopeRedactionAuditEvents("upstream", envelopeSanitized.redaction)
     ];
-    const responseLine = sanitized.redactionApplied ? JSON.stringify(sanitized.envelope) : line;
-
-    const pendingRequest = this.takePendingRequest(sanitized.envelope);
     if (!pendingRequest) {
       return {
         auditEvents: [
@@ -524,6 +543,7 @@ export class ProxySession {
     for (const tool of result.visibleTools) {
       this.visibleTools.set(tool.name, tool);
     }
+    this.auditCorrelator.markDiscoveryAccepted();
 
     return {
       forwardLine: JSON.stringify(result.envelope),
@@ -538,6 +558,9 @@ export class ProxySession {
     const key = requestIdKey(envelope.id);
     const pending = this.pendingRequestMethods.get(key);
     this.pendingRequestMethods.delete(key);
+    if (pending) {
+      this.auditCorrelator.matchPending(pending.correlation);
+    }
     return pending;
   }
 
@@ -548,16 +571,20 @@ export class ProxySession {
     this.pendingRequestMethods.set(requestIdKey(envelope.id), {
       method: envelope.method,
       expiresAt: Number.POSITIVE_INFINITY,
+      correlation: this.auditCorrelator.snapshotPending(envelope.method),
       ...(envelope.method === "tools/list" && hasDiscoveryCursor(envelope) ? { continuesDiscovery: true } : {})
     });
   }
 
-  private takePendingServerOriginMethod(envelope: JsonRpcResponse): string | undefined {
+  private takePendingServerOriginRequest(envelope: JsonRpcResponse): PendingRequestState | undefined {
     this.evictExpiredPendingRequests(this.pendingServerOriginMethods);
     const key = requestIdKey(envelope.id);
-    const method = this.pendingServerOriginMethods.get(key)?.method;
+    const pending = this.pendingServerOriginMethods.get(key);
     this.pendingServerOriginMethods.delete(key);
-    return method;
+    if (pending) {
+      this.auditCorrelator.matchPending(pending.correlation, "server_origin");
+    }
+    return pending;
   }
 
   private rememberPendingServerOriginRequest(envelope: JsonRpcRequestEnvelope): void {
@@ -631,7 +658,8 @@ export class ProxySession {
   private createPendingRequestState(method: string): PendingRequestState {
     return {
       method,
-      expiresAt: Date.now() + this.pendingRequestTtlMs
+      expiresAt: Date.now() + this.pendingRequestTtlMs,
+      correlation: this.auditCorrelator.snapshotPending(method)
     };
   }
 
@@ -717,6 +745,7 @@ export class ProxySession {
       profileId: this.options.profileId,
       decision,
       redaction,
+      correlation: this.auditCorrelator.createCorrelation(method),
       ...(toolName ? { toolName } : {}),
       ...(method ? { method } : {})
     });

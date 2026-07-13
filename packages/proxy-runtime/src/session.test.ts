@@ -7,6 +7,70 @@ import { createProxySession } from "./session.js";
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
 describe("proxy runtime session", () => {
+  it("correlates a sanitized response only after exact pending request matching", () => {
+    const session = createProxySession({ policy: readPolicy(), profileId: "local" });
+    const request = session.handleClientLine(
+      JSON.stringify({ jsonrpc: "2.0", id: "private-request-id", method: "ping", trace: "removed" })
+    );
+    const response = session.handleServerLine(
+      JSON.stringify({ jsonrpc: "2.0", id: "private-request-id", result: {}, trace: "removed" })
+    );
+
+    const requestCorrelation = request.auditEvents[0]?.correlation;
+    const responseCorrelation = response.auditEvents[0]?.correlation;
+    expect(requestCorrelation).toMatchObject({
+      correlationVersion: "msp.audit-correlation.v2",
+      direction: "client_to_upstream",
+      jsonRpcIdType: "string",
+      method: "ping",
+      discoveryGeneration: 0
+    });
+    expect(responseCorrelation).toMatchObject({
+      direction: "upstream_to_client",
+      jsonRpcIdType: "string",
+      matchedRequestMethod: "ping",
+      discoveryGeneration: 0
+    });
+    expect(responseCorrelation?.sessionId).toBe(requestCorrelation?.sessionId);
+    expect(responseCorrelation?.transportEventId).toBe(requestCorrelation?.transportEventId);
+    expect(responseCorrelation?.jsonRpcIdHash).toBe(requestCorrelation?.jsonRpcIdHash);
+    expect(responseCorrelation?.sequence).toBeGreaterThan(requestCorrelation?.sequence ?? 0);
+    expect(responseCorrelation?.pendingAgeMs).toBeGreaterThanOrEqual(0);
+    expect(JSON.stringify([...request.auditEvents, ...response.auditEvents])).not.toContain("private-request-id");
+    expect(responseCorrelation?.jsonRpcIdHash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("does not guess request correlation for unmatched responses", () => {
+    const session = createProxySession({ policy: readPolicy(), profileId: "local" });
+    const result = session.handleServerLine(JSON.stringify({ jsonrpc: "2.0", id: 7, result: {} }));
+
+    expect(result.auditEvents[0]?.correlation).toMatchObject({
+      direction: "upstream_to_client",
+      jsonRpcIdType: "number",
+      discoveryGeneration: 0
+    });
+    expect(result.auditEvents[0]?.correlation?.matchedRequestMethod).toBeUndefined();
+  });
+
+  it("records the accepted discovery generation on later tool-call decisions", () => {
+    const session = createProxySession({ policy: readPolicy(), profileId: "local" });
+    primeToolDiscovery(session);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "generation-call",
+        method: "tools/call",
+        params: { name: "run_command", arguments: {} }
+      })
+    );
+
+    expect(result.auditEvents[0]?.correlation).toMatchObject({
+      method: "tools/call",
+      discoveryGeneration: 1
+    });
+  });
+
   it("rejects client messages with invalid JSON-RPC id types", () => {
     const session = createProxySession({
       policy: readPolicy(),
@@ -3543,6 +3607,12 @@ describe("proxy runtime session", () => {
       decision: {
         action: "deny",
         evidence: [{ code: "policy.approval_hook_failed", ruleId: "approval-shell", reason: "approval hook timed out" }]
+      },
+      correlation: {
+        direction: "client_to_upstream",
+        method: "tools/call",
+        discoveryGeneration: 1,
+        durationMs: expect.any(Number)
       }
     });
   });

@@ -8,6 +8,7 @@ import type {
 } from "@0disoft/mcp-security-proxy-contracts";
 import { createAuditEvent } from "@0disoft/mcp-security-proxy-core";
 import { createProxySession, type ApprovalHook } from "./session.js";
+import { AuditCorrelator } from "./audit-correlation.js";
 
 export interface UpstreamCommand {
   readonly executable: string;
@@ -67,12 +68,14 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
   }
 
   const maxFrameBytes = resolvePositiveInteger(options.maxFrameBytes, defaultMaxFrameBytes);
+  const auditCorrelator = new AuditCorrelator();
   const session = createProxySession({
     policy: options.policy,
     profileId: options.profileId,
     approvalHookAvailable: Boolean(options.approveToolCall ?? options.approvalHookAvailable),
     ...(options.approvalTimeoutMs !== undefined ? { approvalTimeoutMs: options.approvalTimeoutMs } : {}),
     maxFrameBytes,
+    auditCorrelator,
     ...(options.maxJsonDepth !== undefined ? { maxJsonDepth: options.maxJsonDepth } : {})
   });
 
@@ -114,7 +117,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     return { exitCode };
   };
   await recordOps(createStartOpsEvent(options.profileId, maxFrameBytes, options.maxJsonDepth, metrics));
-  const stderrDone = observeUpstreamStderr(upstream.stderr, options.profileId, recordAudit, maxFrameBytes);
+  const stderrDone = observeUpstreamStderr(upstream.stderr, options.profileId, recordAudit, maxFrameBytes, auditCorrelator);
 
   const clientDone = consumeFrames(options.clientInput, maxFrameBytes, async (line) => {
     metrics.clientFrames += 1;
@@ -165,18 +168,18 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs, -2);
       await upstreamDone;
       await stderrDone;
-      return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit));
+      return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit, auditCorrelator));
     }
 
     if (first === "upstream-output") {
       const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs, -3);
       await stderrDone;
-      return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit));
+      return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit, auditCorrelator));
     }
 
     await upstreamDone;
     await stderrDone;
-    return await finish(await normalizeUpstreamExit(first, options.profileId, recordAudit));
+    return await finish(await normalizeUpstreamExit(first, options.profileId, recordAudit, auditCorrelator));
   } catch (error) {
     if (error instanceof AuditFailure) {
       fatalExitCode = 5;
@@ -382,7 +385,8 @@ async function waitForUpstreamExitOrKill(
 async function normalizeUpstreamExit(
   exitCode: number,
   profileId: string,
-  recordAudit: (events: readonly AuditEvent[]) => Promise<void>
+  recordAudit: (events: readonly AuditEvent[]) => Promise<void>,
+  auditCorrelator: AuditCorrelator
 ): Promise<number> {
   if (exitCode === 0) {
     return 0;
@@ -412,7 +416,8 @@ async function normalizeUpstreamExit(
       redaction: {
         applied: false,
         counts: {}
-      }
+      },
+      correlation: auditCorrelator.createCorrelation()
     })
   ]);
   return 4;
@@ -422,7 +427,8 @@ async function observeUpstreamStderr(
   stderr: Readable | undefined,
   profileId: string,
   recordAudit: (events: readonly AuditEvent[]) => Promise<void>,
-  maxFrameBytes: number
+  maxFrameBytes: number,
+  auditCorrelator: AuditCorrelator
 ): Promise<void> {
   if (!stderr) {
     return;
@@ -456,7 +462,8 @@ async function observeUpstreamStderr(
         counts: {
           stderr_line: lineCount
         }
-      }
+      },
+      correlation: auditCorrelator.createCorrelation()
     })
   ]);
 }

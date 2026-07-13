@@ -279,7 +279,7 @@ function checkAuditCorrelationPlanDocs() {
   const path = "docs/architecture/10-audit-correlation-plan.md";
   const text = readFileSync(join(root, path), "utf8");
   for (const phrase of [
-    "Audit correlation v2 is not implemented",
+    "Audit correlation v2 is implemented",
     "Do not store raw JSON-RPC ids",
     "sessionId",
     "sequence",
@@ -288,7 +288,8 @@ function checkAuditCorrelationPlanDocs() {
     "discoveryGeneration",
     "Pending request state stores correlation metadata alongside method and expiry",
     "Unmatched responses receive their own correlation metadata and must not guess a request link",
-    "Audit correlation v2 requires a schema change, new compatibility fixtures, and migration notes"
+    "`jsonRpcIdHash` is HMAC-SHA-256",
+    "Runtime audit correlation fixture"
   ]) {
     if (!text.includes(phrase)) {
       failures.push(`${path}: missing audit correlation plan phrase: ${phrase}`);

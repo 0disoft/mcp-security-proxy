@@ -55,6 +55,7 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Library policy-parse fixture.
 - Library decision-result fixture.
 - Library audit JSONL formatter fixture.
+- Runtime audit correlation fixture covering matched request/response routing and raw-ID absence.
 - Library tool-call normalization fixture.
 - Runtime live stdio smoke command evidence for the implemented local proxy path.
 - Runtime ops-log fixture evidence for structured lifecycle metrics emitted by live `run`.

@@ -31,6 +31,10 @@ Audit export is append-only JSON Lines at the selected profile path or its CLI o
 or external log collectors, but this repository does not own collector agents, hosted storage,
 dashboards, alert routing, or SIEM integrations.
 
+Protocol-bound events include optional `msp.audit-correlation.v2` metadata. JSON-RPC IDs are
+represented only by a per-session HMAC-SHA-256 hash. The hash, session ID, transport event ID, and
+sequence support local routing; none is a cross-session or machine identity.
+
 Export allowlist:
 
 - `schemaVersion`
@@ -45,6 +49,7 @@ Export allowlist:
 - `decision.evidence[].reason`
 - `redaction.applied`
 - `redaction.counts`
+- optional `correlation` fields defined by `msp.audit-correlation.v2`
 
 Exported audit events must not contain raw secrets, environment values, prompt contents, full tool
 arguments, raw upstream stderr lines, `error.data`, or unredacted upstream error messages. Audit

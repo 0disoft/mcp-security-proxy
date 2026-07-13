@@ -88,6 +88,7 @@ const requiredEvidenceIds = new Set([
   "runtime-approval-rejected-redacted",
   "runtime-approval-hook-error",
   "runtime-approval-timeout",
+  "runtime-audit-correlation",
   "runtime-client-envelope-sanitization",
   "runtime-client-ping-error-response",
   "runtime-client-ping-payload-response",
@@ -817,6 +818,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
     "approval-hook-error",
     "approval-rejected-redacted",
     "approval-timeout",
+    "audit-correlation",
     "client-envelope-sanitization",
     "client-ping-error-response",
     "client-ping-payload-response",
@@ -848,6 +850,23 @@ async function checkRuntimeSessionFixture(id, path, item) {
   }
 
   const { createProxySession } = await import("../packages/proxy-runtime/dist/index.js");
+  if (item.scenario === "audit-correlation") {
+    const session = createProxySession({ policy: readJson(item.policy), profileId: item.profile });
+    const request = session.handleClientLine(
+      JSON.stringify({ jsonrpc: "2.0", id: "RAW_CORRELATION_ID_MARKER", method: "ping", trace: "removed" })
+    );
+    const response = session.handleServerLine(
+      JSON.stringify({ jsonrpc: "2.0", id: "RAW_CORRELATION_ID_MARKER", result: {}, trace: "removed" })
+    );
+    const actual = {
+      requestAuditEvent: request.auditEvents[0],
+      responseAuditEvent: response.auditEvents[0],
+      rawIdAbsent: !stableJson([...request.auditEvents, ...response.auditEvents]).includes("RAW_CORRELATION_ID_MARKER")
+    };
+    const expected = readJson(path);
+    assertJsonEqual(id, actual, expected);
+    return;
+  }
   if (item.scenario.startsWith("approval-")) {
     const actual = await collectApprovalRuntimeSessionResult(createProxySession, item, id);
     const expected = readJson(path);
@@ -2051,11 +2070,37 @@ function approvalRuntimeScenario(scenario) {
 function assertJsonEqual(id, actual, expected) {
   checkDecisionEvidenceCodes(`${id}: actual`, actual);
   checkDecisionEvidenceCodes(`${id}: expected`, expected);
-  const actualText = stableJson(actual);
+  const actualText = stableJson(normalizeOptionalCorrelation(actual, expected));
   const expectedText = stableJson(expected);
   if (actualText !== expectedText) {
     failures.push(`${id}: fixture drifted from current implementation`);
   }
+}
+
+function normalizeOptionalCorrelation(actual, expected) {
+  if (Array.isArray(actual)) {
+    return actual.map((item, index) => normalizeOptionalCorrelation(item, Array.isArray(expected) ? expected[index] : undefined));
+  }
+  if (!actual || typeof actual !== "object") {
+    return actual;
+  }
+  const normalized = {};
+  for (const [key, value] of Object.entries(actual)) {
+    if (key === "correlation" && (!expected || typeof expected !== "object" || !(key in expected))) {
+      continue;
+    }
+    const expectedValue = expected && typeof expected === "object" ? expected[key] : undefined;
+    if (key === "sessionId" && expectedValue === "<session-id>") {
+      normalized[key] = "<session-id>";
+    } else if (key === "jsonRpcIdHash" && expectedValue === "<json-rpc-id-hash>") {
+      normalized[key] = "<json-rpc-id-hash>";
+    } else if ((key === "pendingAgeMs" || key === "durationMs") && expectedValue === "<elapsed-ms>") {
+      normalized[key] = "<elapsed-ms>";
+    } else {
+      normalized[key] = normalizeOptionalCorrelation(value, expectedValue);
+    }
+  }
+  return normalized;
 }
 
 function readJson(path) {

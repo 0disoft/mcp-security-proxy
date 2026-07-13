@@ -83,7 +83,7 @@ private workspace-only package and must not declare registry publication metadat
 - `packages/core/src/index.ts`: `./method-policy.js`, `./matchers.js`, `./classifier.js`,
   `./evaluator.js`, `./redactor.js`, `./audit.js`.
 - `packages/mcp-adapter/src/index.ts`: `./jsonrpc.js`, `./method-policy.js`, `./tool-call.js`.
-- `packages/proxy-runtime/src/index.ts`: `./startup-plan.js`, `./session.js`,
+- `packages/proxy-runtime/src/index.ts`: `./startup-plan.js`, `./audit-correlation.js`, `./session.js`,
   `./stdio-bridge.js`.
 - `packages/cli/src/index.ts`: `./commands.js`.
 - `packages/testkit/src/index.ts`: `./fixtures.js`.

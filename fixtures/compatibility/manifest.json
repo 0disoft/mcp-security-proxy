@@ -443,6 +443,14 @@
       "scenario": "approval-timeout"
     },
     {
+      "id": "runtime-audit-correlation",
+      "kind": "runtime.session-result",
+      "path": "fixtures/compatibility/runtime-audit-correlation.json",
+      "policy": "fixtures/policies/local-dev.json",
+      "profile": "local",
+      "scenario": "audit-correlation"
+    },
+    {
       "id": "runtime-approval-rejected-redacted",
       "kind": "runtime.session-result",
       "path": "fixtures/compatibility/runtime-approval-rejected-redacted.json",

@@ -43,7 +43,7 @@ const expectedEntrypointReExports = new Map([
     ]
   ],
   ["mcp-adapter", ["./jsonrpc.js", "./method-policy.js", "./tool-call.js"]],
-  ["proxy-runtime", ["./startup-plan.js", "./session.js", "./stdio-bridge.js"]],
+  ["proxy-runtime", ["./startup-plan.js", "./audit-correlation.js", "./session.js", "./stdio-bridge.js"]],
   ["testkit", ["./fixtures.js"]]
 ]);
 const expectedWorkspaceGlobs = ["packages/*"];

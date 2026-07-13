@@ -82,6 +82,8 @@ discovery and tool calls through explicit policy, redaction, and audit events.
   `error.message` strings with a generic message.
 - Bound newline-delimited JSON-RPC frame size and parsed JSON depth.
 - Emit JSON Lines audit events.
+- Correlate protocol-bound audit events with per-session identifiers, ordered sequence numbers,
+  discovery generations, bounded durations, and keyed hashes instead of raw JSON-RPC IDs.
 - Include stable decision evidence codes alongside human-readable reasons.
 - Support dry-run policy evaluation for a captured tool list or tool call envelope.
 

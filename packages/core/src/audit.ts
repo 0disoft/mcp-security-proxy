@@ -1,6 +1,7 @@
 import {
   AUDIT_EVENT_SCHEMA_VERSION,
   type AuditEvent,
+  type AuditCorrelation,
   type AuditEventKind,
   type PolicyDecision,
   type RedactionSummary
@@ -13,6 +14,7 @@ export interface CreateAuditEventOptions {
   readonly redaction: RedactionSummary;
   readonly toolName?: string;
   readonly method?: string;
+  readonly correlation?: AuditCorrelation;
 }
 
 export function createAuditEvent(options: CreateAuditEventOptions): AuditEvent {
@@ -23,7 +25,8 @@ export function createAuditEvent(options: CreateAuditEventOptions): AuditEvent {
     ...(options.toolName ? { toolName: options.toolName } : {}),
     ...(options.method ? { method: options.method } : {}),
     decision: options.decision,
-    redaction: options.redaction
+    redaction: options.redaction,
+    ...(options.correlation ? { correlation: options.correlation } : {})
   };
 }
 
