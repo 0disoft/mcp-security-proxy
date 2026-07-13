@@ -72,6 +72,13 @@ ESM and TypeScript imports against the supported Node 24 type baseline, and runs
 help command. This evidence does not prove that npm ownership or Trusted Publisher configuration
 exists.
 
+After all five immutable versions are published, the release workflow runs `pnpm run
+registry-smoke`. This post-publication check requires the exact tag version, verifies npm registry
+integrity and SLSA provenance metadata, installs all five packages without lifecycle scripts or npm
+credentials, and repeats the shared ESM, TypeScript, and CLI consumer checks. It cannot be used as
+pre-publication approval evidence. Failure after publication triggers the rollback and deprecation
+procedure; it never retries `npm publish` for the same immutable version.
+
 The one-time package-name initialization path is owned by `docs/ops/npm-bootstrap.md` and
 `docs/ops/npm-bootstrap-plan.json`. It stages `0.0.0-bootstrap.0` tarballs without changing source
 manifests, uses only the non-default `bootstrap` dist-tag, and cannot run through the normal release
@@ -109,8 +116,7 @@ their transformed manifests and file allowlists, and removes them without publis
 - Required validation names: docs, schema-contract, migration-check, package-surface, secret-scan,
   artifact-safety, repository-hygiene, validation-registry, ci-contract, compatibility, license-report,
   release-readiness, performance-smoke, contract, test, smoke, check when commands exist.
-- Release blocker status: blocked for public npm release until bootstrap publication, package
-  ownership, Trusted Publisher configuration, publish credentials ownership, and artifact approval
-  are verified.
-- Remaining operational risk: release automation exists but cannot publish a package name that has
-  not yet been created and connected to the recorded Trusted Publisher identity.
+- Release blocker status: subsequent public releases remain blocked when the approved release
+  record, Trusted Publisher ownership, local validation, or hosted release preflight is missing.
+- Remaining operational risk: registry smoke runs after immutable versions exist. A detected bad
+  publication must be deprecated and replaced with a new version rather than overwritten.

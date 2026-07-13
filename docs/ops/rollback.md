@@ -35,6 +35,10 @@ database, migration stream, hosted deployment, or remote control plane to roll b
 4. Run `pnpm run check`, `git diff --check`, and the relevant smoke scenario.
 5. Document the forward fix and any migration notes.
 
+A failed post-publication `registry-smoke` is a rollback trigger. Do not retry publication with the
+same version: preserve the immutable artifact, deprecate it with a concise operator-facing reason,
+fix forward under a new approved version, and rerun exact-version registry smoke for the replacement.
+
 ## Pinning Guidance
 
 - Before a public package release exists, consumers should pin a Git commit SHA or local workspace

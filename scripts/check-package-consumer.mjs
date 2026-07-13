@@ -1,16 +1,21 @@
-import { spawnSync } from "node:child_process";
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
-  rmSync,
-  writeFileSync
+  rmSync
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { gunzipSync } from "node:zlib";
+import {
+  publishablePackages as packages,
+  registryUrl,
+  repositoryUrl,
+  runCommand,
+  runInstalledPackageConsumerSmoke,
+  writeJson
+} from "./lib/package-consumer-smoke.mjs";
 
 const root = process.cwd();
 const packageManagerCommand = "pnpm";
@@ -18,41 +23,6 @@ const npmCommand = process.platform === "win32" ? process.execPath : "npm";
 const npmCommandPrefix = process.platform === "win32"
   ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
   : [];
-const registryUrl = "https://registry.npmjs.org";
-const repositoryUrl = "https://github.com/0disoft/mcp-security-proxy.git";
-const nodeTypeRoots = join(root, "node_modules", "@types");
-const packages = [
-  {
-    name: "@0disoft/mcp-security-proxy-contracts",
-    directory: "contracts",
-    requiredFiles: [
-      "package/schemas/audit-event.v1.schema.json",
-      "package/schemas/decision.v1.schema.json",
-      "package/schemas/ops-event.v1.schema.json",
-      "package/schemas/policy.v1.schema.json"
-    ]
-  },
-  {
-    name: "@0disoft/mcp-security-proxy-core",
-    directory: "core",
-    requiredFiles: []
-  },
-  {
-    name: "@0disoft/mcp-security-proxy-mcp-adapter",
-    directory: "mcp-adapter",
-    requiredFiles: []
-  },
-  {
-    name: "@0disoft/mcp-security-proxy-runtime",
-    directory: "proxy-runtime",
-    requiredFiles: []
-  },
-  {
-    name: "@0disoft/mcp-security-proxy-cli",
-    directory: "cli",
-    requiredFiles: ["package/dist/main.js"]
-  }
-];
 
 const tempRoot = mkdtempSync(join(tmpdir(), "mcp-security-proxy-consumer-"));
 
@@ -87,40 +57,7 @@ try {
     }
   );
 
-  writeFileSync(join(consumerRoot, "consumer.mjs"), createJavascriptConsumerSource(), "utf8");
-  writeFileSync(join(consumerRoot, "consumer.ts"), createTypescriptConsumerSource(), "utf8");
-  writeJson(join(consumerRoot, "tsconfig.json"), {
-    compilerOptions: {
-      target: "ES2024",
-      module: "NodeNext",
-      moduleResolution: "NodeNext",
-      strict: true,
-      noEmit: true,
-      skipLibCheck: false,
-      types: ["node"],
-      typeRoots: [nodeTypeRoots]
-    },
-    include: ["consumer.ts"]
-  });
-
-  runCommand(process.execPath, [join(consumerRoot, "consumer.mjs")], consumerRoot);
-  if (!existsSync(join(nodeTypeRoots, "node"))) {
-    throw new Error("workspace Node type baseline is missing from node_modules/@types/node");
-  }
-  runCommand(
-    process.execPath,
-    [join(root, "node_modules", "typescript", "bin", "tsc"), "--project", join(consumerRoot, "tsconfig.json")],
-    consumerRoot
-  );
-
-  const cliResult = runCommand(
-    process.execPath,
-    [join(consumerRoot, "node_modules", "@0disoft", "mcp-security-proxy-cli", "dist", "main.js"), "--help"],
-    consumerRoot
-  );
-  if (!cliResult.stdout.includes("Usage: mcp-security-proxy <command> [options]")) {
-    throw new Error("installed CLI help did not expose the expected command usage");
-  }
+  runInstalledPackageConsumerSmoke({ consumerRoot, root });
 
   console.log(`package consumer smoke passed for ${packages.length} publishable packages`);
 } catch (error) {
@@ -235,70 +172,8 @@ function readTarString(buffer, start, length) {
   return buffer.toString("utf8", start, boundedEnd);
 }
 
-function runCommand(command, args, cwd, extraEnvironment = {}) {
-  const result = spawnSync(command, args, {
-    cwd,
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      ...extraEnvironment
-    },
-    windowsHide: true
-  });
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    const details = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
-    throw new Error(`${command} ${args.join(" ")} failed with exit ${result.status}${details ? `\n${details}` : ""}`);
-  }
-  return {
-    stdout: result.stdout ?? "",
-    stderr: result.stderr ?? ""
-  };
-}
-
-function writeJson(path, value) {
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
 function assertEqual(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
-}
-
-function createJavascriptConsumerSource() {
-  return `import { knownSchemaVersions } from "@0disoft/mcp-security-proxy-contracts";
-import { classifyToolDescriptor } from "@0disoft/mcp-security-proxy-core";
-import { normalizeToolCallEnvelope } from "@0disoft/mcp-security-proxy-mcp-adapter";
-import { createProxySession } from "@0disoft/mcp-security-proxy-runtime";
-import { createCommandRegistry } from "@0disoft/mcp-security-proxy-cli";
-
-for (const value of [knownSchemaVersions, classifyToolDescriptor, normalizeToolCallEnvelope, createProxySession, createCommandRegistry]) {
-  if (typeof value !== "function") {
-    throw new Error("installed package export is not callable");
-  }
-}
-if (createCommandRegistry().length !== 4) {
-  throw new Error("installed CLI command registry drifted");
-}
-`;
-}
-
-function createTypescriptConsumerSource() {
-  return `import { knownSchemaVersions, type PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
-import { classifyToolDescriptor } from "@0disoft/mcp-security-proxy-core";
-import { normalizeToolCallEnvelope } from "@0disoft/mcp-security-proxy-mcp-adapter";
-import { createProxySession } from "@0disoft/mcp-security-proxy-runtime";
-import { createCommandRegistry } from "@0disoft/mcp-security-proxy-cli";
-
-declare const policy: PolicyDocument;
-void policy;
-void knownSchemaVersions;
-void classifyToolDescriptor;
-void normalizeToolCallEnvelope;
-void createProxySession;
-void createCommandRegistry;
-`;
 }

@@ -5,6 +5,7 @@ import { join } from "node:path";
 const root = process.cwd();
 const failures = [];
 const nonValidationScripts = new Set(["build"]);
+const postReleaseValidations = new Set(["registry-smoke"]);
 
 const validationNames = extractStandardValidationNames("VALIDATION.md");
 const validationSet = new Set(validationNames);
@@ -72,8 +73,20 @@ function checkPackageScripts() {
     if (scriptName === "check" || nonValidationScripts.has(scriptName)) {
       continue;
     }
-    if (!checkValidationNames.includes(scriptName)) {
+    if (!checkValidationNames.includes(scriptName) && !postReleaseValidations.has(scriptName)) {
       failures.push(`package.json: script "${scriptName}" is configured but missing from check`);
+    }
+  }
+
+  for (const name of postReleaseValidations) {
+    if (!validationSet.has(name)) {
+      failures.push(`post-release validation "${name}" is not listed in VALIDATION.md`);
+    }
+    if (typeof scripts[name] !== "string") {
+      failures.push(`post-release validation "${name}" has no package.json script`);
+    }
+    if (checkValidationNames.includes(name)) {
+      failures.push(`post-release validation "${name}" must not run in the offline check aggregate`);
     }
   }
 }

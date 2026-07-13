@@ -35,6 +35,10 @@ pnpm run check
   installed CLI help checks for the five publishable candidates
 - CLI smoke checks against the local fixture policy and the secret-label fixture policy
 
+The offline aggregate intentionally does not run `registry-smoke`. Registry validation requires an
+exact already-published version and public npm network access, so it cannot be release-approval
+evidence for the artifact it verifies.
+
 ## Hosted Workflow
 
 GitHub Actions runs `.github/workflows/ci.yml` on `main` pushes and pull requests. The workflow:
@@ -60,7 +64,9 @@ It runs only for version tags matching `vMAJOR.MINOR.PATCH[-PRERELEASE]`, uses t
 for Trusted Publisher ownership, fetches full Git history so reachable historical approval commits
 can be verified, runs `pnpm run check`, verifies `scripts/check-release-publish-plan.mjs`, and
 publishes only the release-recorded public packages with provenance. It must not use long-lived npm
-tokens or create GitHub releases.
+tokens or create GitHub releases. The workflow runs `pnpm run registry-smoke` after all five publish
+steps; the script derives the exact version from the release tag and retries bounded npm registry
+reads to tolerate short publication propagation delays.
 
 The release workflow requires npm Trusted Publisher ownership configured for the
 `0disoft/mcp-security-proxy` repository, the package manifests are approved for public package
@@ -73,12 +79,22 @@ only ignored, checksummed staging artifacts. CI validates the blocked/approved/c
 offline, dry-runs the staged bootstrap tarballs on the hosted runner, and rejects any bootstrap token
 path added to the normal release workflow.
 
+## Registry Smoke Workflow
+
+`.github/workflows/registry-smoke.yml` is a read-only, manually dispatched recovery and verification
+workflow. It requires an exact published semver, installs all five packages from public npm with an
+empty temporary user config and lifecycle scripts disabled, verifies sha512 integrity and npm SLSA
+provenance metadata, then runs the shared ESM, TypeScript declaration, and CLI help consumer checks.
+It neither accepts dist-tags or semver ranges nor reads npm credentials.
+
 ## Validation
 
 - Required validation names: typecheck, test, contract, docs, schema-contract, migration-check,
-  package-surface, secret-scan, artifact-safety, repository-hygiene, validation-registry, ci-contract,
-  compatibility, license-report, release-readiness, performance-smoke, check.
+  package-surface, registry-smoke, secret-scan, artifact-safety, repository-hygiene,
+  validation-registry, ci-contract, compatibility, license-report, release-readiness,
+  performance-smoke, check.
 - Release blocker status: public behavior changes are blocked when local `check` or hosted CI fails.
 - Remaining operational risk: the focused matrix covers managed process-tree shutdown on hosted
   Ubuntu and Windows runners, but abrupt runner or proxy termination still does not exercise a
-  Windows Job Object kill-on-close guarantee.
+  Windows Job Object kill-on-close guarantee. Registry smoke detects a bad publication only after
+  immutable package versions exist, so recovery still uses the documented deprecation path.

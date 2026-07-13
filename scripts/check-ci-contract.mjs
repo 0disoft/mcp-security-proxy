@@ -1,16 +1,21 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { resolveExpectedVersion, validatePublishedMetadata } from "./lib/registry-smoke-contract.mjs";
 
 const root = process.cwd();
 const workflowPath = ".github/workflows/ci.yml";
 const releaseWorkflowPath = ".github/workflows/release.yml";
+const registrySmokeWorkflowPath = ".github/workflows/registry-smoke.yml";
 const ciDocPath = "docs/ops/ci.md";
+const registryUrl = "https://registry.npmjs.org";
 const failures = [];
 
 const manifest = readJson("package.json");
 const workflow = readText(workflowPath);
+const registrySmokeWorkflow = readText(registrySmokeWorkflowPath);
 const ciDoc = readText(ciDocPath);
+const normalizedCiDoc = ciDoc.replace(/\s+/g, " ");
 const workflowFiles = listWorkflowFiles();
 
 const packageManager = parsePackageManager(manifest.packageManager);
@@ -51,12 +56,15 @@ assertContains(workflow, "- ubuntu-latest\n          - windows-latest", `${workf
 assertContains(workflow, "pnpm run process-tree-smoke", `${workflowPath}: process-tree smoke command`);
 assertContains(workflow, "fail-fast: false", `${workflowPath}: process-tree matrix completion`);
 checkWorkflowPublishSurfaces(workflowFiles);
+checkRegistrySmokeWorkflowContract(registrySmokeWorkflow);
 
 assertContains(ciDoc, `installs Node.js ${workflowNodeVersion}`, `${ciDocPath}: documented Node.js version`);
 assertContains(ciDoc, `enables pnpm ${packageManager.version}`, `${ciDocPath}: documented pnpm version`);
 assertContains(ciDoc, "runs `pnpm run check`", `${ciDocPath}: documented check command`);
 assertContains(ciDoc, "runs `git diff --check`", `${ciDocPath}: documented diff hygiene command`);
 assertContains(ciDoc, "runs `pnpm run process-tree-smoke` on Ubuntu and Windows", `${ciDocPath}: documented process-tree matrix`);
+assertContains(normalizedCiDoc, "runs `pnpm run registry-smoke` after all five publish steps", `${ciDocPath}: documented post-publish registry smoke`);
+assertContains(normalizedCiDoc, "requires an exact published semver", `${ciDocPath}: documented registry smoke version contract`);
 assertContains(
   ciDoc,
   "CI workflows must not publish packages",
@@ -69,6 +77,7 @@ assertContains(
 );
 
 checkCiContractValidator();
+checkRegistrySmokeContractValidator();
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -254,6 +263,7 @@ function checkReleaseWorkflowContract(releaseWorkflow) {
   assertContains(releaseWorkflow, "pnpm install --frozen-lockfile", `${releaseWorkflowPath}: frozen lockfile install`);
   assertContains(releaseWorkflow, "pnpm run check", `${releaseWorkflowPath}: repository check command`);
   assertContains(releaseWorkflow, "node scripts/check-release-publish-plan.mjs", `${releaseWorkflowPath}: publish plan preflight`);
+  assertContains(releaseWorkflow, "pnpm run registry-smoke", `${releaseWorkflowPath}: post-publish registry smoke`);
   for (const packageName of [
     "@0disoft/mcp-security-proxy-contracts",
     "@0disoft/mcp-security-proxy-core",
@@ -272,6 +282,23 @@ function checkReleaseWorkflowContract(releaseWorkflow) {
       failures.push(`${releaseWorkflowPath}: release workflow must use OIDC publishing without registry tokens or GitHub release creation`);
     }
   }
+}
+
+function checkRegistrySmokeWorkflowContract(registrySmokeWorkflow) {
+  assertContains(registrySmokeWorkflow, "name: Registry Smoke", `${registrySmokeWorkflowPath}: workflow name`);
+  assertContains(registrySmokeWorkflow, "workflow_dispatch:", `${registrySmokeWorkflowPath}: manual trigger`);
+  assertContains(registrySmokeWorkflow, "version:\n        description: Exact published semver to verify\n        required: true\n        type: string", `${registrySmokeWorkflowPath}: exact version input`);
+  assertContains(registrySmokeWorkflow, "permissions:\n  contents: read", `${registrySmokeWorkflowPath}: read-only contents permission`);
+  assertContains(registrySmokeWorkflow, "cancel-in-progress: false", `${registrySmokeWorkflowPath}: smoke jobs must not cancel in progress`);
+  assertContains(registrySmokeWorkflow, "runs-on: ubuntu-latest", `${registrySmokeWorkflowPath}: Ubuntu runner`);
+  assertContains(registrySmokeWorkflow, "timeout-minutes: 10", `${registrySmokeWorkflowPath}: bounded timeout`);
+  assertPinnedAction(registrySmokeWorkflowPath, registrySmokeWorkflow, "actions/checkout");
+  assertPinnedAction(registrySmokeWorkflowPath, registrySmokeWorkflow, "actions/setup-node");
+  assertContains(registrySmokeWorkflow, `node-version: ${workflowNodeVersion}`, `${registrySmokeWorkflowPath}: Node.js version`);
+  assertContains(registrySmokeWorkflow, `corepack prepare pnpm@${packageManager.version} --activate`, `${registrySmokeWorkflowPath}: pnpm version`);
+  assertContains(registrySmokeWorkflow, "pnpm install --frozen-lockfile", `${registrySmokeWorkflowPath}: frozen lockfile install`);
+  assertContains(registrySmokeWorkflow, "MSP_REGISTRY_SMOKE_VERSION: ${{ inputs.version }}", `${registrySmokeWorkflowPath}: version environment`);
+  assertContains(registrySmokeWorkflow, "pnpm run registry-smoke", `${registrySmokeWorkflowPath}: registry smoke command`);
 }
 
 function escapeRegExp(value) {
@@ -353,6 +380,56 @@ function checkCiContractValidator() {
     !invalidReleaseWorkflowFailures.some((item) => item.includes("release workflow must use OIDC publishing"))
   ) {
     failures.push(`ci-contract self-test invalid release workflow was not rejected: ${invalidReleaseWorkflowFailures.join("; ")}`);
+  }
+}
+
+function checkRegistrySmokeContractValidator() {
+  const version = "0.2.0-alpha.1";
+  if (resolveExpectedVersion(["--", "--version", version], {}) !== version) {
+    failures.push("registry-smoke contract self-test did not parse an exact argument version");
+  }
+  if (resolveExpectedVersion([], { GITHUB_REF_TYPE: "tag", GITHUB_REF_NAME: `v${version}` }) !== version) {
+    failures.push("registry-smoke contract self-test did not parse a release tag version");
+  }
+  assertRegistrySmokeContractRejects(
+    () => resolveExpectedVersion(["--version", "latest"], {}),
+    "must be exact semver",
+    "dist-tag version"
+  );
+  assertRegistrySmokeContractRejects(
+    () => resolveExpectedVersion(["--version", version], { MSP_REGISTRY_SMOKE_VERSION: "0.2.0-alpha.2" }),
+    "unambiguous exact version",
+    "conflicting version sources"
+  );
+
+  const spec = { name: "@0disoft/mcp-security-proxy-core" };
+  const metadata = {
+    version,
+    dist: {
+      integrity: "sha512-test",
+      tarball: `${registryUrl}/${spec.name}/-/mcp-security-proxy-core-${version}.tgz`,
+      attestations: {
+        url: `${registryUrl}/-/npm/v1/attestations/test`,
+        provenance: { predicateType: "https://slsa.dev/provenance/v1" }
+      }
+    }
+  };
+  validatePublishedMetadata(spec, metadata, version, registryUrl);
+  assertRegistrySmokeContractRejects(
+    () => validatePublishedMetadata(spec, { ...metadata, dist: { ...metadata.dist, attestations: undefined } }, version, registryUrl),
+    "missing npm SLSA provenance",
+    "missing provenance"
+  );
+}
+
+function assertRegistrySmokeContractRejects(operation, expectedMessage, label) {
+  try {
+    operation();
+    failures.push(`registry-smoke contract self-test accepted ${label}`);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes(expectedMessage)) {
+      failures.push(`registry-smoke contract self-test rejected ${label} for an unexpected reason`);
+    }
   }
 }
 

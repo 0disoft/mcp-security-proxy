@@ -24,6 +24,10 @@ Release records must include validation evidence for: `docs`, `schema-contract`,
 `migration-check`, `package-surface`, `secret-scan`, `artifact-safety`, `repository-hygiene`,
 `validation-registry`, `ci-contract`, `compatibility`, `license-report`, `release-readiness`,
 `performance-smoke`, `contract`, `test`, `smoke`, and `check`.
+`registry-smoke` is deliberately absent from release approval evidence because it can run only
+after an immutable version exists on public npm. The release workflow and the manual Registry Smoke
+workflow record that post-publication evidence separately; failure invokes rollback and package
+deprecation rather than approval of the already-published artifact.
 For `approved` release records, each validation evidence value must include the executed command
 and `exit 0`; for example, `pnpm run docs exit 0` or `pnpm check exit 0`.
 For `approved` release records, `rollback.procedure` must be a safe tracked `docs/ops` path and

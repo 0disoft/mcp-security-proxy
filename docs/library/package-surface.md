@@ -63,6 +63,11 @@ installs the tarballs into a clean offline npm consumer, resolves ESM and TypeSc
 using the workspace's supported Node 24 type baseline, and executes the installed CLI help path.
 This validates package shape without publishing it.
 
+`pnpm run registry-smoke -- --version <exact-semver>` is the separate post-publication check. It
+downloads the five exact versions from public npm, verifies registry integrity and provenance
+metadata, and applies the same ESM, TypeScript, and CLI consumer contract. It is intentionally not
+part of the offline `check` aggregate and does not accept `latest`, ranges, or unpublished versions.
+
 ## Expected Package Surfaces
 
 - `packages/contracts`: policy, decision, audit event, ops event types, and JSON schema files.
@@ -101,5 +106,6 @@ private workspace-only package and must not declare registry publication metadat
 
 - Public exports change without semver and migration notes.
 - Compatibility claims lack runtime or consumer evidence.
+- Published-package claims lack exact-version registry smoke evidence.
 - Package artifacts drift from documented public API.
 - `pnpm run package-surface` fails.

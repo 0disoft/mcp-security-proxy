@@ -65,3 +65,6 @@ jobs:
 
       - name: Publish CLI package
         run: pnpm --filter @0disoft/mcp-security-proxy-cli publish --access public --provenance --no-git-checks
+
+      - name: Verify published registry packages
+        run: pnpm run registry-smoke
