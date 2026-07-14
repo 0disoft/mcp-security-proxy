@@ -45,6 +45,7 @@ GitHub Actions runs `.github/workflows/ci.yml` on `main` pushes and pull request
 
 - checks out the repository
 - installs Node.js 24.11.1
+- installs Python 3.11.15 for the external Python MCP client fixture
 - enables pnpm 11.7.0 through Corepack
 - installs the locked dependency graph
 - runs `pnpm run check`
@@ -52,8 +53,8 @@ GitHub Actions runs `.github/workflows/ci.yml` on `main` pushes and pull request
 - runs `pnpm run process-tree-smoke` on Ubuntu and Windows in a focused matrix job
 
 `pnpm run ci-contract` keeps this workflow aligned with the documented Node.js version, pnpm
-version, read-only permissions, pinned actions, local check command, diff hygiene command, and the
-cross-platform process-tree smoke matrix.
+version, Python compatibility version, read-only permissions, pinned actions, local check command,
+diff hygiene command, and the cross-platform process-tree smoke matrix.
 CI workflows must not publish packages, create releases, request write permissions, request
 `id-token: write`, or reference registry publish tokens.
 
@@ -63,7 +64,8 @@ CI workflows must not publish packages, create releases, request write permissio
 It runs only for version tags matching `vMAJOR.MINOR.PATCH[-PRERELEASE]`, uses the npm environment
 for Trusted Publisher ownership, fetches full Git history so reachable historical approval commits
 can be verified, runs `pnpm run check`, verifies `scripts/check-release-publish-plan.mjs`, and
-publishes only the release-recorded public packages with provenance. It must not use long-lived npm
+pins Python 3.11.15 for the external compatibility matrix before publishing only the
+release-recorded public packages with provenance. It must not use long-lived npm
 tokens or create GitHub releases. The workflow runs `pnpm run registry-smoke` after all five publish
 steps; the script derives the exact version from the release tag and retries bounded npm registry
 reads to tolerate short publication propagation delays.

@@ -21,6 +21,7 @@ Track durable architecture decisions for MCP Security Proxy.
 - 0004: implementation stack direction
 - 0005: external MCP compatibility target
 - 0006: lexical path policy boundary
+- 0007: external client compatibility matrix
 
 ## Review Blockers
 

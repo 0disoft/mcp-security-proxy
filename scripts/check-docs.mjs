@@ -20,6 +20,7 @@ const requiredFiles = [
   "docs/adr/0003-open-source-license-and-private-data-boundary.md",
   "docs/adr/0004-implementation-stack-direction.md",
   "docs/adr/0006-lexical-path-policy-boundary.md",
+  "docs/adr/0007-external-client-compatibility-matrix.md",
   "docs/library/approval-hooks.md",
   "docs/library/decision-codes.md",
   "docs/cli/output-and-exit-codes.md",
@@ -260,14 +261,15 @@ function checkExternalMcpCompatibilityPlanDocs() {
   const path = "docs/architecture/09-external-mcp-compatibility-plan.md";
   const text = readFileSync(join(root, path), "utf8");
   for (const phrase of [
-    "does not yet claim external MCP client/server compatibility",
+    "does not claim compatibility with arbitrary MCP clients or servers",
     "does not select an MCP SDK",
     "Do not treat the repository fixture server as an external MCP server",
     "request and response ids are correlated by exact JSON-RPC value and type",
     "malformed, unmatched, oversized, or too-deep messages are dropped or denied without leaking raw",
     "compatibility fixtures are registered in `fixtures/compatibility/manifest.json`",
     "release record names external MCP compatibility fixtures as included or explicitly excluded",
-    "external-filesystem-stdio harness fixture now exists"
+    "external-filesystem-python-stdio",
+    "mcp==1.28.1"
   ]) {
     if (!text.includes(phrase)) {
       failures.push(`${path}: missing external MCP compatibility plan phrase: ${phrase}`);

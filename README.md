@@ -76,6 +76,6 @@ Implementation direction is TypeScript with pnpm, recorded in
 docs/adr/0004-implementation-stack-direction.md. The current scaffold targets Node.js `>=24.0.0`
 and keeps the root workspace and testkit private. The approved `0.2.0-alpha.1` release record names
 the five public npm packages and artifact boundaries; the runtime MCP SDK dependency choice remains
-unresolved. The first external stdio
-compatibility target is recorded in docs/adr/0005-external-mcp-compatibility-target.md, but
-external MCP compatibility is not claimed until fixture evidence exists.
+unresolved. The pinned external stdio client matrix is recorded in
+docs/adr/0007-external-client-compatibility-matrix.md and backed by tracked JavaScript and Python
+client fixture evidence. It is not a claim of compatibility with arbitrary MCP clients or servers.

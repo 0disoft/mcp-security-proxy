@@ -16,7 +16,7 @@
     "compatibility": "pnpm build && node scripts/check-compatibility-evidence.mjs",
     "contract": "pnpm build && pnpm --filter @0disoft/mcp-security-proxy-contracts typecheck && pnpm --filter @0disoft/mcp-security-proxy-core test",
     "docs": "node scripts/check-docs.mjs",
-    "external-compatibility": "node scripts/check-external-mcp-fixture.mjs",
+    "external-compatibility": "node scripts/check-external-mcp-fixture.mjs && node scripts/check-external-python-mcp-fixture.mjs",
     "license-report": "node scripts/check-dependency-licenses.mjs",
     "migration-check": "pnpm build && node scripts/check-migration-notes.mjs",
     "package-surface": "pnpm build && node scripts/check-package-surface.mjs && node scripts/check-package-consumer.mjs",

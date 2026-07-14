@@ -32,6 +32,12 @@ jobs:
         with:
           node-version: 24.11.1
 
+      - name: Setup Python
+        # actions/setup-python v6.3.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11.15'
+
       - name: Enable pnpm
         run: |
           corepack enable

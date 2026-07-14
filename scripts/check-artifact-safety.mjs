@@ -27,7 +27,7 @@ const forbiddenTextMarkers = [
   { name: "full-prompt-field", pattern: /"fullPrompt"\s*:/ },
   { name: "environment-value-field", pattern: /"environmentValue"\s*:/ },
   { name: "raw-synthetic-leak-marker", pattern: /\bRAW_[A-Z0-9_]*_MARKER\b/ },
-  { name: "unnormalized-external-fixture-root", pattern: /\bmsp-external-fixture-[A-Za-z0-9_-]+\b/ },
+  { name: "unnormalized-external-fixture-root", pattern: /\bmsp-external-(?:python-)?fixture-[A-Za-z0-9_-]+\b/ },
   { name: "windows-user-path", pattern: /[A-Za-z]:\\Users\\/ },
   { name: "posix-home-path", pattern: /\/home\/[A-Za-z0-9._-]+\// },
   { name: "npm-cache-path", pattern: /(?:^|[\\/_-])npm-cache(?:[\\/_-]|$)/i },

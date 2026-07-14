@@ -21,6 +21,7 @@ const workflowFiles = listWorkflowFiles();
 const packageManager = parsePackageManager(manifest.packageManager);
 const engineFloor = parseNodeEngineFloor(manifest.engines?.node);
 const workflowNodeVersion = extractScalar("node-version");
+const workflowPythonVersion = extractScalar("python-version");
 const workflowPnpmVersion = extractCorepackPnpmVersion();
 
 if (packageManager.name !== "pnpm") {
@@ -48,6 +49,8 @@ assertContains(workflow, "timeout-minutes: 15", `${workflowPath}: bounded timeou
 assertPinnedAction(workflowPath, workflow, "actions/checkout");
 assertContains(workflow, "fetch-depth: 0", `${workflowPath}: full history for reachable release target validation`);
 assertPinnedAction(workflowPath, workflow, "actions/setup-node");
+assertPinnedAction(workflowPath, workflow, "actions/setup-python");
+assertContains(workflow, "python-version: '3.11.15'", `${workflowPath}: pinned Python compatibility version`);
 assertContains(workflow, "pnpm install --frozen-lockfile", `${workflowPath}: frozen lockfile install`);
 assertContains(workflow, "pnpm run check", `${workflowPath}: repository check command`);
 assertContains(workflow, "git diff --check", `${workflowPath}: diff hygiene command`);
@@ -59,6 +62,7 @@ checkWorkflowPublishSurfaces(workflowFiles);
 checkRegistrySmokeWorkflowContract(registrySmokeWorkflow);
 
 assertContains(ciDoc, `installs Node.js ${workflowNodeVersion}`, `${ciDocPath}: documented Node.js version`);
+assertContains(ciDoc, `installs Python ${workflowPythonVersion}`, `${ciDocPath}: documented Python version`);
 assertContains(ciDoc, `enables pnpm ${packageManager.version}`, `${ciDocPath}: documented pnpm version`);
 assertContains(ciDoc, "runs `pnpm run check`", `${ciDocPath}: documented check command`);
 assertContains(ciDoc, "runs `git diff --check`", `${ciDocPath}: documented diff hygiene command`);
@@ -101,7 +105,7 @@ function assertPinnedAction(label, workflowText, actionName) {
 function extractScalar(key) {
   const pattern = new RegExp(`\\b${escapeRegExp(key)}:\\s*([^\\s#]+)`);
   const match = workflow.match(pattern);
-  return match?.[1]?.trim();
+  return match?.[1]?.trim().replace(/^(['"])(.*)\1$/u, "$2");
 }
 
 function extractCorepackPnpmVersion() {
@@ -253,6 +257,8 @@ function checkReleaseWorkflowContract(releaseWorkflow) {
     `${releaseWorkflowPath}: full history for reachable release target validation`
   );
   assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/setup-node");
+  assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/setup-python");
+  assertContains(releaseWorkflow, `python-version: '${workflowPythonVersion}'`, `${releaseWorkflowPath}: Python compatibility version`);
   assertContains(releaseWorkflow, `corepack prepare pnpm@${packageManager.version} --activate`, `${releaseWorkflowPath}: pnpm version`);
   assertContains(releaseWorkflow, "registry-url: https://registry.npmjs.org", `${releaseWorkflowPath}: npm registry url`);
   assertContains(

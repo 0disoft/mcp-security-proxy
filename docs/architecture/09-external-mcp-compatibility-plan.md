@@ -6,8 +6,8 @@ Status: Draft
 
 External MCP compatibility means this proxy has been checked against independently maintained MCP
 client and server implementations, not only the synthetic local fixture server in this repository.
-The current implementation proves the local stdio proxy path with synthetic fixtures and live smoke
-evidence, but it does not yet claim external MCP client/server compatibility.
+The current implementation proves a pinned two-client external stdio matrix plus the local
+synthetic regression path. It does not claim compatibility with arbitrary MCP clients or servers.
 
 ## Source of Truth
 
@@ -15,17 +15,18 @@ evidence, but it does not yet claim external MCP client/server compatibility.
 - Runtime flow: docs/architecture/02-runtime-flow.md
 - Method policy: docs/architecture/05-mcp-method-policy.md
 - First external target ADR: docs/adr/0005-external-mcp-compatibility-target.md
+- External client matrix ADR: docs/adr/0007-external-client-compatibility-matrix.md
 - External fixture harness: docs/architecture/11-external-fixture-harness.md
 - Compatibility registry: fixtures/compatibility/manifest.json
 - Release scope gate: docs/ops/release.md
 
 ## Non-Implementation Boundary
 
-This document does not select an MCP SDK for product runtime dependency, package manager plugin,
-host runtime, or external compatibility matrix. ADR 0005 selects the first external stdio target
-set, but external MCP compatibility still requires tracked fixture evidence or a release record
-that names the selected clients and servers, exact versions, transport mode, installation source,
-fixture capture method, and validation commands.
+This document does not select an MCP SDK for product runtime dependency, package manager plugin, or
+host runtime. ADR 0005 selects the first external stdio pair and ADR 0007 selects the two-client
+matrix. External compatibility claims still require tracked fixture evidence and a release record
+that names the clients and server, exact versions, transport mode, installation source, fixture
+capture method, and validation commands.
 
 Do not treat the repository fixture server as an external MCP server. It is a synthetic regression
 fixture for the local stdio MVP.
@@ -54,7 +55,9 @@ External MCP compatibility must be fixture-backed before release claims. Minimum
 - selected MCP client and server names, versions, installation sources, and transport modes;
 - captured initialize, notifications/initialized, tools/list, and tools/call transcripts;
 - captured allowed, denied, and approval-required tool-call behavior;
-- captured upstream error, malformed response, unmatched response, and server-origin request cases;
+- captured upstream error, malformed response, unmatched response, and server-origin request cases
+  when the external target can safely produce them, otherwise an explicit exclusion backed by
+  synthetic-local regression evidence;
 - redacted audit JSONL fixtures for each security-sensitive path;
 - a replay or live smoke command registered under the matching target in
   `fixtures/compatibility/manifest.json`;
@@ -76,13 +79,11 @@ External MCP compatibility support remains blocked until:
 
 ## Current Status
 
-ADR 0005 selects the first external stdio target set:
-`@modelcontextprotocol/sdk@1.29.0` as the client implementation and
-`@modelcontextprotocol/server-filesystem@2026.7.4` as the server implementation. A separate
-external-filesystem-stdio harness fixture now exists for that target. The compatibility registry
-keeps the local synthetic evidence under the top-level `local-stdio-mvp` fields and records target
-ownership in `targets[]`, where `local-stdio-mvp` and `external-filesystem-stdio` are separate
-entries. The external target entry names the pinned client, server, harness, summary fixture, and
-validation command, but registry presence alone is still not a release claim; the release record
-must separately include external MCP compatibility with non-exclusion evidence and approval-grade
-validation before public release notes may claim it.
+ADR 0007 records two external client rows against the same pinned filesystem server:
+`@modelcontextprotocol/sdk@1.29.0` and Python `mcp==1.28.1`, both against
+`@modelcontextprotocol/server-filesystem@2026.7.4`. The `external-filesystem-stdio` and
+`external-filesystem-python-stdio` harness fixtures now exist as separate targets. The compatibility
+registry keeps local synthetic evidence under the top-level `local-stdio-mvp` fields and records
+each external row in `targets[]` with its pinned client, server, harness, summary, and validation
+command. Registry presence alone is still not a broad compatibility claim; release evidence must
+name the pinned matrix and retain its explicit exclusions.

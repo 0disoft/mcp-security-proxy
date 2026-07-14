@@ -1,11 +1,11 @@
 {
   "schemaVersion": "msp.external-fixture-summary.v1",
-  "target": "external-filesystem-stdio",
+  "target": "external-filesystem-python-stdio",
   "transport": "stdio",
   "fixtureSource": "external-mcp",
   "client": {
-    "package": "@modelcontextprotocol/sdk",
-    "version": "1.29.0"
+    "package": "mcp",
+    "version": "1.28.1"
   },
   "server": {
     "package": "@modelcontextprotocol/server-filesystem",
@@ -73,7 +73,7 @@
         "tool.not_visible"
       ],
       "redactionAppliedCount": 1,
-      "stderrLineCount": 2,
+      "stderrLineCount": 4,
       "containsRawFixtureRoot": false
     }
   }

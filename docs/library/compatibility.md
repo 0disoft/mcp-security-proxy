@@ -19,8 +19,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Semantic versioning policy: docs/library/semver.md
 - Runtime and platform compatibility: TypeScript, pnpm, and Node.js `>=24.0.0` for the current
   scaffold.
-- Package artifact and export surface: five npm package candidates are recorded and consumer-tested
-  as local tarballs, but remain private and unpublished while release readiness is blocked.
+- Package artifact and export surface: five public npm packages are recorded, local-tarball tested,
+  and exact-version registry tested for `0.2.0-alpha.1`.
 - Deprecation and migration policy: docs/library/migration-guide.md
 
 ## Compatibility Targets
@@ -36,8 +36,8 @@ This repository type owns public API surface, package compatibility, semantic ve
   fixtures exist.
 - Client compatibility must be fixture-backed, not claimed from schema reading alone.
 - Policy and audit schemas must remain deterministic across supported runtimes.
-- Public registry compatibility is not claimed while all packages remain private. Local package
-  compatibility evidence comes from offline installation of the packed candidate artifacts.
+- Public registry compatibility evidence comes from exact-version registry smoke; local package
+  compatibility evidence remains the offline packed-artifact consumer test.
 
 ## Compatibility Evidence Required
 
@@ -88,12 +88,12 @@ repository-relative tracked files so local-only fixtures cannot satisfy compatib
 Approval-required library fixtures may explicitly record `approvalHookAvailable` in the manifest so
 hook-present and hook-missing decisions are both checked.
 
-The first external MCP stdio harness evidence is registered as the `external-filesystem-stdio`
-target in `fixtures/compatibility/manifest.json` and backed by
-`fixtures/compatibility/external-filesystem-stdio.manifest.json` plus
-`fixtures/compatibility/external-filesystem-stdio.summary.json`. It covers the pinned external
-filesystem target from docs/adr/0005-external-mcp-compatibility-target.md, but target registration
-does not change release scope by itself.
+The external MCP stdio client matrix is registered as `external-filesystem-stdio` and
+`external-filesystem-python-stdio` in `fixtures/compatibility/manifest.json`. Separate manifests and
+normalized summaries prove the JavaScript `@modelcontextprotocol/sdk@1.29.0` and Python
+`mcp==1.28.1` clients against the pinned filesystem server. This is evidence for those two rows,
+not arbitrary MCP client/server compatibility. Target registration does not change release scope by
+itself.
 
 ## Review Blockers
 

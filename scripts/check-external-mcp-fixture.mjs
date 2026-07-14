@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { registryUrl, runCommand } from "./lib/package-consumer-smoke.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");
 const sdkPackage = "@modelcontextprotocol/sdk";
@@ -41,6 +42,10 @@ function forCompatibilityComparison(summary) {
 }
 
 function installExternalPackages(cwd) {
+  const userConfigPath = join(cwd, ".npmrc");
+  const globalConfigPath = join(cwd, ".npmrc-global");
+  writeFileSync(userConfigPath, "", "utf8");
+  writeFileSync(globalConfigPath, "", "utf8");
   writeFileSync(
     join(cwd, "package.json"),
     `${JSON.stringify(
@@ -65,18 +70,18 @@ function installExternalPackages(cwd) {
     `${sdkPackage}@${sdkVersion}`,
     `${serverPackage}@${serverVersion}`
   ];
-  if (process.platform === "win32") {
-    execFileSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", `npm ${npmArgs.join(" ")}`], {
-      cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    return;
-  }
-  execFileSync("npm", npmArgs, {
-    cwd,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
+  const npmCommand = process.platform === "win32" ? process.execPath : "npm";
+  const npmCommandPrefix = process.platform === "win32"
+    ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
+    : [];
+  runCommand(npmCommand, [...npmCommandPrefix, ...npmArgs, `--registry=${registryUrl}`], cwd, {
+    NODE_AUTH_TOKEN: "",
+    NPM_TOKEN: "",
+    NPM_CONFIG_AUDIT: "false",
+    NPM_CONFIG_FUND: "false",
+    NPM_CONFIG_GLOBALCONFIG: globalConfigPath,
+    NPM_CONFIG_REGISTRY: registryUrl,
+    NPM_CONFIG_USERCONFIG: userConfigPath
   });
 }
 
@@ -150,6 +155,7 @@ let listResult;
 let allowedRead;
 let deniedPrivateRead;
 let hiddenToolCall;
+let clientClosed = false;
 try {
   await client.connect(transport);
   listResult = await client.listTools();
@@ -158,6 +164,7 @@ try {
   hiddenToolCall = await callTool(client, "list_allowed_directories", {});
 } finally {
   await client.close();
+  clientClosed = true;
 }
 
 const auditEvents = readAuditEvents(auditLog);
@@ -190,6 +197,9 @@ const summary = {
     allowedPublicRead: summarizeCall(allowedRead),
     deniedPrivateRead: summarizeCall(deniedPrivateRead),
     hiddenToolDirectCall: summarizeCall(hiddenToolCall),
+    shutdown: {
+      clientClosed
+    },
     audit: summarizeAudit(auditEvents)
   }
 };

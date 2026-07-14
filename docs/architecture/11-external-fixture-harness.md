@@ -4,25 +4,27 @@ Status: Draft
 
 ## Purpose
 
-Define the harness boundary for the first external MCP stdio compatibility fixture selected by ADR
-0005.
+Define the harness boundary for the external MCP stdio client matrix selected by ADR 0005 and ADR
+0007.
 
-This document is a harness design, not fixture evidence. External MCP compatibility remains
-unclaimed until tracked fixtures and validation commands exist.
+This document owns harness design; tracked manifests and summaries own current fixture evidence.
 
 ## Source of Truth
 
 - Product decision: docs/product/02-spec.md
 - External target ADR: docs/adr/0005-external-mcp-compatibility-target.md
+- External client matrix ADR: docs/adr/0007-external-client-compatibility-matrix.md
 - External compatibility plan: docs/architecture/09-external-mcp-compatibility-plan.md
 - Compatibility registry: fixtures/compatibility/manifest.json
 - Artifact safety policy: scripts/check-artifact-safety.mjs
 
 ## Harness Boundary
 
-The first harness must exercise the pinned external target set from ADR 0005:
+The harnesses exercise the pinned external target set from ADR 0005 and the client matrix from ADR
+0007:
 
 - `@modelcontextprotocol/sdk@1.29.0`
+- Python `mcp==1.28.1` on Python 3.11.15
 - `@modelcontextprotocol/server-filesystem@2026.7.4`
 - stdio transport only
 
@@ -33,8 +35,9 @@ different posture.
 
 The existing `fixtures/compatibility/manifest.json` keeps the top-level `local-stdio-mvp` fields
 for the local synthetic evidence set and uses `targets[]` as the multi-target registry. External
-fixture work must stay in a separate `external-filesystem-stdio` target entry with its own manifest,
-summary, harness, and validation command. Do not merge external evidence into the local
+fixture work stays in separate `external-filesystem-stdio` and
+`external-filesystem-python-stdio` target entries with their own manifests, summaries, harnesses,
+and validation commands. Do not merge external evidence into the local
 `evidence[]` corpus or use it as release-scope evidence unless the release record explicitly
 includes external MCP compatibility.
 
@@ -47,7 +50,7 @@ The harness should run as a non-interactive Node.js script under `scripts/` and 
    paths in the same temporary root.
 3. Start `mcp-security-proxy run` with that temporary policy.
 4. Start the external filesystem server behind the proxy with the synthetic temporary root.
-5. Drive the session with the external TypeScript SDK stdio client transport.
+5. Drive equivalent sessions with the external TypeScript and Python SDK stdio clients.
 6. Capture only normalized, public-safe result summaries and redacted audit events.
 7. Delete the temporary fixture root after the run, whether the harness passes or fails.
 
@@ -69,6 +72,7 @@ The first harness implementation should prove the narrow path before expanding c
 - a read under `<external-fixture-root>/public` is allowed;
 - a read under `<external-fixture-root>/private` is denied by policy before upstream forwarding;
 - a direct call to a tool hidden by filtered discovery is denied;
+- orderly client transport shutdown completes;
 - redacted audit JSONL contains decision evidence codes without raw tool arguments.
 
 Malformed upstream response, unmatched response, and server-origin request coverage may be added
@@ -95,10 +99,10 @@ normalized into a bounded summary format before it reaches `fixtures/compatibili
 
 ## Validation Contract
 
-The first implementation validates this contract with `node scripts/check-external-mcp-fixture.mjs`
-after the workspace has been built. The script creates an ephemeral npm workspace, installs the
-pinned external packages, runs the proxy against the external filesystem server, and compares a
-normalized summary fixture.
+The matrix validates this contract with `node scripts/check-external-mcp-fixture.mjs` and
+`node scripts/check-external-python-mcp-fixture.mjs` after the workspace has been built. The scripts
+create ephemeral npm and Python environments, install exact direct package versions, run the proxy
+against the external filesystem server, and compare separate normalized summaries.
 
 The first implementation should add validation in this order:
 
@@ -115,6 +119,7 @@ The first implementation should add validation in this order:
 
 - The harness uses unpinned external package versions.
 - The harness writes external packages into runtime dependencies.
+- The Python harness reads user pip/npm credentials or adds Python to product runtime requirements.
 - The harness stores raw protocol frames, raw tool arguments, private paths, or package-manager logs
   in tracked files.
 - The harness broadens the local compatibility manifest without a multi-target validation contract.

@@ -7,9 +7,29 @@ const root = process.cwd();
 const manifestPath = "fixtures/compatibility/manifest.json";
 const localCompatibilityTarget = "local-stdio-mvp";
 const externalCompatibilityTarget = "external-filesystem-stdio";
-const externalCompatibilityHarness = "scripts/check-external-mcp-fixture.mjs";
-const externalCompatibilitySummary = "fixtures/compatibility/external-filesystem-stdio.summary.json";
-const externalCompatibilityManifest = "fixtures/compatibility/external-filesystem-stdio.manifest.json";
+const externalPythonCompatibilityTarget = "external-filesystem-python-stdio";
+const externalCompatibilityTargets = new Map([
+  [
+    externalCompatibilityTarget,
+    {
+      client: { package: "@modelcontextprotocol/sdk", version: "1.29.0" },
+      server: { package: "@modelcontextprotocol/server-filesystem", version: "2026.7.4" },
+      manifest: "fixtures/compatibility/external-filesystem-stdio.manifest.json",
+      summary: "fixtures/compatibility/external-filesystem-stdio.summary.json",
+      harness: "scripts/check-external-mcp-fixture.mjs"
+    }
+  ],
+  [
+    externalPythonCompatibilityTarget,
+    {
+      client: { package: "mcp", version: "1.28.1" },
+      server: { package: "@modelcontextprotocol/server-filesystem", version: "2026.7.4" },
+      manifest: "fixtures/compatibility/external-filesystem-python-stdio.manifest.json",
+      summary: "fixtures/compatibility/external-filesystem-python-stdio.summary.json",
+      harness: "scripts/check-external-python-mcp-fixture.mjs"
+    }
+  ]
+]);
 const requiredKinds = new Set([
   "mcp.discovery",
   "mcp.call.allowed",
@@ -127,9 +147,11 @@ if (manifest.target !== localCompatibilityTarget) {
 }
 checkManifestScope(manifestPath, manifest);
 const compatibilityTargets = checkCompatibilityTargets(manifestPath, manifest);
-const externalTarget = compatibilityTargets.get(externalCompatibilityTarget);
-if (externalTarget) {
-  checkExternalCompatibilityManifest(externalTarget.manifest, externalTarget);
+for (const [targetId, spec] of externalCompatibilityTargets) {
+  const externalTarget = compatibilityTargets.get(targetId);
+  if (externalTarget) {
+    checkExternalCompatibilityManifest(externalTarget.manifest, externalTarget, spec);
+  }
 }
 
 if (!Array.isArray(manifest.evidence)) {
@@ -271,8 +293,8 @@ function checkCompatibilityTargets(path, manifestObject) {
 
     if (id === localCompatibilityTarget) {
       checkLocalCompatibilityTarget(label, target);
-    } else if (id === externalCompatibilityTarget) {
-      checkExternalCompatibilityTarget(label, target);
+    } else if (externalCompatibilityTargets.has(id)) {
+      checkExternalCompatibilityTarget(label, target, externalCompatibilityTargets.get(id));
     } else {
       failures.push(`${label}: unsupported compatibility target ${id}`);
     }
@@ -281,8 +303,10 @@ function checkCompatibilityTargets(path, manifestObject) {
   if (!targets.has(localCompatibilityTarget)) {
     failures.push(`${path}: targets must include ${localCompatibilityTarget}`);
   }
-  if (!targets.has(externalCompatibilityTarget)) {
-    failures.push(`${path}: targets must include ${externalCompatibilityTarget}`);
+  for (const targetId of externalCompatibilityTargets.keys()) {
+    if (!targets.has(targetId)) {
+      failures.push(`${path}: targets must include ${targetId}`);
+    }
   }
 
   return targets;
@@ -300,37 +324,37 @@ function checkLocalCompatibilityTarget(label, target) {
   }
 }
 
-function checkExternalCompatibilityTarget(label, target) {
+function checkExternalCompatibilityTarget(label, target, spec) {
   if (target.transport !== "stdio") {
     failures.push(`${label}: external target transport must be stdio`);
   }
   if (target.fixtureSource !== "external-mcp") {
     failures.push(`${label}: external target fixtureSource must be external-mcp`);
   }
-  if (target.client?.package !== "@modelcontextprotocol/sdk" || target.client?.version !== "1.29.0") {
-    failures.push(`${label}: external target client package must be @modelcontextprotocol/sdk@1.29.0`);
+  if (target.client?.package !== spec.client.package || target.client?.version !== spec.client.version) {
+    failures.push(`${label}: external target client package must be ${spec.client.package}@${spec.client.version}`);
   }
-  if (target.server?.package !== "@modelcontextprotocol/server-filesystem" || target.server?.version !== "2026.7.4") {
-    failures.push(`${label}: external target server package must be @modelcontextprotocol/server-filesystem@2026.7.4`);
+  if (target.server?.package !== spec.server.package || target.server?.version !== spec.server.version) {
+    failures.push(`${label}: external target server package must be ${spec.server.package}@${spec.server.version}`);
   }
   checkEvidenceReference(label, "manifest", target.manifest);
   checkEvidenceReference(label, "summary", target.summary);
   checkEvidenceReference(label, "harness", target.harness);
-  if (target.manifest !== externalCompatibilityManifest) {
-    failures.push(`${label}: external target manifest must be ${externalCompatibilityManifest}`);
+  if (target.manifest !== spec.manifest) {
+    failures.push(`${label}: external target manifest must be ${spec.manifest}`);
   }
-  if (target.summary !== externalCompatibilitySummary) {
-    failures.push(`${label}: external target summary must be ${externalCompatibilitySummary}`);
+  if (target.summary !== spec.summary) {
+    failures.push(`${label}: external target summary must be ${spec.summary}`);
   }
-  if (target.harness !== externalCompatibilityHarness) {
-    failures.push(`${label}: external target harness must be ${externalCompatibilityHarness}`);
+  if (target.harness !== spec.harness) {
+    failures.push(`${label}: external target harness must be ${spec.harness}`);
   }
-  if (!Array.isArray(target.validationCommand) || stableJson(target.validationCommand) !== stableJson(["node", externalCompatibilityHarness])) {
-    failures.push(`${label}: external target validationCommand must be node ${externalCompatibilityHarness}`);
+  if (!Array.isArray(target.validationCommand) || stableJson(target.validationCommand) !== stableJson(["node", spec.harness])) {
+    failures.push(`${label}: external target validationCommand must be node ${spec.harness}`);
   }
 }
 
-function checkExternalCompatibilityManifest(path, registryTarget) {
+function checkExternalCompatibilityManifest(path, registryTarget, spec) {
   if (typeof path !== "string") {
     failures.push(`${manifestPath}: external target manifest must be recorded`);
     return;
@@ -347,9 +371,6 @@ function checkExternalCompatibilityManifest(path, registryTarget) {
   if (externalManifest.schemaVersion !== "msp.external-compatibility-evidence.v1") {
     failures.push(`${path}: schemaVersion must be msp.external-compatibility-evidence.v1`);
   }
-  if (externalManifest.target !== externalCompatibilityTarget) {
-    failures.push(`${path}: target must be ${externalCompatibilityTarget}`);
-  }
   if (externalManifest.target !== registryTarget.id) {
     failures.push(`${path}: target must match ${manifestPath} registry target ${registryTarget.id}`);
   }
@@ -365,17 +386,17 @@ function checkExternalCompatibilityManifest(path, registryTarget) {
   if (externalManifest.fixtureSource !== registryTarget.fixtureSource) {
     failures.push(`${path}: fixtureSource must match ${manifestPath} registry target ${registryTarget.id}`);
   }
-  if (externalManifest.client?.package !== "@modelcontextprotocol/sdk" || externalManifest.client?.version !== "1.29.0") {
-    failures.push(`${path}: client package must be @modelcontextprotocol/sdk@1.29.0`);
+  if (externalManifest.client?.package !== spec.client.package || externalManifest.client?.version !== spec.client.version) {
+    failures.push(`${path}: client package must be ${spec.client.package}@${spec.client.version}`);
   }
   if (externalManifest.client?.package !== registryTarget.client?.package || externalManifest.client?.version !== registryTarget.client?.version) {
     failures.push(`${path}: client must match ${manifestPath} registry target ${registryTarget.id}`);
   }
   if (
-    externalManifest.server?.package !== "@modelcontextprotocol/server-filesystem" ||
-    externalManifest.server?.version !== "2026.7.4"
+    externalManifest.server?.package !== spec.server.package ||
+    externalManifest.server?.version !== spec.server.version
   ) {
-    failures.push(`${path}: server package must be @modelcontextprotocol/server-filesystem@2026.7.4`);
+    failures.push(`${path}: server package must be ${spec.server.package}@${spec.server.version}`);
   }
   if (externalManifest.server?.package !== registryTarget.server?.package || externalManifest.server?.version !== registryTarget.server?.version) {
     failures.push(`${path}: server must match ${manifestPath} registry target ${registryTarget.id}`);
@@ -454,6 +475,9 @@ function checkExternalFixtureSummary(manifestLabel, summaryPath, externalManifes
   }
   if (!scenarioHasEvidenceCode(scenarios.hiddenToolDirectCall, "tool.not_visible")) {
     failures.push(`${summaryPath}: hiddenToolDirectCall must include tool.not_visible evidence`);
+  }
+  if (scenarios.shutdown?.clientClosed !== true) {
+    failures.push(`${summaryPath}: shutdown.clientClosed must be true`);
   }
   const auditCodes = Array.isArray(scenarios.audit?.evidenceCodes) ? scenarios.audit.evidenceCodes : [];
   for (const code of ["discovery.filtered", "policy.rule_allow", "policy.rule_deny", "tool.not_visible"]) {
@@ -2163,6 +2187,8 @@ function checkDecisionEvidenceCodes(label, value, path = "$") {
 }
 
 async function checkCompatibilityEvidenceValidator() {
+  const javascriptExternalSpec = externalCompatibilityTargets.get(externalCompatibilityTarget);
+  const pythonExternalSpec = externalCompatibilityTargets.get(externalPythonCompatibilityTarget);
   const invalidManifestScopeFailures = collectCompatibilityFailures(() => {
     checkManifestScope("<compatibility-self-test-invalid-manifest-scope>", {
       transport: "http",
@@ -2201,6 +2227,17 @@ async function checkCompatibilityEvidenceValidator() {
           summary: "fixtures/compatibility/external-filesystem-stdio.summary.json",
           harness: "scripts/check-external-mcp-fixture.mjs",
           validationCommand: ["node", "scripts/not-the-external-fixture.mjs"]
+        },
+        {
+          id: externalPythonCompatibilityTarget,
+          transport: "stdio",
+          fixtureSource: "external-mcp",
+          client: pythonExternalSpec.client,
+          server: pythonExternalSpec.server,
+          manifest: pythonExternalSpec.manifest,
+          summary: pythonExternalSpec.summary,
+          harness: pythonExternalSpec.harness,
+          validationCommand: ["node", pythonExternalSpec.harness]
         }
       ]
     });
@@ -2210,7 +2247,7 @@ async function checkCompatibilityEvidenceValidator() {
     !invalidTargetsFailures.some((item) => item.includes("local target fixtureSource must be synthetic-local")) ||
     !invalidTargetsFailures.some((item) => item.includes("external target client package must be @modelcontextprotocol/sdk@1.29.0")) ||
     !invalidTargetsFailures.some((item) => item.includes("evidence manifest must be a safe repo-relative POSIX path")) ||
-    !invalidTargetsFailures.some((item) => item.includes(`external target validationCommand must be node ${externalCompatibilityHarness}`))
+    !invalidTargetsFailures.some((item) => item.includes(`external target validationCommand must be node ${javascriptExternalSpec.harness}`))
   ) {
     failures.push(`compatibility self-test invalid targets were not rejected: ${invalidTargetsFailures.join("; ")}`);
   }
