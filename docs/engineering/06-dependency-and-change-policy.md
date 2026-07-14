@@ -22,7 +22,8 @@ Status: Draft
 
 - Project license: Apache-2.0.
 - Allowed by default: Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC.
-- Review required: MPL-2.0, Unicode, dual-licensed packages, generated schema or parser assets.
+- Review required: MPL-2.0, BlueOak-1.0.0, Unicode, dual-licensed packages, generated schema or
+  parser assets.
 - Denied by default: GPL, AGPL, LGPL, SSPL, BUSL, proprietary or source-available-only licenses.
 
 Any exception must be documented before release.
@@ -32,6 +33,11 @@ Any exception must be documented before release.
 - `typescript`: dev dependency, Apache-2.0.
 - `@types/node`: dev dependency, MIT.
 - `vitest`: dev dependency, MIT.
+- `@microsoft/api-extractor`: pinned dev dependency, MIT, used only to generate and verify tracked
+  public API reports. It is not included in published package runtime dependencies or artifacts.
+- `minimatch@10.2.3`: transitive dev dependency through `@microsoft/api-extractor`,
+  BlueOak-1.0.0, reviewed as acceptable for local and CI API-report generation. Re-review before
+  release if it enters runtime dependencies or distributed artifacts.
 - `lightningcss` and `lightningcss-win32-x64-msvc`: transitive dev dependencies through the test
   toolchain, MPL-2.0, reviewed as acceptable for local development tooling. Re-review before release
   if these enter runtime or distributed artifacts.

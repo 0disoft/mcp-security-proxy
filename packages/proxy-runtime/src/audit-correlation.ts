@@ -6,8 +6,8 @@ import {
 } from "@0disoft/mcp-security-proxy-contracts";
 import type { JsonRpcId } from "@0disoft/mcp-security-proxy-mcp-adapter";
 
-type AuditDirection = AuditCorrelation["direction"];
-type JsonRpcIdType = AuditCorrelation["jsonRpcIdType"];
+export type AuditDirection = AuditCorrelation["direction"];
+export type JsonRpcIdType = AuditCorrelation["jsonRpcIdType"];
 
 interface FrameCorrelation {
   direction: AuditDirection;

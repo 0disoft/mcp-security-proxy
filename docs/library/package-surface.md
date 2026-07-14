@@ -81,6 +81,11 @@ part of the offline `check` aggregate and does not accept `latest`, ranges, or u
 The publishable candidate set is contracts, core, mcp-adapter, proxy-runtime, and cli. Testkit is a
 private workspace-only package and must not declare registry publication metadata.
 
+The same five packages own API Extractor configurations under `packages/*/config/` and tracked
+review baselines under `etc/api/`. `pnpm run api-report` verifies that built declarations match
+those baselines. Testkit is excluded because it is private and is not part of the registry contract.
+The reports are generated review inputs, not package contents or source-of-truth declarations.
+
 ## Expected Entrypoint Re-exports
 
 - `packages/contracts/src/index.ts`: `./policy.js`, `./decision.js`, `./audit.js`,
@@ -109,3 +114,4 @@ private workspace-only package and must not declare registry publication metadat
 - Published-package claims lack exact-version registry smoke evidence.
 - Package artifacts drift from documented public API.
 - `pnpm run package-surface` fails.
+- `pnpm run api-report` fails or its baseline changes without semver review.

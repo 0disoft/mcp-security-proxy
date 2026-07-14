@@ -9,9 +9,10 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "api-report": "pnpm build && node scripts/check-api-reports.mjs",
     "build": "pnpm -r build",
     "artifact-safety": "node scripts/check-artifact-safety.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs && pnpm run schema-contract && pnpm run migration-check && pnpm run package-surface && pnpm run secret-scan && pnpm run artifact-safety && pnpm run repository-hygiene && pnpm run validation-registry && pnpm run ci-contract && pnpm run compatibility && pnpm run external-compatibility && pnpm run license-report && pnpm run release-readiness && pnpm run performance-smoke && pnpm run process-tree-smoke && pnpm run smoke",
+    "check": "pnpm typecheck && pnpm test && pnpm contract && pnpm run docs && pnpm run schema-contract && pnpm run migration-check && pnpm run package-surface && pnpm run api-report && pnpm run secret-scan && pnpm run artifact-safety && pnpm run repository-hygiene && pnpm run validation-registry && pnpm run ci-contract && pnpm run compatibility && pnpm run external-compatibility && pnpm run license-report && pnpm run release-readiness && pnpm run performance-smoke && pnpm run process-tree-smoke && pnpm run smoke",
     "ci-contract": "node scripts/check-ci-contract.mjs",
     "compatibility": "pnpm build && node scripts/check-compatibility-evidence.mjs",
     "contract": "pnpm build && pnpm --filter @0disoft/mcp-security-proxy-contracts typecheck && pnpm --filter @0disoft/mcp-security-proxy-core test",
@@ -33,6 +34,7 @@
     "typecheck": "pnpm build && pnpm -r typecheck"
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "7.58.9",
     "@types/node": "^24.10.2",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"

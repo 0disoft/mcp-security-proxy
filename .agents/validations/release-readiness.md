@@ -18,6 +18,7 @@ This document owns stable validation names for this scaffold.
 - docs
 - schema-contract
 - package-surface
+- api-report
 - registry-smoke
 - secret-scan
 - artifact-safety

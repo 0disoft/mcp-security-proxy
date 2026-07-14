@@ -1,0 +1,6 @@
+{
+  "extends": "../../../config/api-extractor-base.json",
+  "apiReport": {
+    "reportFileName": "mcp-security-proxy-core.api.md"
+  }
+}

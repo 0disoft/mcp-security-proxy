@@ -77,6 +77,19 @@ The following may be patch versions when behavior remains compatible:
 - fixing audit formatting defects while preserving schema meaning
 - documentation and example corrections
 
+## API Report Classification
+
+Every change under `etc/api/` requires a version-impact review before its baseline is updated.
+Removing or narrowing an export, making an accepted input stricter, adding a required field, or
+changing a return type incompatibly is breaking. Additive exports and optional fields are normally
+minor. Documentation-only declaration changes that preserve types and behavior may be patch-level.
+During prerelease development, the selected prerelease version may advance instead of a stable
+major version, but the same compatibility analysis and migration-note requirement still applies.
+
+An unchanged report does not prove behavioral compatibility. Policy decisions, schema semantics,
+CLI behavior, and runtime compatibility remain covered by their contract tests and source-of-truth
+documents.
+
 ## Review Blockers
 
 - Public exports change without semver and migration notes.
@@ -84,3 +97,4 @@ The following may be patch versions when behavior remains compatible:
 - Package artifacts drift from documented public API.
 - Policy or audit schema changes ship without a version impact note.
 - A security-sensitive matcher changes without compatibility and migration review.
+- A tracked API report changes without a recorded version-impact decision.

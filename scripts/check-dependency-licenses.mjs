@@ -5,7 +5,7 @@ const root = process.cwd();
 const pnpmStore = join(root, "node_modules", ".pnpm");
 
 const allowedLicenses = new Set(["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC"]);
-const reviewedLicenses = new Set(["MPL-2.0"]);
+const reviewedLicenses = new Set(["MPL-2.0", "BlueOak-1.0.0"]);
 const deniedLicensePattern = /\b(?:AGPL|GPL|LGPL|SSPL|BUSL)\b|proprietary|source-available/i;
 
 const failures = [];
@@ -126,6 +126,17 @@ function checkDependencyLicenseValidator() {
   });
   if (reviewedFailures.length > 0) {
     failures.push(`license-report self-test reviewed license failed: ${reviewedFailures.join("; ")}`);
+  }
+
+  const blueOakFailures = collectDependencyLicenseFailures(() => {
+    const counts = new Map();
+    checkPackageLicense({ key: "<license-self-test-blueoak>", manifest: { license: "BlueOak-1.0.0" } }, counts);
+    if (counts.get("BlueOak-1.0.0") !== 1) {
+      failures.push("license-report self-test BlueOak license was not counted");
+    }
+  });
+  if (blueOakFailures.length > 0) {
+    failures.push(`license-report self-test BlueOak license failed: ${blueOakFailures.join("; ")}`);
   }
 
   const deniedFailures = collectDependencyLicenseFailures(() => {

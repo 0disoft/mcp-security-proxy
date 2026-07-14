@@ -79,6 +79,22 @@ This repository type owns public API surface, package compatibility, semantic ve
   classifier must not treat `api` alone as secret-bearing material.
 - Core policy exports should remain independent from filesystem, subprocess, network, and SDK IO.
 
+## API Report Review
+
+The five publishable packages have tracked API Extractor reports under `etc/api/`. Source files,
+declaration output, package manifests, schemas, and the contracts documented in this directory
+remain the source of truth. The reports are generated review baselines only; they make additions,
+removals, and signature changes visible in code review and must not be used to invent behavior.
+
+`pnpm run api-report` builds declarations and fails when the current public surface differs from
+the tracked reports. After deciding the semver and migration impact, a maintainer may regenerate
+the baselines with `pnpm build` followed by
+`node scripts/check-api-reports.mjs --update`. The changed reports must be reviewed and committed
+with the implementation and its version or migration notes. Forgotten exports fail extraction so
+public signatures cannot refer to unnamed package-private types. Release-tag enforcement remains a
+separate future documentation task and is intentionally not represented as report noise during the
+alpha API inventory.
+
 The current runtime-facing library surface includes a newline-delimited JSON-RPC session gate that
 returns forward lines, denial response lines, and redacted audit events. Subprocess lifecycle,
 stdio wiring, and CLI output routing belong to the CLI/runtime bridge, not the core evaluator.
@@ -94,3 +110,4 @@ docs/architecture/08-host-approval-ux-plan.md.
 - Public exports change without semver and migration notes.
 - Compatibility claims lack runtime or consumer evidence.
 - Package artifacts drift from documented public API.
+- API report changes lack an explicit semver and migration review.

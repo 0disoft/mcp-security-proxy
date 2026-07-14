@@ -28,7 +28,7 @@ pnpm run check
 - documentation contract check
 - schema contract checks
 - migration-note checks
-- package surface, tracked-file secret scans, public artifact safety checks, repository hygiene
+- package surface, tracked public API report drift, tracked-file secret scans, public artifact safety checks, repository hygiene
   checks, validation registry checks, CI contract checks, compatibility evidence checks, dependency
   license report checks, release-readiness preflight checks, and performance smoke checks
 - package tarball allowlist, offline npm installation, ESM import, declaration resolution, and
@@ -92,7 +92,7 @@ It neither accepts dist-tags or semver ranges nor reads npm credentials.
 ## Validation
 
 - Required validation names: typecheck, test, contract, docs, schema-contract, migration-check,
-  package-surface, registry-smoke, secret-scan, artifact-safety, repository-hygiene,
+  package-surface, api-report, registry-smoke, secret-scan, artifact-safety, repository-hygiene,
   validation-registry, ci-contract, compatibility, license-report, release-readiness,
   performance-smoke, check.
 - Release blocker status: public behavior changes are blocked when local `check` or hosted CI fails.
