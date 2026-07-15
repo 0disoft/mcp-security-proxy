@@ -49,6 +49,12 @@ scope.
 The required release scope keys are `mcpSdkDependency`, `httpTransport`, `hostApprovalUx`, and
 `externalMcpFixture`.
 
+Use `docs/adr/0008-runtime-mcp-sdk-boundary.md` for future records whose
+`mcpSdkDependency.status` is `excluded`. Historical records may retain ADR 0004 as their exclusion
+evidence. An included SDK scope requires a superseding ADR, an isolated adapter boundary, dependency
+review, public API evidence, compatibility fixtures, and release validation; the existing SDK-free
+ADR cannot be used as inclusion evidence.
+
 Use `docs/architecture/09-external-mcp-compatibility-plan.md` as the release-scope evidence when
 external MCP client/server fixtures are excluded. A release that includes them must replace that
 exclusion with tracked fixture and validation evidence. `fixtures/compatibility/manifest.json`

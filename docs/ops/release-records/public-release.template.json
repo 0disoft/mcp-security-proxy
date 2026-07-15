@@ -20,8 +20,8 @@
   ],
   "releaseScope": {
     "mcpSdkDependency": {
-      "status": "UNDECIDED",
-      "evidence": "UNDECIDED"
+      "status": "excluded",
+      "evidence": "docs/adr/0008-runtime-mcp-sdk-boundary.md"
     },
     "httpTransport": {
       "status": "UNDECIDED",

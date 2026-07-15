@@ -95,6 +95,10 @@ normalized summaries prove the JavaScript `@modelcontextprotocol/sdk@1.29.0` and
 not arbitrary MCP client/server compatibility. Target registration does not change release scope by
 itself.
 
+ADR 0008 keeps those SDKs outside product workspace manifests and published artifacts. They are
+independent compatibility witnesses only; passing a row does not turn its SDK into a supported
+embedding API or runtime dependency.
+
 ## Review Blockers
 
 - Public exports change without semver and migration notes.

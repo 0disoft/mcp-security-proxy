@@ -27,10 +27,13 @@ const requiredReleaseScopeDecisions = ["mcpSdkDependency", "httpTransport", "hos
 const releaseScopeStatuses = new Set(["included", "excluded"]);
 const releaseScopeEvidencePrefixes = ["docs/adr/", "docs/architecture/", "docs/ops/"];
 const releaseScopeExclusionEvidencePaths = {
-  mcpSdkDependency: "docs/adr/0004-implementation-stack-direction.md",
-  httpTransport: "docs/architecture/07-http-transport-plan.md",
-  hostApprovalUx: "docs/architecture/08-host-approval-ux-plan.md",
-  externalMcpFixture: "docs/architecture/09-external-mcp-compatibility-plan.md"
+  mcpSdkDependency: [
+    "docs/adr/0004-implementation-stack-direction.md",
+    "docs/adr/0008-runtime-mcp-sdk-boundary.md"
+  ],
+  httpTransport: ["docs/architecture/07-http-transport-plan.md"],
+  hostApprovalUx: ["docs/architecture/08-host-approval-ux-plan.md"],
+  externalMcpFixture: ["docs/architecture/09-external-mcp-compatibility-plan.md"]
 };
 const localCompatibilityTransport = "stdio";
 const externalCompatibilityTarget = "external-filesystem-stdio";
@@ -280,7 +283,7 @@ function checkReleaseScope(path, releaseScope) {
       failures.push(`${path}: releaseScope.${name}.evidence must be tracked`);
     } else if (!isReleaseScopeEvidencePath(item.evidence)) {
       failures.push(`${path}: releaseScope.${name}.evidence must be a docs/adr, docs/architecture, or docs/ops path`);
-    } else if (item.status === "included" && item.evidence === releaseScopeExclusionEvidencePaths[name]) {
+    } else if (item.status === "included" && releaseScopeExclusionEvidencePaths[name].includes(item.evidence)) {
       failures.push(
         `${path}: releaseScope.${name}.evidence must not use the exclusion evidence path when status is included`
       );
@@ -753,7 +756,7 @@ function createReleaseRecordSelfTestFixture() {
     releaseScope: {
       mcpSdkDependency: {
         status: "excluded",
-        evidence: "docs/adr/0004-implementation-stack-direction.md"
+        evidence: "docs/adr/0008-runtime-mcp-sdk-boundary.md"
       },
       httpTransport: {
         status: "excluded",

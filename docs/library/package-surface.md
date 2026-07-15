@@ -50,6 +50,8 @@ Until release readiness approves the recorded public package names and artifacts
   readiness records external runtime dependencies;
 - runtime package dependencies must stay within this pnpm workspace and use `workspace:*` until
   release readiness records external runtime dependencies.
+- every workspace dependency group must remain free of MCP SDK packages under ADR 0008; isolated
+  external compatibility fixture installs are not workspace dependencies.
 
 `pnpm run package-surface` enforces this private package posture until an approved release record
 exists. When `docs/ops/release-records/*.release.json` records a package as public with
@@ -106,6 +108,7 @@ The reports are generated review inputs, not package contents or source-of-truth
 - Keep policy and audit schemas discoverable from package documentation.
 - Keep packages private until release readiness approves the recorded public package names and
   artifacts.
+- Keep MCP SDKs out of all workspace package manifests and published artifacts.
 
 ## Review Blockers
 
@@ -115,3 +118,4 @@ The reports are generated review inputs, not package contents or source-of-truth
 - Package artifacts drift from documented public API.
 - `pnpm run package-surface` fails.
 - `pnpm run api-report` fails or its baseline changes without semver review.
+- A workspace package declares or publishes an MCP SDK dependency.

@@ -4,8 +4,8 @@ Status: Draft
 
 ## Purpose
 
-Define the policy vocabulary that MCP Security Proxy uses before implementation language, package
-format, or MCP SDK choices are final.
+Define the policy vocabulary independently from implementation language, package format, and the
+MCP SDK-free runtime boundary recorded in ADR 0008.
 
 ## Source of Truth
 

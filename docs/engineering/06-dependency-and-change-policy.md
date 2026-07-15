@@ -12,6 +12,8 @@ Status: Draft
 
 - Add dependencies only when they remove clear implementation risk or maintenance burden.
 - Keep core policy logic independent from SDK, filesystem, subprocess, and network dependencies.
+- Keep every workspace package manifest free of MCP SDK dependencies in all dependency groups, as
+  required by docs/adr/0008-runtime-mcp-sdk-boundary.md.
 - Pin and review dependency licenses before the first release.
 - Treat MCP SDK, runtime, parser, and release-tool dependencies as compatibility-sensitive.
 - Re-check dependency licenses from the installed lockfile graph, not from memory or package
@@ -33,6 +35,8 @@ Any exception must be documented before release.
 - `typescript`: dev dependency, Apache-2.0.
 - `@types/node`: dev dependency, MIT.
 - `vitest`: dev dependency, MIT.
+- MCP SDK packages: prohibited in workspace manifests. Exact SDK versions may exist only in ignored
+  temporary external-compatibility environments and do not become product dependency approvals.
 - `@microsoft/api-extractor`: pinned dev dependency, MIT, used only to generate and verify tracked
   public API reports. It is not included in published package runtime dependencies or artifacts.
 - `minimatch@10.2.3`: transitive dev dependency through `@microsoft/api-extractor`,
@@ -56,6 +60,7 @@ Any exception must be documented before release.
 
 - A dependency license is unknown, incompatible, or checked only from an unstated source.
 - `pnpm run license-report` fails.
-- Core policy logic imports runtime IO or SDK dependencies without an ADR.
+- A workspace package declares an MCP SDK contrary to ADR 0008.
+- Core policy logic imports runtime IO or SDK dependencies.
 - A protocol dependency changes without fixture updates.
 - A change weakens validation or hides skipped checks.

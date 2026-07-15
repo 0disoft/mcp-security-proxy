@@ -162,7 +162,7 @@ const checkRootRuntimeDependencies = (manifest, file) => {
 
 const checkMcpSdkDependency = (name, file, group) => {
   if (mcpSdkDependencyPatterns.some((pattern) => pattern.test(name))) {
-    failures.push(`${file}: ${group}.${name} must wait for an ADR or release-readiness record because MCP SDK choices are UNDECIDED`);
+    failures.push(`${file}: ${group}.${name} is prohibited by the ADR 0008 runtime MCP SDK boundary`);
   }
 };
 
@@ -328,7 +328,7 @@ const checkPackageSurfaceValidator = () => {
       "<package-surface-self-test-mcp-sdk-dependency>"
     );
   });
-  if (!sdkDependencyFailures.some((item) => item.includes("MCP SDK choices are UNDECIDED"))) {
+  if (!sdkDependencyFailures.some((item) => item.includes("prohibited by the ADR 0008 runtime MCP SDK boundary"))) {
     failures.push(`package-surface self-test MCP SDK dependency was not rejected: ${sdkDependencyFailures.join("; ")}`);
   }
 

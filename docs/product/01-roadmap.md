@@ -25,7 +25,8 @@ Status: mostly implemented for the current draft contract.
 - Add LICENSE and SECURITY.md.
 - Use the accepted TypeScript and pnpm implementation direction.
 - Verify and record Node.js runtime floor and private workspace package names.
-- Leave MCP SDK dependency choice and public release artifact names for later ADRs.
+- Keep product package manifests MCP SDK-free under ADR 0008 and use pinned SDKs only as isolated
+  external compatibility clients.
 
 ## Milestone 1: Local stdio Proxy MVP
 

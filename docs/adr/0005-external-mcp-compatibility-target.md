@@ -46,7 +46,8 @@ server implementation.
 
 ## Non-Implementation Boundary
 
-This ADR does not add a runtime MCP SDK dependency to MCP Security Proxy. It does not approve
+This ADR does not add a runtime MCP SDK dependency to MCP Security Proxy. ADR 0008 now prohibits
+MCP SDK dependencies in product workspace manifests. This ADR does not approve
 bundling an MCP SDK in product packages, importing SDK code into core policy logic, adding HTTP
 transport, adding a hosted control plane, or using a real user filesystem capture.
 
@@ -105,5 +106,5 @@ A release record may include external MCP compatibility only after:
 - The change claims external MCP compatibility without tracked fixture evidence.
 - The change uses unpinned external package versions for compatibility evidence.
 - The change captures real user files, credentials, raw prompts, private paths, or private logs.
-- The change adds an MCP SDK runtime dependency outside an ADR and release readiness record.
+- The change adds an MCP SDK workspace dependency contrary to ADR 0008.
 - The change treats this ADR as approval for HTTP transport or hosted control-plane behavior.
