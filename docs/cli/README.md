@@ -24,7 +24,8 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 ## CLI Purpose
 
 The CLI should make MCP policy review usable without writing host integration code first. It should
-run a local stdio proxy, validate policies, inspect discovered tools, and dry-run tool calls.
+run a local stdio proxy, print a read-only host configuration descriptor, validate policies,
+inspect discovered tools, and dry-run tool calls.
 
 The live `run` command keeps stdout reserved for newline-delimited MCP JSON-RPC messages. Startup
 errors and usage errors go to stderr, and audit events go to the selected profile's audit file or

@@ -43,9 +43,16 @@ Migration notes must include:
 
 ## Current Migration Notes
 
-No released implementation exists yet. Until the first public release, breaking documentation
-changes must still update the source-of-truth docs so early adopters do not build against stale
-policy, audit, CLI, or API contracts.
+The first public prerelease is `0.2.0-alpha.1`. Changes after that immutable publication are
+unreleased until a later prerelease record approves and publishes them.
+
+- Unreleased CLI addition: `config-snippet --target stdio-json` adds a read-only command and extends
+  the public `CommandName` union. Existing commands and exit codes are unchanged. Users previously
+  hand-authored a host command and argv array; they may now generate the same descriptor after the
+  CLI validates the policy and profile. No existing configuration edit is required. The output may
+  contain supplied local paths but never policy contents or environment values. Rollback is to
+  ignore the additive command and continue invoking `run` directly. This is minor/additive API and
+  CLI surface for the next prerelease.
 
 - Current draft schema versions: `msp.policy.v1`, `msp.decision.v1`, and `msp.audit-event.v1`.
 - Current draft decision note: decision evidence requires a stable `code` field. The

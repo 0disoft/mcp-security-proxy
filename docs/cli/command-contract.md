@@ -54,6 +54,19 @@ Optional inputs:
 - `--max-json-depth <1..256>` controls the maximum parsed JSON nesting depth. The default is 64.
 - `--ops-log <path>` writes optional lifecycle and bounded counter events as JSON Lines.
 
+### `mcp-security-proxy config-snippet`
+
+Implemented as a read-only host configuration generator. The command requires `--target
+stdio-json`, a valid policy path and existing profile, and an explicit `--` separator before the
+upstream command. It emits exactly one JSON object with `command` and `args` fields. Arguments remain
+an array so spaces, quotes, and Windows paths are not reconstructed through a shell string.
+
+`--proxy-command <path>` selects the proxy executable stored in the output and defaults to
+`mcp-security-proxy`. The command reads the policy only to validate it and confirm the profile. It
+does not emit policy contents, inspect environment values, start a process, or modify policy and
+host configuration files. Control characters in generated values are rejected. Supplied upstream
+arguments are reproduced verbatim, so users must not put credentials or secret values in argv.
+
 ### `mcp-security-proxy check-policy`
 
 Implemented. Validates policy syntax, schema version, method policy, profiles, rules, audit
@@ -77,6 +90,8 @@ prints the decision without forwarding it.
 - `--policy` points to the local policy file.
 - `--profile` selects the server policy profile.
 - `--input` points to captured tool-list or tool-call JSON for dry-run commands.
+- `--target stdio-json` selects the host-neutral `config-snippet` output contract.
+- `--proxy-command` selects the proxy executable referenced by `config-snippet` without invoking it.
 - `--approval-hook` marks approval hook availability for dry-run call evaluation.
 - `--audit-log` optionally overrides the selected profile's JSON Lines audit file for live proxy
   behavior. CLI `run` rejects profiles configured with `audit.destination: stdout`.
@@ -88,6 +103,9 @@ prints the decision without forwarding it.
 proxy starts. `run --help` exits before startup and may print usage text to stdout.
 The upstream command must appear after an explicit `--` separator so CLI flags and upstream argv
 cannot be confused.
+`config-snippet` also requires that separator and preserves every upstream argument as a distinct
+JSON array entry. It does not accept `--json` because its successful output is already the exact
+JSON descriptor.
 The CLI `run` command does not support `--approval-hook` because it does not bundle host approval
 UX. Approval hooks belong to embedding hosts that call the runtime library. The `eval-call`
 command may still use `--approval-hook` to dry-run how a call would classify when a hook is

@@ -22,7 +22,7 @@ for (const schemaVersion of [POLICY_SCHEMA_VERSION, DECISION_SCHEMA_VERSION, AUD
 }
 
 for (const phrase of [
-  "No released implementation exists yet",
+  "The first public prerelease is `0.2.0-alpha.1`",
   "policy schema fields, defaults, rule ordering, or matcher semantics",
   "audit event schema fields, redaction behavior, or event classification",
   "public library exports, public type names, or package entrypoints",

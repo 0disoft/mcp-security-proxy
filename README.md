@@ -38,6 +38,8 @@ Implemented foundation:
 - upstream error data and sensitive error-message redaction
 - JSON Lines audit events
 - dry-run policy evaluation through `check-policy`, `inspect-tools`, and `eval-call`
+- read-only `config-snippet --target stdio-json` output with policy/profile validation and exact
+  upstream argv preservation
 - bounded JSON-RPC frame size and parsed depth guards
 - stable decision evidence codes for audit consumers
 - embeddable runtime approval hook API for approval-required tool calls

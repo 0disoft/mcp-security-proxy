@@ -24,6 +24,7 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 - Optional frame byte and JSON depth limits for live MCP stdio messages
 - Optional dry-run input file
 - Optional JSON output flag for non-`run` commands
+- Read-only `config-snippet` target and optional proxy executable path
 
 ## Precedence
 
@@ -55,6 +56,17 @@ Proposed precedence:
 - CLI `run` frame size: 1048576 bytes unless `--max-frame-bytes` supplies an integer between
   1 and 16777216
 - CLI `run` JSON depth: 64 unless `--max-json-depth` supplies an integer between 1 and 256
+- CLI `config-snippet` target: explicit `stdio-json`; output contains only a proxy command and argv
+  array and never writes a host configuration file
+
+## Generated Configuration
+
+`config-snippet` validates the selected policy and profile before emitting a descriptor. It keeps
+the supplied policy path, profile, proxy executable, upstream command, and upstream arguments
+verbatim except for rejecting control characters. It does not resolve paths, read environment
+variables, copy policy contents, or infer shell quoting. Consumers remain responsible for placing
+the descriptor in the correct host configuration location. Because upstream argv is reproduced
+verbatim, credentials and secret values must not be supplied as command-line arguments.
 
 ## Review Blockers
 

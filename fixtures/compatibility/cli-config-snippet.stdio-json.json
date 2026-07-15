@@ -1,0 +1,14 @@
+{
+  "command": "C:\\Program Files\\mcp-security-proxy.cmd",
+  "args": [
+    "run",
+    "--policy",
+    "fixtures/policies/local-dev.json",
+    "--profile",
+    "local",
+    "--",
+    "fixture server",
+    "--root",
+    "workspace/public files"
+  ]
+}

@@ -20,7 +20,7 @@ import {
 } from "@0disoft/mcp-security-proxy-runtime";
 import type { Readable, Writable } from "node:stream";
 
-export type CommandName = "run" | "check-policy" | "inspect-tools" | "eval-call";
+export type CommandName = "run" | "config-snippet" | "check-policy" | "inspect-tools" | "eval-call";
 
 export interface CommandContract {
   readonly name: CommandName;
@@ -68,6 +68,7 @@ const allowedFlagsByCommand: Readonly<Record<CommandName, ReadonlySet<string>>> 
     "json",
     "help"
   ]),
+  "config-snippet": new Set(["target", "policy", "profile", "proxy-command", "help"]),
   "check-policy": new Set(["policy", "json", "help"]),
   "inspect-tools": new Set(["input", "policy", "profile", "json", "help"]),
   "eval-call": new Set(["policy", "input", "profile", "approval-hook", "json", "help"])
@@ -79,6 +80,11 @@ export function createCommandRegistry(): readonly CommandContract[] {
       name: "run",
       description: "run an MCP server behind the proxy",
       forwardsToolCalls: true
+    },
+    {
+      name: "config-snippet",
+      description: "print a read-only stdio host configuration snippet",
+      forwardsToolCalls: false
     },
     {
       name: "check-policy",
@@ -117,6 +123,9 @@ export function runCli(argv: readonly string[], io: CliIo): CliResult {
       writeError(io, 2, "run requires async CLI IO; use runCliAsync for live proxy execution", parsed.flags["json"] === true);
       return { exitCode: 2 };
     }
+    if (command === "config-snippet") {
+      return configSnippet(parsed.flags, parsed.positionals, parsed.separatorSeen, io);
+    }
     if (command === "check-policy") {
       return checkPolicy(parsed.flags, io);
     }
@@ -125,11 +134,12 @@ export function runCli(argv: readonly string[], io: CliIo): CliResult {
     }
     return evalCall(parsed.flags, io);
   } catch (error) {
+    const errorAsJson = command !== "config-snippet" && parsed.flags["json"] === true;
     if (error instanceof CliError) {
-      writeError(io, error.exitCode, error.message, parsed.flags["json"] === true);
+      writeError(io, error.exitCode, error.message, errorAsJson);
       return { exitCode: error.exitCode };
     }
-    writeError(io, 1, error instanceof Error ? error.message : "handled runtime failure", parsed.flags["json"] === true);
+    writeError(io, 1, error instanceof Error ? error.message : "handled runtime failure", errorAsJson);
     return { exitCode: 1 };
   }
 }
@@ -291,6 +301,66 @@ function evalCall(flags: Readonly<Record<string, string | true>>, io: CliIo): Cl
   return { exitCode: 0 };
 }
 
+function configSnippet(
+  flags: Readonly<Record<string, string | true>>,
+  upstreamArgv: readonly string[],
+  separatorSeen: boolean,
+  io: CliIo
+): CliResult {
+  const target = readRequiredStringFlag(flags, "target");
+  if (target !== "stdio-json") {
+    throw new CliError(2, `unsupported config snippet target: ${target}`);
+  }
+  const policyPath = readRequiredStringFlag(flags, "policy");
+  const profileId = readRequiredStringFlag(flags, "profile");
+  const proxyCommand = readOptionalStringFlag(flags, "proxy-command") ?? "mcp-security-proxy";
+  if (!separatorSeen) {
+    throw new CliError(2, "config-snippet requires -- before the upstream command");
+  }
+  const [upstreamCommand, ...upstreamArgs] = upstreamArgv;
+  if (!upstreamCommand) {
+    throw new CliError(2, "missing upstream command after --");
+  }
+
+  for (const [label, value] of [
+    ["--policy", policyPath],
+    ["--profile", profileId],
+    ["--proxy-command", proxyCommand],
+    ["upstream command", upstreamCommand],
+    ...upstreamArgs.map((value, index) => [`upstream argument ${index + 1}`, value])
+  ] as const) {
+    assertConfigSnippetValue(label, value);
+  }
+
+  const policy = readRequiredPolicy(io, policyPath);
+  if (!policy.profiles.some((item) => item.id === profileId)) {
+    throw new CliError(3, `profile not found: ${profileId}`);
+  }
+
+  io.stdout(
+    JSON.stringify({
+      command: proxyCommand,
+      args: [
+        "run",
+        "--policy",
+        policyPath,
+        "--profile",
+        profileId,
+        "--",
+        upstreamCommand,
+        ...upstreamArgs
+      ]
+    })
+  );
+  return { exitCode: 0 };
+}
+
+function assertConfigSnippetValue(label: string, value: string): void {
+  if (/[\u0000-\u001f\u007f]/u.test(value)) {
+    throw new CliError(2, `${label} must not contain control characters`);
+  }
+}
+
 function parseArgs(argv: readonly string[]): ParsedArgs {
   let command: string | undefined;
   const flags: Record<string, string | true> = {};
@@ -409,6 +479,20 @@ function commandHelp(command: CommandName): string {
       "  --policy <path>                local policy file",
       "  --json                         write a redacted machine-readable result",
       "  --help                         show this help"
+    ].join("\n");
+  }
+  if (command === "config-snippet") {
+    return [
+      "Usage: mcp-security-proxy config-snippet --target stdio-json --policy <path> --profile <name> [--proxy-command <path>] -- <upstream> [args...]",
+      "",
+      "Options:",
+      "  --target stdio-json            emit a JSON object with command and args fields",
+      "  --policy <path>                local policy file referenced by the generated invocation",
+      "  --profile <name>               existing policy profile referenced by the generated invocation",
+      "  --proxy-command <path>         proxy executable, default: mcp-security-proxy",
+      "  --help                         show this help",
+      "",
+      "This command validates but never modifies the policy or host configuration files."
     ].join("\n");
   }
   if (command === "inspect-tools") {
@@ -596,7 +680,7 @@ async function runProxy(
 }
 
 function isCommandName(value: string): value is CommandName {
-  return ["run", "check-policy", "inspect-tools", "eval-call"].includes(value);
+  return ["run", "config-snippet", "check-policy", "inspect-tools", "eval-call"].includes(value);
 }
 
 function stripUndefined(value: unknown): unknown {

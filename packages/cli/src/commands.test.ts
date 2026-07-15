@@ -15,6 +15,7 @@ describe("dry-run CLI commands", () => {
     expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy <command> [options]");
     expect(output.stdout.join("\n")).toContain("check-policy");
     expect(output.stdout.join("\n")).toContain("eval-call");
+    expect(output.stdout.join("\n")).toContain("config-snippet");
     expect(output.stderr).toEqual([]);
   });
 
@@ -52,6 +53,137 @@ describe("dry-run CLI commands", () => {
         profiles: [{ id: "local", rules: 5 }]
       }
     });
+  });
+
+  it("prints a read-only stdio JSON snippet while preserving argv boundaries", () => {
+    const output = invoke([
+      "config-snippet",
+      "--target",
+      "stdio-json",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--proxy-command",
+      "C:\\Program Files\\mcp-security-proxy.cmd",
+      "--",
+      "fixture server",
+      "--root",
+      "workspace/public files"
+    ]);
+
+    expect(output.exitCode).toBe(0);
+    expect(output.stderr).toEqual([]);
+    expect(output.stdoutJson()).toEqual({
+      command: "C:\\Program Files\\mcp-security-proxy.cmd",
+      args: [
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--",
+        "fixture server",
+        "--root",
+        "workspace/public files"
+      ]
+    });
+  });
+
+  it("prints config-snippet help without reading a policy", () => {
+    const output = invoke(["config-snippet", "--help"]);
+
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy config-snippet");
+    expect(output.stdout.join("\n")).toContain("never modifies the policy or host configuration files");
+    expect(output.stderr).toEqual([]);
+  });
+
+  it("rejects unsupported config snippet targets", () => {
+    const output = invoke([
+      "config-snippet",
+      "--target",
+      "unknown-host",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server"
+    ]);
+
+    expect(output.exitCode).toBe(2);
+    expect(output.stderr).toEqual(["unsupported config snippet target: unknown-host"]);
+  });
+
+  it("keeps config snippet usage errors off descriptor stdout", () => {
+    const output = invoke([
+      "config-snippet",
+      "--json",
+      "--target",
+      "stdio-json",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server"
+    ]);
+
+    expect(output.exitCode).toBe(2);
+    expect(output.stdout).toEqual([]);
+    expect(output.stderr).toEqual(["unknown flag for config-snippet: --json"]);
+  });
+
+  it("rejects config snippets for profiles missing from the policy", () => {
+    const output = invoke([
+      "config-snippet",
+      "--target",
+      "stdio-json",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "missing",
+      "--",
+      "fixture-server"
+    ]);
+
+    expect(output.exitCode).toBe(3);
+    expect(output.stderr).toEqual(["profile not found: missing"]);
+  });
+
+  it("requires an explicit separator for config snippet upstream argv", () => {
+    const output = invoke([
+      "config-snippet",
+      "--target",
+      "stdio-json",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "fixture-server"
+    ]);
+
+    expect(output.exitCode).toBe(2);
+    expect(output.stderr).toEqual(["config-snippet requires -- before the upstream command"]);
+  });
+
+  it("rejects control characters in generated config values", () => {
+    const output = invoke([
+      "config-snippet",
+      "--target",
+      "stdio-json",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server",
+      "line\nbreak"
+    ]);
+
+    expect(output.exitCode).toBe(2);
+    expect(output.stderr).toEqual(["upstream argument 1 must not contain control characters"]);
   });
 
   it("rejects unknown command flags instead of silently using defaults", () => {

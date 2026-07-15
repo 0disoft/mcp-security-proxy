@@ -48,7 +48,7 @@ export interface CommandContract {
 }
 
 // @public (undocumented)
-export type CommandName = "run" | "check-policy" | "inspect-tools" | "eval-call";
+export type CommandName = "run" | "config-snippet" | "check-policy" | "inspect-tools" | "eval-call";
 
 // @public (undocumented)
 export function createCommandRegistry(): readonly CommandContract[];

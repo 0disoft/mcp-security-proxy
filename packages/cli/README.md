@@ -7,6 +7,12 @@ npm install --global @0disoft/mcp-security-proxy-cli
 mcp-security-proxy --help
 ```
 
+Generate a host-neutral stdio descriptor without modifying host configuration files:
+
+```sh
+mcp-security-proxy config-snippet --target stdio-json --policy ./policy.json --profile local -- node server.js
+```
+
 The CLI controls MCP discovery and tool calls at the protocol boundary. It is not an
 operating-system sandbox and does not bundle a host approval UI.
 

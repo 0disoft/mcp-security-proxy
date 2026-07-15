@@ -61,6 +61,34 @@ The exact schema is not final, but JSON command output should follow this shape:
 }
 ```
 
+## Config Snippet Shape
+
+Successful `config-snippet --target stdio-json` output is the descriptor itself, without an `ok`
+wrapper:
+
+```json
+{
+  "command": "mcp-security-proxy",
+  "args": [
+    "run",
+    "--policy",
+    "./policy.json",
+    "--profile",
+    "local",
+    "--",
+    "node",
+    "server.js"
+  ]
+}
+```
+
+The command and each argument are separate JSON strings; consumers must not join them into a shell
+command. The output may contain user-supplied local paths, but it never contains policy file
+contents, environment values, audit events, or upstream process output. Usage failures use exit
+code 2, policy or profile failures use exit code 3, and errors go to stderr because no descriptor
+was produced. User-supplied upstream arguments are reproduced exactly and may themselves be
+sensitive; credentials must not be placed in argv or committed with generated host configuration.
+
 ## Review Blockers
 
 - A command changes without updating help, examples, output, and exit-code expectations.

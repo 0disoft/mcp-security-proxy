@@ -110,6 +110,8 @@ The policy model should be explicit and boring:
 Implemented command names:
 
 - `mcp-security-proxy run`: run a server behind the proxy.
+- `mcp-security-proxy config-snippet`: emit a read-only `command` and `args` JSON descriptor for a
+  validated policy, profile, and upstream stdio command.
 - `mcp-security-proxy check-policy`: validate a policy file.
 - `mcp-security-proxy inspect-tools`: classify a server tool list.
 - `mcp-security-proxy eval-call`: dry-run one tool call against policy.

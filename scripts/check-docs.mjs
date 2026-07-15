@@ -21,6 +21,7 @@ const requiredFiles = [
   "docs/adr/0004-implementation-stack-direction.md",
   "docs/adr/0006-lexical-path-policy-boundary.md",
   "docs/adr/0007-external-client-compatibility-matrix.md",
+  "docs/adr/0008-runtime-mcp-sdk-boundary.md",
   "docs/library/approval-hooks.md",
   "docs/library/decision-codes.md",
   "docs/cli/output-and-exit-codes.md",
@@ -94,7 +95,7 @@ function checkCliCommandDocs() {
   const commandContract = readFileSync(join(root, "docs/cli/command-contract.md"), "utf8");
   const cliReadme = readFileSync(join(root, "docs/cli/README.md"), "utf8");
   const commands = extractCommandNames(commandSource);
-  const expectedCommands = ["run", "check-policy", "inspect-tools", "eval-call"];
+  const expectedCommands = ["run", "config-snippet", "check-policy", "inspect-tools", "eval-call"];
   if (JSON.stringify(commands) !== JSON.stringify(expectedCommands)) {
     failures.push(`packages/cli/src/commands.ts: expected command list ${expectedCommands.join(", ")}, got ${commands.join(", ")}`);
   }
@@ -106,6 +107,8 @@ function checkCliCommandDocs() {
   for (const flag of [
     "--policy",
     "--profile",
+    "--target",
+    "--proxy-command",
     "--input",
     "--approval-hook",
     "--audit-log",

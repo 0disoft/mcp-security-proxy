@@ -37,6 +37,7 @@ const requiredKinds = new Set([
   "mcp.call.approval-required",
   "audit.redaction",
   "cli.json.check-policy",
+  "cli.json.config-snippet",
   "cli.json.inspect-tools",
   "cli.json.eval-call",
   "library.policy-parse",
@@ -49,6 +50,7 @@ const requiredKinds = new Set([
 ]);
 const cliCommandByKind = new Map([
   ["cli.json.check-policy", "check-policy"],
+  ["cli.json.config-snippet", "config-snippet"],
   ["cli.json.inspect-tools", "inspect-tools"],
   ["cli.json.eval-call", "eval-call"]
 ]);
@@ -77,6 +79,7 @@ const requiredEvidenceIds = new Set([
   "mcp-call-workflow-approval",
   "audit-decision-denied-redacted",
   "cli-check-policy-local-dev",
+  "cli-config-snippet-stdio-json",
   "cli-inspect-tools-local",
   "cli-eval-call-allowed-local",
   "cli-eval-call-denied-local",
@@ -662,6 +665,7 @@ function checkCliCommandPathArguments(id, expectedCommand, command) {
   const values = cliOptionValues(command);
   const requiredOptionsByCommand = new Map([
     ["check-policy", ["--policy"]],
+    ["config-snippet", ["--target", "--policy", "--profile"]],
     ["inspect-tools", ["--policy", "--input"]],
     ["eval-call", ["--policy", "--input"]]
   ]);
@@ -682,9 +686,10 @@ function checkCliCommandPathArguments(id, expectedCommand, command) {
 
 function cliOptionValues(command) {
   const values = new Map();
+  const valueOptions = new Set(["--target", "--policy", "--profile", "--input"]);
   for (let index = 3; index < command.length; index += 1) {
     const arg = command[index];
-    if (arg !== "--policy" && arg !== "--input") {
+    if (!valueOptions.has(arg)) {
       continue;
     }
     const value = command[index + 1];

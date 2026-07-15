@@ -84,6 +84,47 @@ export function runInstalledPackageConsumerSmoke({ consumerRoot, root, expectedV
   if (!cliResult.stdout.includes("Usage: mcp-security-proxy <command> [options]")) {
     throw new Error("installed CLI help did not expose the expected command usage");
   }
+
+  const policyPath = join(root, "fixtures", "policies", "local-dev.json");
+  const proxyCommand = "C:\\Program Files\\mcp-security-proxy.cmd";
+  const configResult = runCommand(
+    process.execPath,
+    [
+      join(consumerRoot, "node_modules", "@0disoft", "mcp-security-proxy-cli", "dist", "main.js"),
+      "config-snippet",
+      "--target",
+      "stdio-json",
+      "--policy",
+      policyPath,
+      "--profile",
+      "local",
+      "--proxy-command",
+      proxyCommand,
+      "--",
+      "fixture server",
+      "--root",
+      "workspace/public files"
+    ],
+    consumerRoot
+  );
+  const descriptor = JSON.parse(configResult.stdout);
+  const expectedArgs = [
+    "run",
+    "--policy",
+    policyPath,
+    "--profile",
+    "local",
+    "--",
+    "fixture server",
+    "--root",
+    "workspace/public files"
+  ];
+  if (descriptor.command !== proxyCommand || JSON.stringify(descriptor.args) !== JSON.stringify(expectedArgs)) {
+    throw new Error("installed CLI config snippet did not preserve command and argv boundaries");
+  }
+  if (configResult.stderr.trim().length > 0) {
+    throw new Error("installed CLI config snippet wrote unexpected stderr output");
+  }
 }
 
 export function runCommand(command, args, cwd, extraEnvironment = {}) {
@@ -125,7 +166,7 @@ for (const value of [knownSchemaVersions, classifyToolDescriptor, normalizeToolC
     throw new Error("installed package export is not callable");
   }
 }
-if (createCommandRegistry().length !== 4) {
+if (createCommandRegistry().length !== 5) {
   throw new Error("installed CLI command registry drifted");
 }
 `;

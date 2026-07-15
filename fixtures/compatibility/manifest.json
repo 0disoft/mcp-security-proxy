@@ -126,6 +126,28 @@
       ]
     },
     {
+      "id": "cli-config-snippet-stdio-json",
+      "kind": "cli.json.config-snippet",
+      "path": "fixtures/compatibility/cli-config-snippet.stdio-json.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "config-snippet",
+        "--target",
+        "stdio-json",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--proxy-command",
+        "C:\\Program Files\\mcp-security-proxy.cmd",
+        "--",
+        "fixture server",
+        "--root",
+        "workspace/public files"
+      ]
+    },
+    {
       "id": "cli-inspect-tools-local",
       "kind": "cli.json.inspect-tools",
       "path": "fixtures/compatibility/cli-inspect-tools.local.json",
