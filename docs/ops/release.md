@@ -79,6 +79,13 @@ credentials, and repeats the shared ESM, TypeScript, and CLI consumer checks. It
 pre-publication approval evidence. Failure after publication triggers the rollback and deprecation
 procedure; it never retries `npm publish` for the same immutable version.
 
+Completed publication evidence lives under `docs/ops/publications/*.publication.json`. A
+publication receipt records the immutable release tag and commit, successful Release and Registry
+Smoke workflow runs, observed npm dist-tags, package integrity values, and SLSA provenance linkage.
+`pnpm run release-readiness` validates these receipts against their approved release records and
+exact package sets. Receipt validation is offline consistency checking; only `registry-smoke`
+re-verifies the current public registry state.
+
 The one-time package-name initialization path is owned by `docs/ops/npm-bootstrap.md` and
 `docs/ops/npm-bootstrap-plan.json`. It stages `0.0.0-bootstrap.0` tarballs without changing source
 manifests, uses only the non-default `bootstrap` dist-tag, and cannot run through the normal release

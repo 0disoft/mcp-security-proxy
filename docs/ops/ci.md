@@ -30,7 +30,8 @@ pnpm run check
 - migration-note checks
 - package surface, tracked public API report drift, tracked-file secret scans, public artifact safety checks, repository hygiene
   checks, validation registry checks, CI contract checks, compatibility evidence checks, dependency
-  license report checks, release-readiness preflight checks, and performance smoke checks
+  license report checks, release-readiness and publication receipt checks, and performance smoke
+  checks
 - package tarball allowlist, offline npm installation, ESM import, declaration resolution, and
   installed CLI help checks for the five publishable candidates
 - CLI smoke checks against the local fixture policy and the secret-label fixture policy
@@ -74,6 +75,10 @@ The release workflow requires npm Trusted Publisher ownership configured for the
 `0disoft/mcp-security-proxy` repository, the package manifests are approved for public package
 posture, and an approved release readiness record names the reachable target commit and exact
 validation evidence.
+
+Post-publication facts are stored separately from approval records. The release-readiness aggregate
+validates each tracked publication receipt against its approved package set, release workflow run,
+registry smoke run, integrity values, and provenance linkage without making network requests.
 
 The first-package bootstrap path is not a GitHub Actions workflow. Its source of truth is
 `docs/ops/npm-bootstrap.md`; it keeps credentials in an interactive npm owner session and produces

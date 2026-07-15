@@ -47,8 +47,8 @@ Still intentionally narrow:
 - only stdio transport is implemented
 - network policy is argument-level intent policy, not OS socket enforcement
 - CLI `run` does not bundle an approval UI; approval hooks are for embedding hosts
-- public package names and npm artifact boundaries are approved for `0.2.0-alpha.1`; bootstrap
-  markers are published and the OIDC product release is pending
+- the five `0.2.0-alpha.1` packages are published to npm with provenance; the exact publication
+  receipt and post-publication registry evidence are tracked under `docs/ops/publications/`
 - the runtime MCP SDK dependency choice remains UNDECIDED
 
 ## Non-Goals
@@ -75,7 +75,8 @@ are documented in SECURITY.md.
 Implementation direction is TypeScript with pnpm, recorded in
 docs/adr/0004-implementation-stack-direction.md. The current scaffold targets Node.js `>=24.0.0`
 and keeps the root workspace and testkit private. The approved `0.2.0-alpha.1` release record names
-the five public npm packages and artifact boundaries; the runtime MCP SDK dependency choice remains
+the five public npm packages and artifact boundaries, and the matching publication receipt records
+the completed npm release and provenance checks. The runtime MCP SDK dependency choice remains
 unresolved. The pinned external stdio client matrix is recorded in
 docs/adr/0007-external-client-compatibility-matrix.md and backed by tracked JavaScript and Python
 client fixture evidence. It is not a claim of compatibility with arbitrary MCP clients or servers.
