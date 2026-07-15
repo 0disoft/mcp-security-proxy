@@ -125,6 +125,34 @@ export function runInstalledPackageConsumerSmoke({ consumerRoot, root, expectedV
   if (configResult.stderr.trim().length > 0) {
     throw new Error("installed CLI config snippet wrote unexpected stderr output");
   }
+
+  const codexConfigResult = runCommand(
+    process.execPath,
+    [
+      join(consumerRoot, "node_modules", "@0disoft", "mcp-security-proxy-cli", "dist", "main.js"),
+      "config-snippet",
+      "--target",
+      "codex-cli-json",
+      "--name",
+      "msp-fixture",
+      "--policy",
+      policyPath,
+      "--profile",
+      "local",
+      "--",
+      "fixture server",
+      "--root",
+      "workspace/public files"
+    ],
+    consumerRoot
+  );
+  const codexDescriptor = JSON.parse(codexConfigResult.stdout);
+  if (
+    codexDescriptor.command !== "codex" ||
+    stableJson(codexDescriptor.args) !== stableJson(["mcp", "add", "msp-fixture", "--", "mcp-security-proxy", ...expectedArgs])
+  ) {
+    throw new Error("installed CLI Codex config snippet did not preserve nested command and argv boundaries");
+  }
 }
 
 export function runCommand(command, args, cwd, extraEnvironment = {}) {
@@ -187,4 +215,8 @@ void normalizeToolCallEnvelope;
 void createProxySession;
 void createCommandRegistry;
 `;
+}
+
+function stableJson(value) {
+  return JSON.stringify(value);
 }

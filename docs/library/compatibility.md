@@ -99,6 +99,11 @@ ADR 0008 keeps those SDKs outside product workspace manifests and published arti
 independent compatibility witnesses only; passing a row does not turn its SDK into a supported
 embedding API or runtime dependency.
 
+The Codex host-configuration fixture separately pins `@openai/codex@0.144.4`, generates a
+`codex-cli-json` descriptor, registers it under an isolated temporary `CODEX_HOME`, and verifies the
+stdio command through `codex mcp get --json`. This proves the recorded configuration shape only;
+it is not a live authenticated Codex tool-use or approval UX claim.
+
 ## Review Blockers
 
 - Public exports change without semver and migration notes.

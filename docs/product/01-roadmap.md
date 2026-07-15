@@ -66,9 +66,10 @@ results.
 
 ## Milestone 3: Host Integration Hardening
 
-- Add read-only host configuration generation. The host-neutral `stdio-json` descriptor is
-  implemented with policy/profile validation and argv-preserving fixture evidence; host-specific
-  adapters and direct host-file edits remain separate future work.
+- Add read-only host configuration generation. The host-neutral `stdio-json` descriptor and Codex
+  CLI registration descriptor are implemented with policy/profile validation, argv-preserving
+  fixture evidence, and an isolated Codex CLI acceptance check. Direct host-file edits and other
+  host adapters remain separate future work.
 - Add policy dry-run workflows. Current local workflows cover policy validation, discovery
   inspection, allowed call evaluation, and denied call evaluation through fixture-backed CLI JSON
   evidence.

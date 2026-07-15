@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "msp.host-config-fixture.v1",
+  "target": "codex-cli-config",
+  "fixtureSource": "external-host-cli",
+  "host": {
+    "package": "@openai/codex",
+    "version": "0.144.4"
+  },
+  "descriptor": {
+    "command": "codex",
+    "args": [
+      "mcp",
+      "add",
+      "msp-fixture",
+      "--",
+      "mcp-security-proxy",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture server",
+      "--root",
+      "workspace/public files"
+    ]
+  },
+  "observed": {
+    "name": "msp-fixture",
+    "enabled": true,
+    "transport": {
+      "type": "stdio",
+      "command": "mcp-security-proxy",
+      "args": [
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--",
+        "fixture server",
+        "--root",
+        "workspace/public files"
+      ],
+      "env": null,
+      "envVars": [],
+      "cwd": null
+    }
+  },
+  "isolation": {
+    "codexHome": "<temporary-codex-home>",
+    "workingDirectory": "<temporary-working-directory>"
+  }
+}

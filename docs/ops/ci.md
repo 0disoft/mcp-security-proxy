@@ -53,6 +53,10 @@ GitHub Actions runs `.github/workflows/ci.yml` on `main` pushes and pull request
 - runs `git diff --check`
 - runs `pnpm run process-tree-smoke` on Ubuntu and Windows in a focused matrix job
 
+The external compatibility aggregate also installs exact `@openai/codex@0.144.4` into a temporary
+directory with registry credentials cleared and verifies generated MCP registration under a
+temporary `CODEX_HOME`. It never reads or writes the runner user's Codex configuration.
+
 `pnpm run ci-contract` keeps this workflow aligned with the documented Node.js version, pnpm
 version, Python compatibility version, read-only permissions, pinned actions, local check command,
 diff hygiene command, and the cross-platform process-tree smoke matrix.

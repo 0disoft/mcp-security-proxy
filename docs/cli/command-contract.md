@@ -56,8 +56,8 @@ Optional inputs:
 
 ### `mcp-security-proxy config-snippet`
 
-Implemented as a read-only host configuration generator. The command requires `--target
-stdio-json`, a valid policy path and existing profile, and an explicit `--` separator before the
+Implemented as a read-only host configuration generator. The command requires a supported
+`--target`, a valid policy path and existing profile, and an explicit `--` separator before the
 upstream command. It emits exactly one JSON object with `command` and `args` fields. Arguments remain
 an array so spaces, quotes, and Windows paths are not reconstructed through a shell string.
 
@@ -66,6 +66,11 @@ an array so spaces, quotes, and Windows paths are not reconstructed through a sh
 does not emit policy contents, inspect environment values, start a process, or modify policy and
 host configuration files. Control characters in generated values are rejected. Supplied upstream
 arguments are reproduced verbatim, so users must not put credentials or secret values in argv.
+
+`--target codex-cli-json` additionally requires `--name <server>` and wraps the proxy descriptor as
+`codex mcp add <server> -- <proxy> [args...]`. `--codex-command <path>` selects the Codex executable
+stored in that descriptor and defaults to `codex`. Generation does not execute Codex or modify
+`CODEX_HOME`; the descriptor changes Codex configuration only if a user explicitly runs it.
 
 ### `mcp-security-proxy check-policy`
 
@@ -90,8 +95,10 @@ prints the decision without forwarding it.
 - `--policy` points to the local policy file.
 - `--profile` selects the server policy profile.
 - `--input` points to captured tool-list or tool-call JSON for dry-run commands.
-- `--target stdio-json` selects the host-neutral `config-snippet` output contract.
+- `--target` selects the host-neutral `stdio-json` or Codex `codex-cli-json` output contract.
+- `--name` supplies the safe Codex MCP server name required by `codex-cli-json`.
 - `--proxy-command` selects the proxy executable referenced by `config-snippet` without invoking it.
+- `--codex-command` selects the Codex executable referenced by `codex-cli-json` without invoking it.
 - `--approval-hook` marks approval hook availability for dry-run call evaluation.
 - `--audit-log` optionally overrides the selected profile's JSON Lines audit file for live proxy
   behavior. CLI `run` rejects profiles configured with `audit.destination: stdout`.

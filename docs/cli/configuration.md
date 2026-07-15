@@ -56,8 +56,8 @@ Proposed precedence:
 - CLI `run` frame size: 1048576 bytes unless `--max-frame-bytes` supplies an integer between
   1 and 16777216
 - CLI `run` JSON depth: 64 unless `--max-json-depth` supplies an integer between 1 and 256
-- CLI `config-snippet` target: explicit `stdio-json`; output contains only a proxy command and argv
-  array and never writes a host configuration file
+- CLI `config-snippet` target: explicit `stdio-json` or `codex-cli-json`; output contains only a
+  command and argv array and never writes a host configuration file
 
 ## Generated Configuration
 
@@ -67,6 +67,10 @@ verbatim except for rejecting control characters. It does not resolve paths, rea
 variables, copy policy contents, or infer shell quoting. Consumers remain responsible for placing
 the descriptor in the correct host configuration location. Because upstream argv is reproduced
 verbatim, credentials and secret values must not be supplied as command-line arguments.
+
+The Codex target requires a server name containing only 1..64 ASCII letters, numbers, hyphens, or
+underscores. It emits `codex mcp add` argv and does not read, merge, or write Codex TOML. Running the
+generated command is a separate explicit user action that changes the active `CODEX_HOME`.
 
 ## Review Blockers
 

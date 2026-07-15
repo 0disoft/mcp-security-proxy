@@ -13,6 +13,12 @@ Generate a host-neutral stdio descriptor without modifying host configuration fi
 mcp-security-proxy config-snippet --target stdio-json --policy ./policy.json --profile local -- node server.js
 ```
 
+Generate Codex registration argv without editing Codex configuration:
+
+```sh
+mcp-security-proxy config-snippet --target codex-cli-json --name secured-filesystem --policy ./policy.json --profile local -- node server.js
+```
+
 The CLI controls MCP discovery and tool calls at the protocol boundary. It is not an
 operating-system sandbox and does not bundle a host approval UI.
 

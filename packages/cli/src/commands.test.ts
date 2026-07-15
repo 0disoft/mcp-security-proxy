@@ -96,7 +96,101 @@ describe("dry-run CLI commands", () => {
     expect(output.exitCode).toBe(0);
     expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy config-snippet");
     expect(output.stdout.join("\n")).toContain("never modifies the policy or host configuration files");
+    expect(output.stdout.join("\n")).toContain("codex-cli-json");
     expect(output.stderr).toEqual([]);
+  });
+
+  it("prints a read-only Codex MCP add descriptor", () => {
+    const output = invoke([
+      "config-snippet",
+      "--target",
+      "codex-cli-json",
+      "--name",
+      "secured-filesystem",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--codex-command",
+      "C:\\Program Files\\Codex\\codex.exe",
+      "--",
+      "fixture server",
+      "--root",
+      "workspace/public files"
+    ]);
+
+    expect(output.exitCode).toBe(0);
+    expect(output.stderr).toEqual([]);
+    expect(output.stdoutJson()).toEqual({
+      command: "C:\\Program Files\\Codex\\codex.exe",
+      args: [
+        "mcp",
+        "add",
+        "secured-filesystem",
+        "--",
+        "mcp-security-proxy",
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--",
+        "fixture server",
+        "--root",
+        "workspace/public files"
+      ]
+    });
+  });
+
+  it("requires a safe Codex server name", () => {
+    const missing = invoke([
+      "config-snippet",
+      "--target",
+      "codex-cli-json",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server"
+    ]);
+    const invalid = invoke([
+      "config-snippet",
+      "--target",
+      "codex-cli-json",
+      "--name",
+      "invalid name",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server"
+    ]);
+
+    expect(missing.exitCode).toBe(2);
+    expect(missing.stderr).toEqual(["missing required --name"]);
+    expect(invalid.exitCode).toBe(2);
+    expect(invalid.stderr).toEqual(["--name must use 1..64 ASCII letters, numbers, hyphens, or underscores"]);
+  });
+
+  it("rejects Codex-only flags for the host-neutral target", () => {
+    const output = invoke([
+      "config-snippet",
+      "--target",
+      "stdio-json",
+      "--name",
+      "unused",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server"
+    ]);
+
+    expect(output.exitCode).toBe(2);
+    expect(output.stderr).toEqual(["--name is only supported for --target codex-cli-json"]);
   });
 
   it("rejects unsupported config snippet targets", () => {

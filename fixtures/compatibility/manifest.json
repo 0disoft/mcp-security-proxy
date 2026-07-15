@@ -148,6 +148,37 @@
       ]
     },
     {
+      "id": "cli-config-snippet-codex-cli-json",
+      "kind": "cli.json.config-snippet",
+      "path": "fixtures/compatibility/cli-config-snippet.codex-cli-json.json",
+      "command": [
+        "node",
+        "packages/cli/dist/main.js",
+        "config-snippet",
+        "--target",
+        "codex-cli-json",
+        "--name",
+        "msp-fixture",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--",
+        "fixture server",
+        "--root",
+        "workspace/public files"
+      ]
+    },
+    {
+      "id": "host-config-codex-cli",
+      "kind": "host.config.codex",
+      "path": "fixtures/compatibility/codex-cli-config.summary.json",
+      "command": [
+        "node",
+        "scripts/check-codex-config-fixture.mjs"
+      ]
+    },
+    {
       "id": "cli-inspect-tools-local",
       "kind": "cli.json.inspect-tools",
       "path": "fixtures/compatibility/cli-inspect-tools.local.json",

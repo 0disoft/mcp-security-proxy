@@ -89,6 +89,33 @@ code 2, policy or profile failures use exit code 3, and errors go to stderr beca
 was produced. User-supplied upstream arguments are reproduced exactly and may themselves be
 sensitive; credentials must not be placed in argv or committed with generated host configuration.
 
+For `--target codex-cli-json`, the outer descriptor invokes Codex without executing it during
+generation:
+
+```json
+{
+  "command": "codex",
+  "args": [
+    "mcp",
+    "add",
+    "secured-filesystem",
+    "--",
+    "mcp-security-proxy",
+    "run",
+    "--policy",
+    "./policy.json",
+    "--profile",
+    "local",
+    "--",
+    "node",
+    "server.js"
+  ]
+}
+```
+
+The Codex descriptor is registration instructions, not proof that it was executed or that an
+authenticated Codex session successfully used a tool.
+
 ## Review Blockers
 
 - A command changes without updating help, examples, output, and exit-code expectations.

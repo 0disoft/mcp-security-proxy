@@ -40,6 +40,8 @@ Implemented foundation:
 - dry-run policy evaluation through `check-policy`, `inspect-tools`, and `eval-call`
 - read-only `config-snippet --target stdio-json` output with policy/profile validation and exact
   upstream argv preservation
+- read-only Codex registration descriptors verified with a pinned Codex CLI and isolated temporary
+  `CODEX_HOME`
 - bounded JSON-RPC frame size and parsed depth guards
 - stable decision evidence codes for audit consumers
 - embeddable runtime approval hook API for approval-required tool calls

@@ -13,6 +13,7 @@ Status: Draft
 - Audit correlation plan source: docs/architecture/10-audit-correlation-plan.md
 - External fixture harness source: docs/architecture/11-external-fixture-harness.md
 - External MCP compatibility evidence source: docs/ops/external-mcp-compatibility-evidence.md
+- Codex configuration compatibility evidence source: docs/ops/codex-config-compatibility-evidence.md
 - npm package bootstrap source: docs/ops/npm-bootstrap.md and docs/ops/npm-bootstrap-plan.json
 - npm publication evidence source: docs/ops/publications/*.publication.json
 - Operational standard source: docs/ops/00-operational-contract.md

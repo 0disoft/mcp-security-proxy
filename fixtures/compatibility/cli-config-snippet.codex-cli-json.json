@@ -1,0 +1,19 @@
+{
+  "command": "codex",
+  "args": [
+    "mcp",
+    "add",
+    "msp-fixture",
+    "--",
+    "mcp-security-proxy",
+    "run",
+    "--policy",
+    "fixtures/policies/local-dev.json",
+    "--profile",
+    "local",
+    "--",
+    "fixture server",
+    "--root",
+    "workspace/public files"
+  ]
+}

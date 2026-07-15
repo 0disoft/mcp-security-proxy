@@ -53,6 +53,10 @@ unreleased until a later prerelease record approves and publishes them.
   contain supplied local paths but never policy contents or environment values. Rollback is to
   ignore the additive command and continue invoking `run` directly. This is minor/additive API and
   CLI surface for the next prerelease.
+- Unreleased Codex adapter addition: `config-snippet --target codex-cli-json` requires a safe
+  `--name` and emits `codex mcp add` command/argv without executing it. Existing `stdio-json` output
+  is unchanged. No user Codex configuration is migrated automatically; rollback is to ignore the
+  new target or remove a registration separately through Codex if the generated command was run.
 
 - Current draft schema versions: `msp.policy.v1`, `msp.decision.v1`, and `msp.audit-event.v1`.
 - Current draft decision note: decision evidence requires a stable `code` field. The

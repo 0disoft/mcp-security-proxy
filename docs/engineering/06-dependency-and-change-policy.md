@@ -37,6 +37,9 @@ Any exception must be documented before release.
 - `vitest`: dev dependency, MIT.
 - MCP SDK packages: prohibited in workspace manifests. Exact SDK versions may exist only in ignored
   temporary external-compatibility environments and do not become product dependency approvals.
+- `@openai/codex@0.144.4`: Apache-2.0 external host-configuration fixture dependency installed only
+  in a temporary directory with registry credentials cleared. It is not a workspace, runtime, or
+  published package dependency.
 - `@microsoft/api-extractor`: pinned dev dependency, MIT, used only to generate and verify tracked
   public API reports. It is not included in published package runtime dependencies or artifacts.
 - `minimatch@10.2.3`: transitive dev dependency through `@microsoft/api-extractor`,

@@ -68,7 +68,7 @@ const allowedFlagsByCommand: Readonly<Record<CommandName, ReadonlySet<string>>> 
     "json",
     "help"
   ]),
-  "config-snippet": new Set(["target", "policy", "profile", "proxy-command", "help"]),
+  "config-snippet": new Set(["target", "name", "policy", "profile", "proxy-command", "codex-command", "help"]),
   "check-policy": new Set(["policy", "json", "help"]),
   "inspect-tools": new Set(["input", "policy", "profile", "json", "help"]),
   "eval-call": new Set(["policy", "input", "profile", "approval-hook", "json", "help"])
@@ -308,12 +308,27 @@ function configSnippet(
   io: CliIo
 ): CliResult {
   const target = readRequiredStringFlag(flags, "target");
-  if (target !== "stdio-json") {
+  assertConfigSnippetValue("--target", target);
+  if (target !== "stdio-json" && target !== "codex-cli-json") {
     throw new CliError(2, `unsupported config snippet target: ${target}`);
   }
   const policyPath = readRequiredStringFlag(flags, "policy");
   const profileId = readRequiredStringFlag(flags, "profile");
   const proxyCommand = readOptionalStringFlag(flags, "proxy-command") ?? "mcp-security-proxy";
+  const serverName = readOptionalStringFlag(flags, "name");
+  const codexCommand = readOptionalStringFlag(flags, "codex-command") ?? "codex";
+  if (target === "stdio-json" && flags["name"] !== undefined) {
+    throw new CliError(2, "--name is only supported for --target codex-cli-json");
+  }
+  if (target === "stdio-json" && flags["codex-command"] !== undefined) {
+    throw new CliError(2, "--codex-command is only supported for --target codex-cli-json");
+  }
+  if (target === "codex-cli-json" && !serverName) {
+    throw new CliError(2, "missing required --name");
+  }
+  if (serverName && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/u.test(serverName)) {
+    throw new CliError(2, "--name must use 1..64 ASCII letters, numbers, hyphens, or underscores");
+  }
   if (!separatorSeen) {
     throw new CliError(2, "config-snippet requires -- before the upstream command");
   }
@@ -326,6 +341,7 @@ function configSnippet(
     ["--policy", policyPath],
     ["--profile", profileId],
     ["--proxy-command", proxyCommand],
+    ["--codex-command", codexCommand],
     ["upstream command", upstreamCommand],
     ...upstreamArgs.map((value, index) => [`upstream argument ${index + 1}`, value])
   ] as const) {
@@ -337,21 +353,26 @@ function configSnippet(
     throw new CliError(3, `profile not found: ${profileId}`);
   }
 
-  io.stdout(
-    JSON.stringify({
-      command: proxyCommand,
-      args: [
-        "run",
-        "--policy",
-        policyPath,
-        "--profile",
-        profileId,
-        "--",
-        upstreamCommand,
-        ...upstreamArgs
-      ]
-    })
-  );
+  const proxyDescriptor = {
+    command: proxyCommand,
+    args: [
+      "run",
+      "--policy",
+      policyPath,
+      "--profile",
+      profileId,
+      "--",
+      upstreamCommand,
+      ...upstreamArgs
+    ]
+  };
+  const descriptor = target === "stdio-json"
+    ? proxyDescriptor
+    : {
+        command: codexCommand,
+        args: ["mcp", "add", serverName, "--", proxyDescriptor.command, ...proxyDescriptor.args]
+      };
+  io.stdout(JSON.stringify(descriptor));
   return { exitCode: 0 };
 }
 
@@ -483,13 +504,15 @@ function commandHelp(command: CommandName): string {
   }
   if (command === "config-snippet") {
     return [
-      "Usage: mcp-security-proxy config-snippet --target stdio-json --policy <path> --profile <name> [--proxy-command <path>] -- <upstream> [args...]",
+      "Usage: mcp-security-proxy config-snippet --target <stdio-json|codex-cli-json> [--name <server>] --policy <path> --profile <name> [options] -- <upstream> [args...]",
       "",
       "Options:",
-      "  --target stdio-json            emit a JSON object with command and args fields",
+      "  --target <target>              stdio-json or codex-cli-json",
+      "  --name <server>                Codex MCP server name, required for codex-cli-json",
       "  --policy <path>                local policy file referenced by the generated invocation",
       "  --profile <name>               existing policy profile referenced by the generated invocation",
       "  --proxy-command <path>         proxy executable, default: mcp-security-proxy",
+      "  --codex-command <path>         Codex executable, default: codex",
       "  --help                         show this help",
       "",
       "This command validates but never modifies the policy or host configuration files."

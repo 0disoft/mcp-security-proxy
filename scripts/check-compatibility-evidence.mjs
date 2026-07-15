@@ -40,6 +40,7 @@ const requiredKinds = new Set([
   "cli.json.config-snippet",
   "cli.json.inspect-tools",
   "cli.json.eval-call",
+  "host.config.codex",
   "library.policy-parse",
   "library.decision-result",
   "library.audit-jsonl",
@@ -80,6 +81,8 @@ const requiredEvidenceIds = new Set([
   "audit-decision-denied-redacted",
   "cli-check-policy-local-dev",
   "cli-config-snippet-stdio-json",
+  "cli-config-snippet-codex-cli-json",
+  "host-config-codex-cli",
   "cli-inspect-tools-local",
   "cli-eval-call-allowed-local",
   "cli-eval-call-denied-local",
@@ -226,7 +229,12 @@ async function checkEvidenceEntry(item) {
     return;
   }
 
-  if (kind.startsWith("mcp.") || kind.startsWith("cli.") || (kind.startsWith("library.") && kind !== "library.audit-jsonl")) {
+  if (
+    kind.startsWith("mcp.") ||
+    kind.startsWith("cli.") ||
+    kind.startsWith("host.") ||
+    (kind.startsWith("library.") && kind !== "library.audit-jsonl")
+  ) {
     readJson(path);
   }
   if (kind === "audit.redaction") {
@@ -234,6 +242,9 @@ async function checkEvidenceEntry(item) {
   }
   if (kind.startsWith("cli.")) {
     checkCliFixture(id, kind, path, item.command);
+  }
+  if (kind === "host.config.codex") {
+    checkCodexConfigFixture(id, path, item.command);
   }
   if (kind === "library.policy-parse") {
     await checkLibraryPolicyParseFixture(id, path, item);
@@ -633,6 +644,32 @@ function checkCliFixture(id, kind, path, command) {
   const actual = parseJsonText(output, `${id}: stdout`);
   const expected = readJson(path);
   assertJsonEqual(id, actual, expected);
+}
+
+function checkCodexConfigFixture(id, path, command) {
+  const expectedCommand = ["node", "scripts/check-codex-config-fixture.mjs"];
+  if (stableJson(command) !== stableJson(expectedCommand)) {
+    failures.push(`${id}: Codex host config evidence must run ${expectedCommand.join(" ")}`);
+  }
+  const summary = readJson(path);
+  if (summary.schemaVersion !== "msp.host-config-fixture.v1") {
+    failures.push(`${path}: schemaVersion must be msp.host-config-fixture.v1`);
+  }
+  if (summary.target !== "codex-cli-config" || summary.fixtureSource !== "external-host-cli") {
+    failures.push(`${path}: target and fixtureSource must identify Codex CLI config evidence`);
+  }
+  if (summary.host?.package !== "@openai/codex" || summary.host?.version !== "0.144.4") {
+    failures.push(`${path}: host must be pinned to @openai/codex@0.144.4`);
+  }
+  if (summary.descriptor?.command !== "codex" || summary.observed?.transport?.type !== "stdio") {
+    failures.push(`${path}: descriptor and observed transport must preserve Codex stdio configuration`);
+  }
+  if (
+    summary.isolation?.codexHome !== "<temporary-codex-home>" ||
+    summary.isolation?.workingDirectory !== "<temporary-working-directory>"
+  ) {
+    failures.push(`${path}: Codex fixture isolation paths must stay normalized`);
+  }
 }
 
 function checkCliCommandShape(id, kind, command) {
