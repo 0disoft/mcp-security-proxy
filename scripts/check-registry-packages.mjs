@@ -19,9 +19,8 @@ try {
   process.exit(1);
 }
 const npmCommand = process.platform === "win32" ? process.execPath : "npm";
-const npmCommandPrefix = process.platform === "win32"
-  ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
-  : [];
+const npmCommandPrefix =
+  process.platform === "win32" ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")] : [];
 const tempRoot = mkdtempSync(join(tmpdir(), "mcp-security-proxy-registry-smoke-"));
 const consumerRoot = join(tempRoot, "consumer");
 const userConfigPath = join(tempRoot, ".npmrc");

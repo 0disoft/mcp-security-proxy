@@ -281,13 +281,7 @@ describe("dry-run CLI commands", () => {
   });
 
   it("rejects unknown command flags instead of silently using defaults", () => {
-    const output = invoke([
-      "check-policy",
-      "--policy",
-      "fixtures/policies/local-dev.json",
-      "--max-fram-bytes",
-      "1024"
-    ]);
+    const output = invoke(["check-policy", "--policy", "fixtures/policies/local-dev.json", "--max-fram-bytes", "1024"]);
 
     expect(output.exitCode).toBe(2);
     expect(output.stderr).toEqual(["unknown flag for check-policy: --max-fram-bytes"]);
@@ -416,7 +410,9 @@ describe("dry-run CLI commands", () => {
       "fixture-server"
     ]);
 
-    output.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: "policy-audit-path", method: "resources/list" })}\n`);
+    output.clientInput.write(
+      `${JSON.stringify({ jsonrpc: "2.0", id: "policy-audit-path", method: "resources/list" })}\n`
+    );
     output.clientInput.end();
     output.upstream.stdout.end();
 
@@ -681,7 +677,9 @@ describe("dry-run CLI commands", () => {
     expect(result.exitCode).toBe(2);
     expect(output.stdout).toEqual([]);
     expect(output.mcpOutputLines()).toEqual([]);
-    expect(output.stderr).toEqual(["run does not support --approval-hook; approval hooks must be provided by an embedding host"]);
+    expect(output.stderr).toEqual([
+      "run does not support --approval-hook; approval hooks must be provided by an embedding host"
+    ]);
     expect(output.spawned).toBe(false);
   });
 
@@ -731,7 +729,9 @@ describe("dry-run CLI commands", () => {
     const result = await output.result;
     expect(result.exitCode).toBe(0);
     expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy run");
-    expect(output.stdout.join("\n")).toContain("Stdout is reserved for MCP protocol messages after the live proxy starts.");
+    expect(output.stdout.join("\n")).toContain(
+      "Stdout is reserved for MCP protocol messages after the live proxy starts."
+    );
     expect(output.mcpOutputLines()).toEqual([]);
     expect(output.stderr).toEqual([]);
   });
@@ -836,7 +836,10 @@ describe("dry-run CLI commands", () => {
   });
 });
 
-function invoke(argv: readonly string[], virtualFiles: Readonly<Record<string, string>> = {}): {
+function invoke(
+  argv: readonly string[],
+  virtualFiles: Readonly<Record<string, string>> = {}
+): {
   readonly exitCode: number;
   readonly stdout: readonly string[];
   readonly stderr: readonly string[];

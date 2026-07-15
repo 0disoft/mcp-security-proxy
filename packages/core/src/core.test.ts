@@ -78,9 +78,7 @@ describe("MCP Security Proxy core", () => {
       action: "deny",
       evidence: [{ code: "policy.default_deny", capability: "shell" }]
     });
-    expect(
-      toolHasNonDenyPolicyCoverage(profile.rules, "read_file_command", ["file-read", "shell"])
-    ).toBe(false);
+    expect(toolHasNonDenyPolicyCoverage(profile.rules, "read_file_command", ["file-read", "shell"])).toBe(false);
   });
 
   it("allows multi-capability calls only when every capability is covered", () => {
@@ -556,25 +554,28 @@ describe("MCP Security Proxy core", () => {
   });
 
   it("uses policy redaction detector replacements for configured detector kinds", () => {
-    const redacted = redactText("token=RAW_POLICY_REDACTION_MARKER PROMPT: summarize private notes; WORKSPACE_ID=abc123", {
-      detectors: [
-        {
-          id: "custom-secret",
-          kind: "secret_like",
-          replacement: "[SECRET_VALUE]"
-        },
-        {
-          id: "custom-prompt",
-          kind: "prompt",
-          replacement: "[PROMPT_VALUE]"
-        },
-        {
-          id: "custom-env",
-          kind: "environment_value",
-          replacement: "[ENV_VALUE]"
-        }
-      ]
-    });
+    const redacted = redactText(
+      "token=RAW_POLICY_REDACTION_MARKER PROMPT: summarize private notes; WORKSPACE_ID=abc123",
+      {
+        detectors: [
+          {
+            id: "custom-secret",
+            kind: "secret_like",
+            replacement: "[SECRET_VALUE]"
+          },
+          {
+            id: "custom-prompt",
+            kind: "prompt",
+            replacement: "[PROMPT_VALUE]"
+          },
+          {
+            id: "custom-env",
+            kind: "environment_value",
+            replacement: "[ENV_VALUE]"
+          }
+        ]
+      }
+    );
 
     expect(redacted.value).toContain("[SECRET_VALUE]");
     expect(redacted.value).toContain("[PROMPT_VALUE]");

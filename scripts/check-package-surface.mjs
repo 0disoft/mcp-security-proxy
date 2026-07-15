@@ -10,14 +10,7 @@ const expectedRepositoryUrl = "https://github.com/0disoft/mcp-security-proxy.git
 const expectedHomepage = "https://github.com/0disoft/mcp-security-proxy#readme";
 const expectedBugsUrl = "https://github.com/0disoft/mcp-security-proxy/issues";
 const expectedRegistry = "https://registry.npmjs.org";
-const expectedWorkspacePackages = [
-  "cli",
-  "contracts",
-  "core",
-  "mcp-adapter",
-  "proxy-runtime",
-  "testkit"
-];
+const expectedWorkspacePackages = ["cli", "contracts", "core", "mcp-adapter", "proxy-runtime", "testkit"];
 const expectedPublishablePackages = new Set(["cli", "contracts", "core", "mcp-adapter", "proxy-runtime"]);
 const expectedPackageFiles = new Map([
   ["cli", ["dist"]],
@@ -48,11 +41,7 @@ const expectedEntrypointReExports = new Map([
 ]);
 const expectedWorkspaceGlobs = ["packages/*"];
 const dependencyGroups = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
-const mcpSdkDependencyPatterns = [
-  /^@modelcontextprotocol\/sdk$/,
-  /\bmcp-sdk\b/i,
-  /\bmodelcontextprotocol\b/i
-];
+const mcpSdkDependencyPatterns = [/^@modelcontextprotocol\/sdk$/, /\bmcp-sdk\b/i, /\bmodelcontextprotocol\b/i];
 const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
   cwd: root,
   encoding: "utf8",
@@ -74,7 +63,10 @@ const assertEqual = (condition, message) => {
 const checkCommonManifest = (manifest, manifestPath, options = {}) => {
   const file = formatPath(manifestPath);
   if (options.releaseVersion) {
-    assertEqual(manifest.private !== true, `${file}: private must be removed or false when release readiness records it as public`);
+    assertEqual(
+      manifest.private !== true,
+      `${file}: private must be removed or false when release readiness records it as public`
+    );
   } else {
     assertEqual(manifest.private === true, `${file}: private must stay true before public release`);
   }
@@ -90,18 +82,42 @@ const checkWorkspacePackage = (manifest, manifestPath, packageReleaseVersions = 
   const releaseVersion = packageReleaseVersions.get(file);
   checkCommonManifest(manifest, manifestPath, { releaseVersion });
   if (releaseVersion) {
-    assertEqual(manifest.version === releaseVersion, `${file}: version must match release readiness version ${releaseVersion}`);
+    assertEqual(
+      manifest.version === releaseVersion,
+      `${file}: version must match release readiness version ${releaseVersion}`
+    );
   } else {
-    assertEqual(manifest.version === "0.0.0", `${file}: version must stay 0.0.0 until release readiness records a public version`);
+    assertEqual(
+      manifest.version === "0.0.0",
+      `${file}: version must stay 0.0.0 until release readiness records a public version`
+    );
   }
-  assertEqual(typeof manifest.name === "string" && manifest.name.startsWith("@0disoft/mcp-security-proxy-"), `${file}: package name must stay under @0disoft/mcp-security-proxy-*`);
-  assertEqual(typeof manifest.description === "string" && manifest.description.trim().length > 0, `${file}: description must identify the package purpose`);
+  assertEqual(
+    typeof manifest.name === "string" && manifest.name.startsWith("@0disoft/mcp-security-proxy-"),
+    `${file}: package name must stay under @0disoft/mcp-security-proxy-*`
+  );
+  assertEqual(
+    typeof manifest.description === "string" && manifest.description.trim().length > 0,
+    `${file}: description must identify the package purpose`
+  );
   assertEqual(manifest.types === "./dist/index.d.ts", `${file}: types must point at ./dist/index.d.ts`);
-  assertEqual(manifest.exports?.["."]?.types === "./dist/index.d.ts", `${file}: exports[.].types must point at ./dist/index.d.ts`);
-  assertEqual(manifest.exports?.["."]?.default === "./dist/index.js", `${file}: exports[.].default must point at ./dist/index.js`);
+  assertEqual(
+    manifest.exports?.["."]?.types === "./dist/index.d.ts",
+    `${file}: exports[.].types must point at ./dist/index.d.ts`
+  );
+  assertEqual(
+    manifest.exports?.["."]?.default === "./dist/index.js",
+    `${file}: exports[.].default must point at ./dist/index.js`
+  );
   assertEqual(manifest.repository?.type === "git", `${file}: repository.type must be git`);
-  assertEqual(manifest.repository?.url === expectedRepositoryUrl, `${file}: repository.url must match the GitHub repository`);
-  assertEqual(manifest.repository?.directory === `packages/${packageDirectory}`, `${file}: repository.directory must match its workspace path`);
+  assertEqual(
+    manifest.repository?.url === expectedRepositoryUrl,
+    `${file}: repository.url must match the GitHub repository`
+  );
+  assertEqual(
+    manifest.repository?.directory === `packages/${packageDirectory}`,
+    `${file}: repository.directory must match its workspace path`
+  );
   assertEqual(manifest.homepage === expectedHomepage, `${file}: homepage must point at the repository README`);
   assertEqual(manifest.bugs?.url === expectedBugsUrl, `${file}: bugs.url must point at the repository issues page`);
   assertEqual(manifest.sideEffects === false, `${file}: sideEffects must be false for the ESM package entrypoint`);
@@ -110,18 +126,45 @@ const checkWorkspacePackage = (manifest, manifestPath, packageReleaseVersions = 
     `${file}: files must include only the recorded package artifact paths`
   );
   if (expectedPublishablePackages.has(packageDirectory)) {
-    assertEqual(manifest.publishConfig?.access === "public", `${file}: publishConfig.access must be public for a release-recorded package`);
-    assertEqual(manifest.publishConfig?.registry === expectedRegistry, `${file}: publishConfig.registry must be npmjs.org`);
+    assertEqual(
+      manifest.publishConfig?.access === "public",
+      `${file}: publishConfig.access must be public for a release-recorded package`
+    );
+    assertEqual(
+      manifest.publishConfig?.registry === expectedRegistry,
+      `${file}: publishConfig.registry must be npmjs.org`
+    );
   } else {
     assertEqual(manifest.publishConfig === undefined, `${file}: private-only packages must not declare publishConfig`);
   }
-  assertEqual(existsSync(join(packageRoot, "src", "index.ts")), `${file}: src/index.ts must exist as the build source entrypoint`);
-  assertEqual(existsSync(join(packageRoot, "dist", "index.js")), `${file}: dist/index.js must exist after package-surface build`);
-  assertEqual(existsSync(join(packageRoot, "dist", "index.d.ts")), `${file}: dist/index.d.ts must exist after package-surface build`);
-  assertEqual(existsSync(join(packageRoot, "tsconfig.json")), `${file}: tsconfig.json must exist for package build/typecheck ownership`);
-  assertEqual(existsSync(join(packageRoot, "tsconfig.build.json")), `${file}: tsconfig.build.json must exist for test-excluded package builds`);
-  assertEqual(manifest.scripts?.build === "tsc -p tsconfig.build.json", `${file}: build script must use tsc -p tsconfig.build.json`);
-  assertEqual(manifest.scripts?.typecheck === "tsc -p tsconfig.json --noEmit", `${file}: typecheck script must use tsc -p tsconfig.json --noEmit`);
+  assertEqual(
+    existsSync(join(packageRoot, "src", "index.ts")),
+    `${file}: src/index.ts must exist as the build source entrypoint`
+  );
+  assertEqual(
+    existsSync(join(packageRoot, "dist", "index.js")),
+    `${file}: dist/index.js must exist after package-surface build`
+  );
+  assertEqual(
+    existsSync(join(packageRoot, "dist", "index.d.ts")),
+    `${file}: dist/index.d.ts must exist after package-surface build`
+  );
+  assertEqual(
+    existsSync(join(packageRoot, "tsconfig.json")),
+    `${file}: tsconfig.json must exist for package build/typecheck ownership`
+  );
+  assertEqual(
+    existsSync(join(packageRoot, "tsconfig.build.json")),
+    `${file}: tsconfig.build.json must exist for test-excluded package builds`
+  );
+  assertEqual(
+    manifest.scripts?.build === "tsc -p tsconfig.build.json",
+    `${file}: build script must use tsc -p tsconfig.build.json`
+  );
+  assertEqual(
+    manifest.scripts?.typecheck === "tsc -p tsconfig.json --noEmit",
+    `${file}: typecheck script must use tsc -p tsconfig.json --noEmit`
+  );
 };
 
 const checkDependencies = (manifest, manifestPath, workspacePackageNames) => {
@@ -134,7 +177,9 @@ const checkDependencies = (manifest, manifestPath, workspacePackageNames) => {
         continue;
       }
       if (!workspacePackageNames.has(name)) {
-        failures.push(`${file}: ${group}.${name} must not introduce external runtime dependencies before release readiness records them`);
+        failures.push(
+          `${file}: ${group}.${name} must not introduce external runtime dependencies before release readiness records them`
+        );
         continue;
       }
       assertEqual(version === "workspace:*", `${file}: ${group}.${name} must use workspace:*`);
@@ -155,7 +200,9 @@ const checkRootRuntimeDependencies = (manifest, file) => {
   for (const group of ["dependencies", "peerDependencies", "optionalDependencies"]) {
     const dependencies = manifest[group] ?? {};
     for (const name of Object.keys(dependencies)) {
-      failures.push(`${file}: ${group}.${name} must not be declared at the root workspace before release readiness records external runtime dependencies`);
+      failures.push(
+        `${file}: ${group}.${name} must not be declared at the root workspace before release readiness records external runtime dependencies`
+      );
     }
   }
 };
@@ -239,7 +286,9 @@ const checkPackageSurfaceValidator = () => {
     );
   });
   if (!privateReleaseManifestFailures.some((item) => item.includes("private must be removed or false"))) {
-    failures.push(`package-surface self-test private release manifest was not rejected: ${privateReleaseManifestFailures.join("; ")}`);
+    failures.push(
+      `package-surface self-test private release manifest was not rejected: ${privateReleaseManifestFailures.join("; ")}`
+    );
   }
 
   const versionMismatchReleaseManifestFailures = collectPackageSurfaceFailures(() => {
@@ -252,7 +301,11 @@ const checkPackageSurfaceValidator = () => {
       releaseRecordPackages
     );
   });
-  if (!versionMismatchReleaseManifestFailures.some((item) => item.includes("version must match release readiness version"))) {
+  if (
+    !versionMismatchReleaseManifestFailures.some((item) =>
+      item.includes("version must match release readiness version")
+    )
+  ) {
     failures.push(
       `package-surface self-test release manifest version mismatch was not rejected: ${versionMismatchReleaseManifestFailures.join("; ")}`
     );
@@ -275,7 +328,9 @@ const checkPackageSurfaceValidator = () => {
     ]);
   });
   if (!conflictingReleaseRecordFailures.some((item) => item.includes("conflicting release versions"))) {
-    failures.push(`package-surface self-test conflicting release records were not rejected: ${conflictingReleaseRecordFailures.join("; ")}`);
+    failures.push(
+      `package-surface self-test conflicting release records were not rejected: ${conflictingReleaseRecordFailures.join("; ")}`
+    );
   }
 
   const nonApprovedReleaseRecordPackages = collectReleasePackageVersions([
@@ -343,35 +398,49 @@ const checkPackageSurfaceValidator = () => {
     );
   });
   if (!rootRuntimeDependencyFailures.some((item) => item.includes("must not be declared at the root workspace"))) {
-    failures.push(`package-surface self-test root runtime dependency was not rejected: ${rootRuntimeDependencyFailures.join("; ")}`);
+    failures.push(
+      `package-surface self-test root runtime dependency was not rejected: ${rootRuntimeDependencyFailures.join("; ")}`
+    );
   }
 
   const documentedPackageFailures = collectPackageSurfaceFailures(() => {
     checkDocumentedPackageSurfaceNames("<package-surface-self-test-documented-packages>", ["core"], ["core", "cli"]);
   });
   if (!documentedPackageFailures.some((item) => item.includes("documented package surfaces"))) {
-    failures.push(`package-surface self-test documented package drift was not rejected: ${documentedPackageFailures.join("; ")}`);
+    failures.push(
+      `package-surface self-test documented package drift was not rejected: ${documentedPackageFailures.join("; ")}`
+    );
   }
 
   const workspaceGlobFailures = collectPackageSurfaceFailures(() => {
     checkWorkspacePackageGlobNames("<package-surface-self-test-workspace-globs>", ["packages/*", "examples/*"]);
   });
   if (!workspaceGlobFailures.some((item) => item.includes("workspace package globs"))) {
-    failures.push(`package-surface self-test workspace glob drift was not rejected: ${workspaceGlobFailures.join("; ")}`);
+    failures.push(
+      `package-surface self-test workspace glob drift was not rejected: ${workspaceGlobFailures.join("; ")}`
+    );
   }
 
   const workspaceDirectoryFailures = collectPackageSurfaceFailures(() => {
-    checkWorkspacePackageDirectoryNames("<package-surface-self-test-workspace-directories>", ["cli", "scratch"], ["cli"]);
+    checkWorkspacePackageDirectoryNames(
+      "<package-surface-self-test-workspace-directories>",
+      ["cli", "scratch"],
+      ["cli"]
+    );
   });
   if (!workspaceDirectoryFailures.some((item) => item.includes("workspace package directories"))) {
-    failures.push(`package-surface self-test workspace directory drift was not rejected: ${workspaceDirectoryFailures.join("; ")}`);
+    failures.push(
+      `package-surface self-test workspace directory drift was not rejected: ${workspaceDirectoryFailures.join("; ")}`
+    );
   }
 
   const entrypointReExportFailures = collectPackageSurfaceFailures(() => {
     checkEntrypointReExportNames("<package-surface-self-test-entrypoint-reexports>", ["./index.js"], ["./commands.js"]);
   });
   if (!entrypointReExportFailures.some((item) => item.includes("entrypoint re-exports"))) {
-    failures.push(`package-surface self-test entrypoint re-export drift was not rejected: ${entrypointReExportFailures.join("; ")}`);
+    failures.push(
+      `package-surface self-test entrypoint re-export drift was not rejected: ${entrypointReExportFailures.join("; ")}`
+    );
   }
 
   const distArtifactFailures = collectPackageSurfaceFailures(() => {
@@ -426,7 +495,9 @@ function collectReleasePackageVersions(records) {
       const packageManifestPath = `${item.workspacePath}/package.json`;
       const previousVersion = packageVersions.get(packageManifestPath);
       if (previousVersion && previousVersion !== record.releaseVersion) {
-        failures.push(`${packageManifestPath}: conflicting release versions ${previousVersion} and ${record.releaseVersion}`);
+        failures.push(
+          `${packageManifestPath}: conflicting release versions ${previousVersion} and ${record.releaseVersion}`
+        );
       }
       packageVersions.set(packageManifestPath, record.releaseVersion);
     }
@@ -456,11 +527,13 @@ function isReachableCommit(value) {
 
 function getHistoricalReachableCommit() {
   try {
-    return execFileSync("git", ["rev-list", "--max-count=1", "--skip=1", "HEAD"], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"]
-    }).trim() || currentHead;
+    return (
+      execFileSync("git", ["rev-list", "--max-count=1", "--skip=1", "HEAD"], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"]
+      }).trim() || currentHead
+    );
   } catch {
     return currentHead;
   }
@@ -469,7 +542,10 @@ function getHistoricalReachableCommit() {
 const rootManifestPath = join(root, "package.json");
 const rootManifest = readJson(rootManifestPath);
 checkCommonManifest(rootManifest, rootManifestPath);
-assertEqual(rootManifest.name === "mcp-security-proxy-workspace", "package.json: workspace package name changed unexpectedly");
+assertEqual(
+  rootManifest.name === "mcp-security-proxy-workspace",
+  "package.json: workspace package name changed unexpectedly"
+);
 assertEqual(rootManifest.version === "0.0.0", "package.json: workspace version must stay 0.0.0 before public release");
 assertEqual(
   rootManifest.scripts?.typecheck === "pnpm build && pnpm -r typecheck",
@@ -501,7 +577,10 @@ if (existsSync(packagesDir)) {
   const actualWorkspacePackages = packageManifestPaths
     .map((path) => relative(packagesDir, path).split(/[\\/]/)[0])
     .sort((left, right) => left.localeCompare(right));
-  assertEqual(JSON.stringify(actualWorkspacePackages) === JSON.stringify(expectedWorkspacePackages), `packages/: expected workspace packages ${expectedWorkspacePackages.join(", ")}, got ${actualWorkspacePackages.join(", ")}`);
+  assertEqual(
+    JSON.stringify(actualWorkspacePackages) === JSON.stringify(expectedWorkspacePackages),
+    `packages/: expected workspace packages ${expectedWorkspacePackages.join(", ")}, got ${actualWorkspacePackages.join(", ")}`
+  );
 
   const workspacePackageNames = new Set(packageManifestPaths.map((path) => readJson(path).name));
 
@@ -516,8 +595,14 @@ if (existsSync(packagesDir)) {
   const cliManifestPath = join(packagesDir, "cli", "package.json");
   if (existsSync(cliManifestPath)) {
     const cliManifest = readJson(cliManifestPath);
-    assertEqual(cliManifest.bin?.["mcp-security-proxy"] === "./dist/main.js", "packages/cli/package.json: CLI bin must point at ./dist/main.js");
-    assertEqual(existsSync(join(packagesDir, "cli", "src", "main.ts")), "packages/cli/package.json: src/main.ts must exist for the CLI bin surface");
+    assertEqual(
+      cliManifest.bin?.["mcp-security-proxy"] === "./dist/main.js",
+      "packages/cli/package.json: CLI bin must point at ./dist/main.js"
+    );
+    assertEqual(
+      existsSync(join(packagesDir, "cli", "src", "main.ts")),
+      "packages/cli/package.json: src/main.ts must exist for the CLI bin surface"
+    );
   } else {
     failures.push("packages/cli/package.json: CLI package is missing");
   }
@@ -534,7 +619,7 @@ if (failures.length > 0) {
 
 function checkDocumentedPackageSurfaces(path, expectedPackages) {
   const text = readFileSync(join(root, path), "utf8");
-  const documentedPackages = [...text.matchAll(/^- `packages\/([^`\/]+)`:/gm)]
+  const documentedPackages = [...text.matchAll(/^- `packages\/([^`/]+)`:/gm)]
     .map((match) => match[1])
     .sort((left, right) => left.localeCompare(right));
   checkDocumentedPackageSurfaceNames(path, documentedPackages, expectedPackages);
@@ -571,7 +656,9 @@ function checkWorkspacePackageEntrypointReExports(manifestPath) {
   const packageName = relative(packagesDir, manifestPath).split(/[\\/]/)[0];
   const expectedReExports = expectedEntrypointReExports.get(packageName);
   if (!expectedReExports) {
-    failures.push(`${formatPath(manifestPath)}: package ${packageName} is missing expected entrypoint re-export metadata`);
+    failures.push(
+      `${formatPath(manifestPath)}: package ${packageName} is missing expected entrypoint re-export metadata`
+    );
     return;
   }
   const indexPath = join(packagesDir, packageName, "src", "index.ts");

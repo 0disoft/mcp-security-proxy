@@ -10,7 +10,9 @@ const postReleaseValidations = new Set(["registry-smoke"]);
 const validationNames = extractStandardValidationNames("VALIDATION.md");
 const validationSet = new Set(validationNames);
 
-for (const file of readdirSync(join(root, ".agents", "validations")).filter((name) => name.endsWith(".md")).sort()) {
+for (const file of readdirSync(join(root, ".agents", "validations"))
+  .filter((name) => name.endsWith(".md"))
+  .sort()) {
   const path = `.agents/validations/${file}`;
   const names = extractStandardValidationNames(path);
   assertArrayEqual(path, names, validationNames);
@@ -105,7 +107,11 @@ function checkReleaseTemplate() {
   const template = readJson("docs/ops/release-records/public-release.template.json");
   const validationKeys = Object.keys(template.validation ?? {});
   const releaseRequired = extractStringArray("scripts/check-release-readiness.mjs", "requiredValidations");
-  assertArrayEqual("docs/ops/release-records/public-release.template.json: validation keys", validationKeys, releaseRequired);
+  assertArrayEqual(
+    "docs/ops/release-records/public-release.template.json: validation keys",
+    validationKeys,
+    releaseRequired
+  );
 }
 
 function checkReleaseScopeRegistry() {

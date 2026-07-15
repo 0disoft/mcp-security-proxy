@@ -41,9 +41,8 @@ function installCodex(cwd) {
     "utf8"
   );
   const npmCommand = process.platform === "win32" ? process.execPath : "npm";
-  const npmCommandPrefix = process.platform === "win32"
-    ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
-    : [];
+  const npmCommandPrefix =
+    process.platform === "win32" ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")] : [];
   runCommand(
     npmCommand,
     [
@@ -156,7 +155,10 @@ function stableJson(value) {
     return `[${value.map(stableJson).join(",")}]`;
   }
   if (value && typeof value === "object") {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(",")}}`;
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
+      .join(",")}}`;
   }
   return JSON.stringify(value);
 }

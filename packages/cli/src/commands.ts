@@ -3,7 +3,6 @@ import {
   parsePolicyDocumentJson,
   validateNormalizedToolCall,
   validateToolListCapture,
-  type NormalizedToolCall,
   type PolicyDocument
 } from "@0disoft/mcp-security-proxy-contracts";
 import {
@@ -120,7 +119,12 @@ export function runCli(argv: readonly string[], io: CliIo): CliResult {
   try {
     assertAllowedFlags(command, parsed.flags);
     if (command === "run") {
-      writeError(io, 2, "run requires async CLI IO; use runCliAsync for live proxy execution", parsed.flags["json"] === true);
+      writeError(
+        io,
+        2,
+        "run requires async CLI IO; use runCliAsync for live proxy execution",
+        parsed.flags["json"] === true
+      );
       return { exitCode: 2 };
     }
     if (command === "config-snippet") {
@@ -337,7 +341,7 @@ function configSnippet(
     throw new CliError(2, "missing upstream command after --");
   }
 
-  for (const [label, value] of [
+  for (const [label, generatedValue] of [
     ["--policy", policyPath],
     ["--profile", profileId],
     ["--proxy-command", proxyCommand],
@@ -345,7 +349,7 @@ function configSnippet(
     ["upstream command", upstreamCommand],
     ...upstreamArgs.map((value, index) => [`upstream argument ${index + 1}`, value])
   ] as const) {
-    assertConfigSnippetValue(label, value);
+    assertConfigSnippetValue(label, generatedValue);
   }
 
   const policy = readRequiredPolicy(io, policyPath);
@@ -355,30 +359,25 @@ function configSnippet(
 
   const proxyDescriptor = {
     command: proxyCommand,
-    args: [
-      "run",
-      "--policy",
-      policyPath,
-      "--profile",
-      profileId,
-      "--",
-      upstreamCommand,
-      ...upstreamArgs
-    ]
+    args: ["run", "--policy", policyPath, "--profile", profileId, "--", upstreamCommand, ...upstreamArgs]
   };
-  const descriptor = target === "stdio-json"
-    ? proxyDescriptor
-    : {
-        command: codexCommand,
-        args: ["mcp", "add", serverName, "--", proxyDescriptor.command, ...proxyDescriptor.args]
-      };
+  const descriptor =
+    target === "stdio-json"
+      ? proxyDescriptor
+      : {
+          command: codexCommand,
+          args: ["mcp", "add", serverName, "--", proxyDescriptor.command, ...proxyDescriptor.args]
+        };
   io.stdout(JSON.stringify(descriptor));
   return { exitCode: 0 };
 }
 
 function assertConfigSnippetValue(label: string, value: string): void {
-  if (/[\u0000-\u001f\u007f]/u.test(value)) {
-    throw new CliError(2, `${label} must not contain control characters`);
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f)) {
+      throw new CliError(2, `${label} must not contain control characters`);
+    }
   }
 }
 
@@ -551,7 +550,12 @@ function writeError(io: CliIo, code: number, message: string, asJson: boolean): 
   io.stderr(message);
 }
 
-function writeJsonOrHuman(io: CliIo, flags: Readonly<Record<string, string | true>>, value: unknown, human: string): void {
+function writeJsonOrHuman(
+  io: CliIo,
+  flags: Readonly<Record<string, string | true>>,
+  value: unknown,
+  human: string
+): void {
   if (flags["json"] === true) {
     io.stdout(JSON.stringify(stripUndefined(value)));
     return;
@@ -680,7 +684,10 @@ async function runProxy(
     throw new CliError(3, `profile not found: ${profileId}`);
   }
   if (profile.audit.destination !== "file" || !profile.audit.path) {
-    throw new CliError(3, `profile ${profileId} audit.destination must be file for CLI run; stdout is reserved for MCP messages`);
+    throw new CliError(
+      3,
+      `profile ${profileId} audit.destination must be file for CLI run; stdout is reserved for MCP messages`
+    );
   }
   const auditLogPath = auditLogOverride ?? profile.audit.path;
 
@@ -695,7 +702,9 @@ async function runProxy(
     clientOutput: io.mcpOutput,
     spawnUpstream: io.spawnUpstream,
     writeAuditEvent: (event) => io.appendTextFile(auditLogPath, formatAuditEventJsonLine(event)),
-    ...(opsLogPath ? { writeOpsEvent: (event) => io.appendTextFile(opsLogPath, formatStdioOpsEventJsonLine(event)) } : {}),
+    ...(opsLogPath
+      ? { writeOpsEvent: (event) => io.appendTextFile(opsLogPath, formatStdioOpsEventJsonLine(event)) }
+      : {}),
     ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {}),
     ...(maxFrameBytes !== undefined ? { maxFrameBytes } : {}),
     ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {})

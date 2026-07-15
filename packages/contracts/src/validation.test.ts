@@ -165,7 +165,13 @@ describe("policy document parsing", () => {
               action: "allow",
               capabilities: ["file-read"],
               paths: {
-                allowedRoots: ["workspace/public", "../private", "~/workspace", "\\\\server\\share", "workspace%2fprivate"],
+                allowedRoots: [
+                  "workspace/public",
+                  "../private",
+                  "~/workspace",
+                  "\\\\server\\share",
+                  "workspace%2fprivate"
+                ],
                 deniedRoots: ["workspace/private/.."]
               }
             }

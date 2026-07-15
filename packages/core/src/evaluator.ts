@@ -119,17 +119,28 @@ function evaluateCapability(
 
 function ruleMatches(rule: PolicyRule, call: NormalizedToolCall): boolean {
   const toolMatches = !rule.tools || rule.tools.includes(call.toolName);
-  const capabilityMatches = !rule.capabilities || call.capabilities.every((capability) => rule.capabilities?.includes(capability));
+  const capabilityMatches =
+    !rule.capabilities || call.capabilities.every((capability) => rule.capabilities?.includes(capability));
   const methodMatches = !rule.methods || rule.methods.includes(call.method);
   const pathMatches = matcherMatches("path", rule, call);
   const commandMatches = matcherMatches("command", rule, call);
   const networkMatches = matcherMatches("network", rule, call);
   const secretMatches = matcherMatches("secret", rule, call);
 
-  return toolMatches && capabilityMatches && methodMatches && pathMatches && commandMatches && networkMatches && secretMatches;
+  return (
+    toolMatches &&
+    capabilityMatches &&
+    methodMatches &&
+    pathMatches &&
+    commandMatches &&
+    networkMatches &&
+    secretMatches
+  );
 }
 
-function withCapability(capability: Capability | undefined): { readonly capability: Capability } | Record<string, never> {
+function withCapability(
+  capability: Capability | undefined
+): { readonly capability: Capability } | Record<string, never> {
   return capability ? { capability } : {};
 }
 
@@ -143,7 +154,11 @@ function codeForRuleAction(action: PolicyRule["action"]): NonNullable<DecisionEv
   return "policy.rule_approval_required";
 }
 
-function matcherMatches(kind: "path" | "command" | "network" | "secret", rule: PolicyRule, call: NormalizedToolCall): boolean {
+function matcherMatches(
+  kind: "path" | "command" | "network" | "secret",
+  rule: PolicyRule,
+  call: NormalizedToolCall
+): boolean {
   if (kind === "path") {
     return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "path"), Boolean(rule.paths), () =>
       rule.paths ? pathRuleMatches(rule.paths, call.argumentFacts, rule.action === "deny" ? "deny" : "allow") : false
@@ -152,18 +167,24 @@ function matcherMatches(kind: "path" | "command" | "network" | "secret", rule: P
 
   if (kind === "command") {
     return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "command"), Boolean(rule.commands), () =>
-      rule.commands ? commandRuleMatches(rule.commands, call.argumentFacts, rule.action === "deny" ? "deny" : "allow") : false
+      rule.commands
+        ? commandRuleMatches(rule.commands, call.argumentFacts, rule.action === "deny" ? "deny" : "allow")
+        : false
     );
   }
 
   if (kind === "network") {
     return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "network"), Boolean(rule.networks), () =>
-      rule.networks ? networkRuleMatches(rule.networks, call.argumentFacts, rule.action === "deny" ? "deny" : "allow") : false
+      rule.networks
+        ? networkRuleMatches(rule.networks, call.argumentFacts, rule.action === "deny" ? "deny" : "allow")
+        : false
     );
   }
 
   return factMatcherMatches(rule.action, hasFactKind(call.argumentFacts, "secret"), Boolean(rule.secrets), () =>
-    rule.secrets ? secretRuleMatches(rule.secrets, call.argumentFacts, rule.action === "deny" ? "deny" : "allow") : false
+    rule.secrets
+      ? secretRuleMatches(rule.secrets, call.argumentFacts, rule.action === "deny" ? "deny" : "allow")
+      : false
   );
 }
 
@@ -201,7 +222,11 @@ function capabilityForFactKind(kind: "path" | "command" | "network" | "secret"):
   return "secret";
 }
 
-function deny(reason: string, capability: Capability | undefined, code: NonNullable<DecisionEvidence["code"]>): PolicyDecision {
+function deny(
+  reason: string,
+  capability: Capability | undefined,
+  code: NonNullable<DecisionEvidence["code"]>
+): PolicyDecision {
   return {
     schemaVersion: DECISION_SCHEMA_VERSION,
     action: "deny",

@@ -363,7 +363,10 @@ function checkExternalCompatibilityTarget(label, target, spec) {
   if (target.harness !== spec.harness) {
     failures.push(`${label}: external target harness must be ${spec.harness}`);
   }
-  if (!Array.isArray(target.validationCommand) || stableJson(target.validationCommand) !== stableJson(["node", spec.harness])) {
+  if (
+    !Array.isArray(target.validationCommand) ||
+    stableJson(target.validationCommand) !== stableJson(["node", spec.harness])
+  ) {
     failures.push(`${label}: external target validationCommand must be node ${spec.harness}`);
   }
 }
@@ -400,10 +403,16 @@ function checkExternalCompatibilityManifest(path, registryTarget, spec) {
   if (externalManifest.fixtureSource !== registryTarget.fixtureSource) {
     failures.push(`${path}: fixtureSource must match ${manifestPath} registry target ${registryTarget.id}`);
   }
-  if (externalManifest.client?.package !== spec.client.package || externalManifest.client?.version !== spec.client.version) {
+  if (
+    externalManifest.client?.package !== spec.client.package ||
+    externalManifest.client?.version !== spec.client.version
+  ) {
     failures.push(`${path}: client package must be ${spec.client.package}@${spec.client.version}`);
   }
-  if (externalManifest.client?.package !== registryTarget.client?.package || externalManifest.client?.version !== registryTarget.client?.version) {
+  if (
+    externalManifest.client?.package !== registryTarget.client?.package ||
+    externalManifest.client?.version !== registryTarget.client?.version
+  ) {
     failures.push(`${path}: client must match ${manifestPath} registry target ${registryTarget.id}`);
   }
   if (
@@ -412,7 +421,10 @@ function checkExternalCompatibilityManifest(path, registryTarget, spec) {
   ) {
     failures.push(`${path}: server package must be ${spec.server.package}@${spec.server.version}`);
   }
-  if (externalManifest.server?.package !== registryTarget.server?.package || externalManifest.server?.version !== registryTarget.server?.version) {
+  if (
+    externalManifest.server?.package !== registryTarget.server?.package ||
+    externalManifest.server?.version !== registryTarget.server?.version
+  ) {
     failures.push(`${path}: server must match ${manifestPath} registry target ${registryTarget.id}`);
   }
   checkEvidenceReference(path, "harness", externalManifest.harness);
@@ -449,10 +461,16 @@ function checkExternalFixtureSummary(manifestLabel, summaryPath, externalManifes
       failures.push(`${summaryPath}: ${field} must match ${manifestLabel}`);
     }
   }
-  if (summary.client?.package !== externalManifest.client?.package || summary.client?.version !== externalManifest.client?.version) {
+  if (
+    summary.client?.package !== externalManifest.client?.package ||
+    summary.client?.version !== externalManifest.client?.version
+  ) {
     failures.push(`${summaryPath}: client must match ${manifestLabel}`);
   }
-  if (summary.server?.package !== externalManifest.server?.package || summary.server?.version !== externalManifest.server?.version) {
+  if (
+    summary.server?.package !== externalManifest.server?.package ||
+    summary.server?.version !== externalManifest.server?.version
+  ) {
     failures.push(`${summaryPath}: server must match ${manifestLabel}`);
   }
   if (summary.normalization?.fixtureRoot !== "<external-fixture-root>") {
@@ -829,7 +847,8 @@ async function checkLibraryAuditJsonlFixture(id, path, item) {
     failures.push(`${id}: audit JSONL evidence must include policy, profile, and method`);
     return;
   }
-  const { createAuditEvent, evaluateMcpMethod, formatAuditEventJsonLine, redactText } = await import("../packages/core/dist/index.js");
+  const { createAuditEvent, evaluateMcpMethod, formatAuditEventJsonLine, redactText } =
+    await import("../packages/core/dist/index.js");
   const redacted = redactText("value REDACT_ME_VALUE_123");
   const actual = formatAuditEventJsonLine(
     createAuditEvent({
@@ -987,7 +1006,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
     );
     const actual = {
       missingIdForwarded: missingId.forwardLine !== undefined,
-      missingIdResponse: missingId.responseLine ? parseJsonText(missingId.responseLine, `${id}: missingId.responseLine`) : null,
+      missingIdResponse: missingId.responseLine
+        ? parseJsonText(missingId.responseLine, `${id}: missingId.responseLine`)
+        : null,
       missingIdAuditEvents: missingId.auditEvents
     };
     const expected = readJson(path);
@@ -1058,7 +1079,7 @@ async function checkRuntimeSessionFixture(id, path, item) {
       })
     );
     const embeddedNewline = newlineSession.handleClientLine(
-      "{\"jsonrpc\":\"2.0\",\n\"id\":\"compat-embedded-newline\",\"method\":\"ping\"}"
+      '{"jsonrpc":"2.0",\n"id":"compat-embedded-newline","method":"ping"}'
     );
     const tooDeep = tooDeepSession.handleServerLine(
       JSON.stringify({
@@ -1073,7 +1094,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
     );
     const actual = {
       tooLargeForwarded: tooLarge.forwardLine !== undefined,
-      tooLargeResponse: tooLarge.responseLine ? parseJsonText(tooLarge.responseLine, `${id}: tooLarge.responseLine`) : null,
+      tooLargeResponse: tooLarge.responseLine
+        ? parseJsonText(tooLarge.responseLine, `${id}: tooLarge.responseLine`)
+        : null,
       tooLargeAuditEvents: tooLarge.auditEvents,
       embeddedNewlineForwarded: embeddedNewline.forwardLine !== undefined,
       embeddedNewlineResponse: embeddedNewline.responseLine
@@ -1131,7 +1154,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
     );
     const actual = {
       invalidIdForwarded: invalidId.forwardLine !== undefined,
-      invalidIdResponse: invalidId.responseLine ? parseJsonText(invalidId.responseLine, `${id}: invalidId.responseLine`) : null,
+      invalidIdResponse: invalidId.responseLine
+        ? parseJsonText(invalidId.responseLine, `${id}: invalidId.responseLine`)
+        : null,
       invalidIdAuditEvents: invalidId.auditEvents,
       invalidMethodForwarded: invalidMethod.forwardLine !== undefined,
       invalidMethodResponse: invalidMethod.responseLine
@@ -1243,7 +1268,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
         : null,
       invalidFieldsAuditEvents: invalidFields.auditEvents,
       nonObjectForwarded: nonObject.forwardLine !== undefined,
-      nonObjectResponse: nonObject.responseLine ? parseJsonText(nonObject.responseLine, `${id}: nonObject.responseLine`) : null,
+      nonObjectResponse: nonObject.responseLine
+        ? parseJsonText(nonObject.responseLine, `${id}: nonObject.responseLine`)
+        : null,
       nonObjectAuditEvents: nonObject.auditEvents
     };
     const expected = readJson(path);
@@ -1276,7 +1303,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
     );
     const actual = {
       upstreamForwarded: upstream.forwardLine !== undefined,
-      upstreamResponse: upstream.responseLine ? parseJsonText(upstream.responseLine, `${id}: upstream.responseLine`) : null,
+      upstreamResponse: upstream.responseLine
+        ? parseJsonText(upstream.responseLine, `${id}: upstream.responseLine`)
+        : null,
       upstreamAuditEvents: upstream.auditEvents,
       clientForwarded: client.forwardLine !== undefined,
       clientResponse: client.responseLine ? parseJsonText(client.responseLine, `${id}: client.responseLine`) : null,
@@ -1354,7 +1383,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
       })
     );
     const actual = {
-      successForwarded: success.forwardLine ? parseJsonText(success.forwardLine, `${id}: success.forwardLine`) : undefined,
+      successForwarded: success.forwardLine
+        ? parseJsonText(success.forwardLine, `${id}: success.forwardLine`)
+        : undefined,
       successResponse: success.responseLine ? parseJsonText(success.responseLine, `${id}: success.responseLine`) : null,
       successAuditEvents: success.auditEvents,
       errorForwarded: error.forwardLine ? parseJsonText(error.forwardLine, `${id}: error.forwardLine`) : undefined,
@@ -1468,7 +1499,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
       })
     );
     const actual = {
-      requestForwarded: request.forwardLine ? parseJsonText(request.forwardLine, `${id}: request.forwardLine`) : undefined,
+      requestForwarded: request.forwardLine
+        ? parseJsonText(request.forwardLine, `${id}: request.forwardLine`)
+        : undefined,
       requestAuditEvents: request.auditEvents,
       upstreamErrorForwarded: upstreamError.forwardLine
         ? parseJsonText(upstreamError.forwardLine, `${id}: upstreamError.forwardLine`)
@@ -1555,7 +1588,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
       })
     );
     const actual = {
-      requestForwarded: request.forwardLine ? parseJsonText(request.forwardLine, `${id}: request.forwardLine`) : undefined,
+      requestForwarded: request.forwardLine
+        ? parseJsonText(request.forwardLine, `${id}: request.forwardLine`)
+        : undefined,
       requestAuditEvents: request.auditEvents,
       upstreamErrorForwarded: upstreamError.forwardLine
         ? parseJsonText(upstreamError.forwardLine, `${id}: upstreamError.forwardLine`)
@@ -1597,7 +1632,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
       })
     );
     const actual = {
-      requestForwarded: request.forwardLine ? parseJsonText(request.forwardLine, `${id}: request.forwardLine`) : undefined,
+      requestForwarded: request.forwardLine
+        ? parseJsonText(request.forwardLine, `${id}: request.forwardLine`)
+        : undefined,
       requestAuditEvents: request.auditEvents,
       upstreamErrorForwarded: upstreamError.forwardLine
         ? parseJsonText(upstreamError.forwardLine, `${id}: upstreamError.forwardLine`)
@@ -1678,7 +1715,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
       firstForwarded: first.forwardLine ? parseJsonText(first.forwardLine, `${id}: first.forwardLine`) : undefined,
       firstAuditEvents: first.auditEvents,
       duplicateForwarded: duplicate.forwardLine !== undefined,
-      duplicateResponse: duplicate.responseLine ? parseJsonText(duplicate.responseLine, `${id}: duplicate.responseLine`) : undefined,
+      duplicateResponse: duplicate.responseLine
+        ? parseJsonText(duplicate.responseLine, `${id}: duplicate.responseLine`)
+        : undefined,
       duplicateAuditEvents: duplicate.auditEvents,
       originalResponseForwarded: originalResponse.forwardLine
         ? parseJsonText(originalResponse.forwardLine, `${id}: originalResponse.forwardLine`)
@@ -1727,7 +1766,9 @@ async function checkRuntimeSessionFixture(id, path, item) {
       firstForwarded: first.forwardLine ? parseJsonText(first.forwardLine, `${id}: first.forwardLine`) : undefined,
       firstAuditEvents: first.auditEvents,
       duplicateForwarded: duplicate.forwardLine !== undefined,
-      duplicateResponse: duplicate.responseLine ? parseJsonText(duplicate.responseLine, `${id}: duplicate.responseLine`) : undefined,
+      duplicateResponse: duplicate.responseLine
+        ? parseJsonText(duplicate.responseLine, `${id}: duplicate.responseLine`)
+        : undefined,
       duplicateAuditEvents: duplicate.auditEvents,
       originalResponseForwarded: originalResponse.forwardLine
         ? parseJsonText(originalResponse.forwardLine, `${id}: originalResponse.forwardLine`)
@@ -2065,9 +2106,13 @@ async function collectApprovalRuntimeSessionResult(createProxySession, item, id)
   const session = createProxySession({
     policy: readJson(item.policy),
     profileId: item.profile,
-    ...(approvalScenario.approvalTimeoutMs !== undefined ? { approvalTimeoutMs: approvalScenario.approvalTimeoutMs } : {})
+    ...(approvalScenario.approvalTimeoutMs !== undefined
+      ? { approvalTimeoutMs: approvalScenario.approvalTimeoutMs }
+      : {})
   });
-  session.handleClientLine(JSON.stringify({ jsonrpc: "2.0", id: approvalScenario.discoveryRequestId, method: "tools/list" }));
+  session.handleClientLine(
+    JSON.stringify({ jsonrpc: "2.0", id: approvalScenario.discoveryRequestId, method: "tools/list" })
+  );
   session.handleServerLine(
     JSON.stringify({
       jsonrpc: "2.0",
@@ -2145,7 +2190,9 @@ function assertJsonEqual(id, actual, expected) {
 
 function normalizeOptionalCorrelation(actual, expected) {
   if (Array.isArray(actual)) {
-    return actual.map((item, index) => normalizeOptionalCorrelation(item, Array.isArray(expected) ? expected[index] : undefined));
+    return actual.map((item, index) =>
+      normalizeOptionalCorrelation(item, Array.isArray(expected) ? expected[index] : undefined)
+    );
   }
   if (!actual || typeof actual !== "object") {
     return actual;
@@ -2180,7 +2227,7 @@ function readText(path) {
 function parseJsonText(text, label) {
   try {
     return JSON.parse(text);
-  } catch (error) {
+  } catch {
     failures.push(`${label}: invalid JSON`);
     return undefined;
   }
@@ -2241,7 +2288,9 @@ async function checkCompatibilityEvidenceValidator() {
     !invalidManifestScopeFailures.some((item) => item.includes("transport must be stdio")) ||
     !invalidManifestScopeFailures.some((item) => item.includes("fixtureSource must be synthetic-local"))
   ) {
-    failures.push(`compatibility self-test invalid manifest scope was not rejected: ${invalidManifestScopeFailures.join("; ")}`);
+    failures.push(
+      `compatibility self-test invalid manifest scope was not rejected: ${invalidManifestScopeFailures.join("; ")}`
+    );
   }
 
   const invalidTargetsFailures = collectCompatibilityFailures(() => {
@@ -2287,9 +2336,15 @@ async function checkCompatibilityEvidenceValidator() {
   if (
     !invalidTargetsFailures.some((item) => item.includes("local target transport must be stdio")) ||
     !invalidTargetsFailures.some((item) => item.includes("local target fixtureSource must be synthetic-local")) ||
-    !invalidTargetsFailures.some((item) => item.includes("external target client package must be @modelcontextprotocol/sdk@1.29.0")) ||
-    !invalidTargetsFailures.some((item) => item.includes("evidence manifest must be a safe repo-relative POSIX path")) ||
-    !invalidTargetsFailures.some((item) => item.includes(`external target validationCommand must be node ${javascriptExternalSpec.harness}`))
+    !invalidTargetsFailures.some((item) =>
+      item.includes("external target client package must be @modelcontextprotocol/sdk@1.29.0")
+    ) ||
+    !invalidTargetsFailures.some((item) =>
+      item.includes("evidence manifest must be a safe repo-relative POSIX path")
+    ) ||
+    !invalidTargetsFailures.some((item) =>
+      item.includes(`external target validationCommand must be node ${javascriptExternalSpec.harness}`)
+    )
   ) {
     failures.push(`compatibility self-test invalid targets were not rejected: ${invalidTargetsFailures.join("; ")}`);
   }
@@ -2302,7 +2357,9 @@ async function checkCompatibilityEvidenceValidator() {
     ]);
   });
   if (!invalidCliCommandFailures.some((item) => item.includes("must invoke node packages/cli/dist/main.js"))) {
-    failures.push(`compatibility self-test invalid CLI command was not rejected: ${invalidCliCommandFailures.join("; ")}`);
+    failures.push(
+      `compatibility self-test invalid CLI command was not rejected: ${invalidCliCommandFailures.join("; ")}`
+    );
   }
 
   const missingCliInputFailures = collectCompatibilityFailures(() => {
@@ -2332,8 +2389,12 @@ async function checkCompatibilityEvidenceValidator() {
     ]);
   });
   if (
-    !unsafeCliCommandPathFailures.some((item) => item.includes("evidence command --policy must be a safe repo-relative POSIX path")) ||
-    !unsafeCliCommandPathFailures.some((item) => item.includes("evidence command --input must reference a tracked file"))
+    !unsafeCliCommandPathFailures.some((item) =>
+      item.includes("evidence command --policy must be a safe repo-relative POSIX path")
+    ) ||
+    !unsafeCliCommandPathFailures.some((item) =>
+      item.includes("evidence command --input must reference a tracked file")
+    )
   ) {
     failures.push(
       `compatibility self-test unsafe CLI command path was not rejected: ${unsafeCliCommandPathFailures.join("; ")}`
@@ -2348,23 +2409,40 @@ async function checkCompatibilityEvidenceValidator() {
     ]);
   });
   if (!mismatchedCliKindFailures.some((item) => item.includes("must run check-policy"))) {
-    failures.push(`compatibility self-test CLI kind mismatch was not rejected: ${mismatchedCliKindFailures.join("; ")}`);
+    failures.push(
+      `compatibility self-test CLI kind mismatch was not rejected: ${mismatchedCliKindFailures.join("; ")}`
+    );
   }
 
   const invalidRuntimeCommandFailures = collectCompatibilityFailures(() => {
-    checkRuntimeCommandShape("<compatibility-self-test-runtime-kind-mismatch>", "runtime.live-smoke", ["node", "scripts/not-the-smoke.js"]);
+    checkRuntimeCommandShape("<compatibility-self-test-runtime-kind-mismatch>", "runtime.live-smoke", [
+      "node",
+      "scripts/not-the-smoke.js"
+    ]);
   });
   if (!invalidRuntimeCommandFailures.some((item) => item.includes("must run node scripts/smoke-live-run.mjs"))) {
-    failures.push(`compatibility self-test runtime command mismatch was not rejected: ${invalidRuntimeCommandFailures.join("; ")}`);
+    failures.push(
+      `compatibility self-test runtime command mismatch was not rejected: ${invalidRuntimeCommandFailures.join("; ")}`
+    );
   }
 
   const untrackedEvidenceReferenceFailures = collectCompatibilityFailures(() => {
-    checkEvidenceReference("<compatibility-self-test-untracked-evidence-reference>", "path", "fixtures/compatibility/local-only.json");
-    checkEvidenceReference("<compatibility-self-test-unsafe-evidence-reference>", "policy", "../fixtures/policies/local-dev.json");
+    checkEvidenceReference(
+      "<compatibility-self-test-untracked-evidence-reference>",
+      "path",
+      "fixtures/compatibility/local-only.json"
+    );
+    checkEvidenceReference(
+      "<compatibility-self-test-unsafe-evidence-reference>",
+      "policy",
+      "../fixtures/policies/local-dev.json"
+    );
   });
   if (
     !untrackedEvidenceReferenceFailures.some((item) => item.includes("evidence path must reference a tracked file")) ||
-    !untrackedEvidenceReferenceFailures.some((item) => item.includes("evidence policy must be a safe repo-relative POSIX path"))
+    !untrackedEvidenceReferenceFailures.some((item) =>
+      item.includes("evidence policy must be a safe repo-relative POSIX path")
+    )
   ) {
     failures.push(
       `compatibility self-test unsafe or untracked evidence reference was not rejected: ${untrackedEvidenceReferenceFailures.join("; ")}`
@@ -2394,7 +2472,11 @@ async function checkCompatibilityEvidenceValidator() {
       }
     );
   });
-  if (!missingRuntimeSessionFailures.some((item) => item.includes("runtime session evidence must include policy, profile, and scenario"))) {
+  if (
+    !missingRuntimeSessionFailures.some((item) =>
+      item.includes("runtime session evidence must include policy, profile, and scenario")
+    )
+  ) {
     failures.push(
       `compatibility self-test missing runtime session fields were not rejected: ${missingRuntimeSessionFailures.join("; ")}`
     );
@@ -2411,7 +2493,11 @@ async function checkCompatibilityEvidenceValidator() {
       }
     );
   });
-  if (!unsupportedRuntimeSessionFailures.some((item) => item.includes("unsupported runtime session scenario not-supported"))) {
+  if (
+    !unsupportedRuntimeSessionFailures.some((item) =>
+      item.includes("unsupported runtime session scenario not-supported")
+    )
+  ) {
     failures.push(
       `compatibility self-test unsupported runtime session scenario was not rejected: ${unsupportedRuntimeSessionFailures.join("; ")}`
     );

@@ -127,15 +127,23 @@ export class ProxySession {
       if (prepared.kind === "result") {
         return prepared.result;
       }
-      return await this.handlePreparedClientRequestWithApproval(prepared.line, prepared.envelope, approvalHook, prepared.auditEvents);
+      return await this.handlePreparedClientRequestWithApproval(
+        prepared.line,
+        prepared.envelope,
+        approvalHook,
+        prepared.auditEvents
+      );
     });
   }
 
-  private prepareClientLine(
-    line: string
-  ):
+  private prepareClientLine(line: string):
     | { readonly kind: "result"; readonly result: ProxyFrameResult }
-    | { readonly kind: "request"; readonly line: string; readonly envelope: JsonRpcRequestEnvelope; readonly auditEvents: readonly AuditEvent[] } {
+    | {
+        readonly kind: "request";
+        readonly line: string;
+        readonly envelope: JsonRpcRequestEnvelope;
+        readonly auditEvents: readonly AuditEvent[];
+      } {
     const parsed = parseJsonLine(line, this.maxFrameBytes, this.maxJsonDepth);
     if (!parsed.ok) {
       const decision = denyDecision(parsed.reason, { code: parsed.code });
@@ -159,7 +167,9 @@ export class ProxySession {
             auditEvents: [
               this.createAudit(
                 "error",
-                denyDecision("client JSON-RPC response did not match a pending upstream server request", { code: "jsonrpc.unmatched_response" })
+                denyDecision("client JSON-RPC response did not match a pending upstream server request", {
+                  code: "jsonrpc.unmatched_response"
+                })
               )
             ]
           }
@@ -193,7 +203,10 @@ export class ProxySession {
     }
 
     const requestSanitized = sanitizeJsonRpcRequestEnvelope(envelope);
-    const requestSanitizeAuditEvents = this.createRequestEnvelopeRedactionAuditEvents("client", requestSanitized.redaction);
+    const requestSanitizeAuditEvents = this.createRequestEnvelopeRedactionAuditEvents(
+      "client",
+      requestSanitized.redaction
+    );
     const methodDecision = evaluateEnvelopeMethod(requestSanitized.envelope, this.options.policy);
     if (methodDecision.action !== "allow") {
       return {
@@ -234,7 +247,11 @@ export class ProxySession {
           result: this.withPrependedAuditEvents(requestSanitizeAuditEvents, concurrentDiscoveryDenied)
         };
       }
-      const pendingDenied = this.denyPendingCapacityExceeded(requestSanitized.envelope, this.pendingRequestMethods, "client");
+      const pendingDenied = this.denyPendingCapacityExceeded(
+        requestSanitized.envelope,
+        this.pendingRequestMethods,
+        "client"
+      );
       if (pendingDenied) {
         return {
           kind: "result",
@@ -275,7 +292,11 @@ export class ProxySession {
     };
   }
 
-  private handlePreparedClientRequest(line: string, envelope: JsonRpcRequestEnvelope, preparedAuditEvents: readonly AuditEvent[] = []): ProxyFrameResult {
+  private handlePreparedClientRequest(
+    line: string,
+    envelope: JsonRpcRequestEnvelope,
+    preparedAuditEvents: readonly AuditEvent[] = []
+  ): ProxyFrameResult {
     const toolName = readToolCallName(envelope);
     const visibleTool = this.visibleTools.get(toolName);
     if (!visibleTool) {
@@ -296,7 +317,9 @@ export class ProxySession {
       policy: this.options.policy,
       profileId: this.options.profileId,
       call: normalized,
-      ...(this.options.approvalHookAvailable !== undefined ? { approvalHookAvailable: this.options.approvalHookAvailable } : {})
+      ...(this.options.approvalHookAvailable !== undefined
+        ? { approvalHookAvailable: this.options.approvalHookAvailable }
+        : {})
     });
 
     if (decision.action === "allow") {
@@ -440,7 +463,11 @@ export class ProxySession {
     );
   }
 
-  private async callApprovalHook(approvalHook: ApprovalHook, call: NormalizedToolCall, decision: PolicyDecision): Promise<ApprovalResult> {
+  private async callApprovalHook(
+    approvalHook: ApprovalHook,
+    call: NormalizedToolCall,
+    decision: PolicyDecision
+  ): Promise<ApprovalResult> {
     const approval = approvalHook({ call, decision });
     return await withApprovalTimeout(approval, this.approvalTimeoutMs);
   }
@@ -482,8 +509,15 @@ export class ProxySession {
       }
 
       const requestSanitized = sanitizeJsonRpcRequestEnvelope(envelope);
-      const requestSanitizeAuditEvents = this.createRequestEnvelopeRedactionAuditEvents("upstream", requestSanitized.redaction);
-      const pendingDenied = this.denyPendingCapacityExceeded(requestSanitized.envelope, this.pendingServerOriginMethods, "upstream");
+      const requestSanitizeAuditEvents = this.createRequestEnvelopeRedactionAuditEvents(
+        "upstream",
+        requestSanitized.redaction
+      );
+      const pendingDenied = this.denyPendingCapacityExceeded(
+        requestSanitized.envelope,
+        this.pendingServerOriginMethods,
+        "upstream"
+      );
       if (pendingDenied) {
         return this.withPrependedAuditEvents(requestSanitizeAuditEvents, pendingDenied);
       }
@@ -513,7 +547,9 @@ export class ProxySession {
           ...sanitizeAuditEvents,
           this.createAudit(
             "error",
-            denyDecision("upstream JSON-RPC response did not match a pending client request", { code: "jsonrpc.unmatched_response" })
+            denyDecision("upstream JSON-RPC response did not match a pending client request", {
+              code: "jsonrpc.unmatched_response"
+            })
           )
         ]
       };
@@ -547,7 +583,10 @@ export class ProxySession {
 
     return {
       forwardLine: JSON.stringify(result.envelope),
-      auditEvents: [...sanitizeAuditEvents, ...this.createDiscoveryAuditEvents(result.filteredCount, result.sanitizedMalformedResult)]
+      auditEvents: [
+        ...sanitizeAuditEvents,
+        ...this.createDiscoveryAuditEvents(result.filteredCount, result.sanitizedMalformedResult)
+      ]
     };
   }
 
@@ -694,7 +733,10 @@ export class ProxySession {
     if (envelope.method === "ping" && !hasJsonRpcRequestId(envelope)) {
       return this.denyEnvelope(
         envelope,
-        denyDecision("server-origin ping must include a JSON-RPC id", { code: "jsonrpc.invalid", method: envelope.method }),
+        denyDecision("server-origin ping must include a JSON-RPC id", {
+          code: "jsonrpc.invalid",
+          method: envelope.method
+        }),
         "MCP method denied by policy",
         "method-denied"
       );
@@ -702,13 +744,22 @@ export class ProxySession {
     return undefined;
   }
 
-  private denyInvalidClientMessage(envelope: JsonRpcRequestEnvelope, reason: string, message: string): ProxyFrameResult {
+  private denyInvalidClientMessage(
+    envelope: JsonRpcRequestEnvelope,
+    reason: string,
+    message: string
+  ): ProxyFrameResult {
     const decision = denyDecision(reason, {
       code: "jsonrpc.invalid",
       method: envelope.method
     });
     return {
-      responseLine: encodeJsonRpcError(hasJsonRpcRequestId(envelope) ? envelope.id : null, invalidRequestErrorCode, message, decision),
+      responseLine: encodeJsonRpcError(
+        hasJsonRpcRequestId(envelope) ? envelope.id : null,
+        invalidRequestErrorCode,
+        message,
+        decision
+      ),
       auditEvents: [this.createAudit("error", decision, undefined, envelope.method)]
     };
   }
@@ -757,13 +808,18 @@ export class ProxySession {
       events.push(
         this.createAudit(
           "discovery-filtered",
-          denyDecision("malformed tool discovery result sanitized to an empty tool list", { code: "discovery.filtered" })
+          denyDecision("malformed tool discovery result sanitized to an empty tool list", {
+            code: "discovery.filtered"
+          })
         )
       );
     }
     if (filteredCount > 0) {
       events.push(
-        this.createAudit("discovery-filtered", denyDecision(`${filteredCount} tool(s) hidden by discovery policy`, { code: "discovery.filtered" }))
+        this.createAudit(
+          "discovery-filtered",
+          denyDecision(`${filteredCount} tool(s) hidden by discovery policy`, { code: "discovery.filtered" })
+        )
       );
     }
     return events;
@@ -784,7 +840,10 @@ export class ProxySession {
     ];
   }
 
-  private createResponseEnvelopeRedactionAuditEvents(direction: "client" | "upstream", redaction: RedactionSummary): readonly AuditEvent[] {
+  private createResponseEnvelopeRedactionAuditEvents(
+    direction: "client" | "upstream",
+    redaction: RedactionSummary
+  ): readonly AuditEvent[] {
     if (!redaction.applied) {
       return [];
     }
@@ -801,7 +860,10 @@ export class ProxySession {
     ];
   }
 
-  private createRequestEnvelopeRedactionAuditEvents(direction: "client" | "upstream", redaction: RedactionSummary): readonly AuditEvent[] {
+  private createRequestEnvelopeRedactionAuditEvents(
+    direction: "client" | "upstream",
+    redaction: RedactionSummary
+  ): readonly AuditEvent[] {
     if (!redaction.applied) {
       return [];
     }
@@ -841,22 +903,38 @@ function parseJsonLine(
   | { readonly ok: true; readonly value: JsonRpcEnvelope }
   | { readonly ok: false; readonly reason: string; readonly code: DecisionReasonCode } {
   if (Buffer.byteLength(line, "utf8") > maxFrameBytes) {
-    return { ok: false, reason: `JSON-RPC frame exceeds maximum size of ${maxFrameBytes} bytes`, code: "jsonrpc.frame_too_large" };
+    return {
+      ok: false,
+      reason: `JSON-RPC frame exceeds maximum size of ${maxFrameBytes} bytes`,
+      code: "jsonrpc.frame_too_large"
+    };
   }
   if (line.includes("\n") || line.includes("\r")) {
-    return { ok: false, reason: "stdio MCP messages must be newline-delimited without embedded newlines", code: "jsonrpc.invalid" };
+    return {
+      ok: false,
+      reason: "stdio MCP messages must be newline-delimited without embedded newlines",
+      code: "jsonrpc.invalid"
+    };
   }
 
   try {
     const parsed = JSON.parse(line) as unknown;
     if (jsonDepthExceeds(parsed, maxJsonDepth)) {
-      return { ok: false, reason: `JSON-RPC message exceeds maximum depth of ${maxJsonDepth}`, code: "jsonrpc.too_deep" };
+      return {
+        ok: false,
+        reason: `JSON-RPC message exceeds maximum depth of ${maxJsonDepth}`,
+        code: "jsonrpc.too_deep"
+      };
     }
     if (!isRecord(parsed) || parsed["jsonrpc"] !== "2.0") {
       return { ok: false, reason: "message is not a JSON-RPC 2.0 object", code: "jsonrpc.invalid" };
     }
     if ("id" in parsed && !isJsonRpcId(parsed["id"])) {
-      return { ok: false, reason: "JSON-RPC id must be a string, safe integer number, null, or absent", code: "jsonrpc.invalid" };
+      return {
+        ok: false,
+        reason: "JSON-RPC id must be a string, safe integer number, null, or absent",
+        code: "jsonrpc.invalid"
+      };
     }
     if ("method" in parsed && typeof parsed["method"] !== "string") {
       return { ok: false, reason: "JSON-RPC method must be a string when present", code: "jsonrpc.invalid" };
@@ -865,17 +943,29 @@ function parseJsonLine(
     const hasResult = "result" in parsed;
     const hasError = "error" in parsed;
     if (hasMethod && (hasResult || hasError)) {
-      return { ok: false, reason: "JSON-RPC request or notification must not include result or error", code: "jsonrpc.invalid" };
+      return {
+        ok: false,
+        reason: "JSON-RPC request or notification must not include result or error",
+        code: "jsonrpc.invalid"
+      };
     }
     if (!hasMethod) {
       if (!("id" in parsed)) {
         return { ok: false, reason: "JSON-RPC response must include an id", code: "jsonrpc.invalid" };
       }
       if (hasResult === hasError) {
-        return { ok: false, reason: "JSON-RPC response must include exactly one of result or error", code: "jsonrpc.invalid" };
+        return {
+          ok: false,
+          reason: "JSON-RPC response must include exactly one of result or error",
+          code: "jsonrpc.invalid"
+        };
       }
       if (hasError && !isJsonRpcErrorObject(parsed["error"])) {
-        return { ok: false, reason: "JSON-RPC error must include numeric code and string message", code: "jsonrpc.invalid" };
+        return {
+          ok: false,
+          reason: "JSON-RPC error must include numeric code and string message",
+          code: "jsonrpc.invalid"
+        };
       }
     }
     return { ok: true, value: buildJsonRpcEnvelope(parsed) };
@@ -899,7 +989,10 @@ function buildJsonRpcEnvelope(parsed: Readonly<Record<string, unknown>>): JsonRp
       jsonrpc: "2.0",
       method: parsed["method"]
     };
-    return withExtraFields("params" in parsed ? { ...notification, params: parsed["params"] } : notification, extraFields);
+    return withExtraFields(
+      "params" in parsed ? { ...notification, params: parsed["params"] } : notification,
+      extraFields
+    );
   }
 
   const extraFields = copyExtraFields(parsed, jsonRpcResponseEnvelopeKeys);
@@ -920,7 +1013,10 @@ function buildJsonRpcEnvelope(parsed: Readonly<Record<string, unknown>>): JsonRp
   return withExtraFields(response, extraFields);
 }
 
-function copyExtraFields(value: Readonly<Record<string, unknown>>, allowedKeys: ReadonlySet<string>): Readonly<Record<string, unknown>> {
+function copyExtraFields(
+  value: Readonly<Record<string, unknown>>,
+  allowedKeys: ReadonlySet<string>
+): Readonly<Record<string, unknown>> {
   const extra: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
     if (!allowedKeys.has(key)) {
@@ -966,7 +1062,9 @@ function hasJsonRpcRequestId(envelope: JsonRpcRequestEnvelope): envelope is Json
   return "id" in envelope && isJsonRpcId(envelope.id);
 }
 
-function isJsonRpcErrorObject(value: unknown): value is { readonly code: number; readonly message: string; readonly data?: unknown } {
+function isJsonRpcErrorObject(
+  value: unknown
+): value is { readonly code: number; readonly message: string; readonly data?: unknown } {
   return isRecord(value) && typeof value["code"] === "number" && typeof value["message"] === "string";
 }
 
@@ -1000,7 +1098,9 @@ function sanitizeUpstreamError(
     counts["jsonrpc_error_data"] = 1;
   }
 
-  const extraFieldCount = Object.keys(originalError).filter((key) => key !== "code" && key !== "message" && key !== "data").length;
+  const extraFieldCount = Object.keys(originalError).filter(
+    (key) => key !== "code" && key !== "message" && key !== "data"
+  ).length;
   if (extraFieldCount > 0) {
     counts["jsonrpc_error_extra_fields"] = extraFieldCount;
   }
@@ -1032,9 +1132,10 @@ function sanitizeUpstreamError(
   };
 }
 
-function sanitizeJsonRpcRequestEnvelope(
-  envelope: JsonRpcRequestEnvelope
-): { readonly envelope: JsonRpcRequestEnvelope; readonly redaction: RedactionSummary } {
+function sanitizeJsonRpcRequestEnvelope(envelope: JsonRpcRequestEnvelope): {
+  readonly envelope: JsonRpcRequestEnvelope;
+  readonly redaction: RedactionSummary;
+} {
   const extraFieldCount = Object.keys(envelope).filter((key) => !jsonRpcRequestEnvelopeKeys.has(key)).length;
   if (extraFieldCount === 0) {
     return { envelope, redaction: noRedaction() };
@@ -1119,7 +1220,10 @@ function sanitizeToolCallRequestEnvelope(
   };
 }
 
-function sanitizeJsonRpcResponseEnvelope(envelope: JsonRpcResponse): { readonly envelope: JsonRpcResponse; readonly redaction: RedactionSummary } {
+function sanitizeJsonRpcResponseEnvelope(envelope: JsonRpcResponse): {
+  readonly envelope: JsonRpcResponse;
+  readonly redaction: RedactionSummary;
+} {
   const extraFieldCount = Object.keys(envelope).filter((key) => !jsonRpcResponseEnvelopeKeys.has(key)).length;
   if (extraFieldCount === 0) {
     return { envelope, redaction: noRedaction() };
@@ -1279,7 +1383,10 @@ function findDuplicateToolNames(tools: readonly unknown[]): ReadonlySet<string> 
   return duplicates;
 }
 
-function sanitizeVisibleToolDescriptor(item: Readonly<Record<string, unknown>>, metadata: ToolMetadata): Readonly<Record<string, unknown>> {
+function sanitizeVisibleToolDescriptor(
+  item: Readonly<Record<string, unknown>>,
+  metadata: ToolMetadata
+): Readonly<Record<string, unknown>> {
   const descriptor: Record<string, unknown> = {
     name: metadata.name
   };
@@ -1298,7 +1405,10 @@ function sanitizeVisibleToolDescriptor(item: Readonly<Record<string, unknown>>, 
   return descriptor;
 }
 
-function sanitizeToolListResult(result: Readonly<Record<string, unknown>>, tools: readonly unknown[]): Readonly<Record<string, unknown>> {
+function sanitizeToolListResult(
+  result: Readonly<Record<string, unknown>>,
+  tools: readonly unknown[]
+): Readonly<Record<string, unknown>> {
   const sanitized: Record<string, unknown> = {
     tools
   };
@@ -1308,7 +1418,11 @@ function sanitizeToolListResult(result: Readonly<Record<string, unknown>>, tools
   return sanitized;
 }
 
-function copyRecordField(source: Readonly<Record<string, unknown>>, target: Record<string, unknown>, field: string): void {
+function copyRecordField(
+  source: Readonly<Record<string, unknown>>,
+  target: Record<string, unknown>,
+  field: string
+): void {
   const value = source[field];
   if (isRecord(value)) {
     target[field] = sanitizeDiscoveryMetadata(value);
@@ -1352,7 +1466,12 @@ function toolIsDiscoverable(tool: ToolMetadata, policy: PolicyDocument, profileI
   return toolHasNonDenyPolicyCoverage(profile.rules, tool.name, tool.capabilities);
 }
 
-function encodeJsonRpcError(id: string | number | null, code: number, message: string, decision: PolicyDecision): string {
+function encodeJsonRpcError(
+  id: string | number | null,
+  code: number,
+  message: string,
+  decision: PolicyDecision
+): string {
   return JSON.stringify({
     jsonrpc: "2.0",
     id,
@@ -1373,7 +1492,10 @@ function requestIdKey(id: string | number | null): string {
   return `${typeof id}:${String(id)}`;
 }
 
-function evaluateServerOriginMethod(envelope: JsonRpcEnvelope & { readonly method: string }, policy: PolicyDocument): PolicyDecision {
+function evaluateServerOriginMethod(
+  envelope: JsonRpcEnvelope & { readonly method: string },
+  policy: PolicyDocument
+): PolicyDecision {
   const policyDecision = evaluateEnvelopeMethod(envelope, policy);
   if (policyDecision.action !== "allow") {
     return policyDecision;
@@ -1437,7 +1559,10 @@ function resolvePositiveInteger(value: number | undefined, fallback: number): nu
   return value;
 }
 
-async function withApprovalTimeout(approval: ApprovalResult | Promise<ApprovalResult>, timeoutMs: number): Promise<ApprovalResult> {
+async function withApprovalTimeout(
+  approval: ApprovalResult | Promise<ApprovalResult>,
+  timeoutMs: number
+): Promise<ApprovalResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const approvalPromise = Promise.resolve(approval);
   approvalPromise.catch(() => undefined);

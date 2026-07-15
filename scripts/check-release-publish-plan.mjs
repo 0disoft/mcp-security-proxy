@@ -49,7 +49,9 @@ function findApprovedReleaseRecord(releaseVersion) {
     .filter((name) => name.endsWith(".release.json"))
     .sort((left, right) => left.localeCompare(right))
     .map((name) => ({ path: join(releaseRecordsDir, name), record: readJson(join(releaseRecordsDir, name)) }));
-  const matches = records.filter((entry) => entry.record.status === "approved" && entry.record.releaseVersion === releaseVersion);
+  const matches = records.filter(
+    (entry) => entry.record.status === "approved" && entry.record.releaseVersion === releaseVersion
+  );
   if (matches.length === 0) {
     failures.push(`no approved release record found for ${releaseVersion}`);
     return undefined;
@@ -63,7 +65,9 @@ function findApprovedReleaseRecord(releaseVersion) {
 
 function checkReleaseRecord(record, releaseVersion, recordPath) {
   if (!isReachableCommit(record.targetCommit)) {
-    failures.push(`release record targetCommit must be reachable from current HEAD: ${record.targetCommit || "<missing>"}`);
+    failures.push(
+      `release record targetCommit must be reachable from current HEAD: ${record.targetCommit || "<missing>"}`
+    );
   } else {
     checkChangesAfterApprovedTarget(record.targetCommit, recordPath);
   }
@@ -75,7 +79,10 @@ function checkReleaseRecord(record, releaseVersion, recordPath) {
     failures.push("release record publishCredentialsOwner must approve npm Trusted Publisher ownership");
   }
   const publicPackages = Array.isArray(record.publicPackages) ? record.publicPackages : [];
-  const packageNames = publicPackages.map((item) => item?.name).filter(Boolean).sort((left, right) => left.localeCompare(right));
+  const packageNames = publicPackages
+    .map((item) => item?.name)
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right));
   const expectedNames = [...expectedPublicPackages].sort((left, right) => left.localeCompare(right));
   if (JSON.stringify(packageNames) !== JSON.stringify(expectedNames)) {
     failures.push(`release record publicPackages must match ${expectedNames.join(", ")}`);

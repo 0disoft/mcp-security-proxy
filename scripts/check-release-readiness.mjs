@@ -27,10 +27,7 @@ const requiredReleaseScopeDecisions = ["mcpSdkDependency", "httpTransport", "hos
 const releaseScopeStatuses = new Set(["included", "excluded"]);
 const releaseScopeEvidencePrefixes = ["docs/adr/", "docs/architecture/", "docs/ops/"];
 const releaseScopeExclusionEvidencePaths = {
-  mcpSdkDependency: [
-    "docs/adr/0004-implementation-stack-direction.md",
-    "docs/adr/0008-runtime-mcp-sdk-boundary.md"
-  ],
+  mcpSdkDependency: ["docs/adr/0004-implementation-stack-direction.md", "docs/adr/0008-runtime-mcp-sdk-boundary.md"],
   httpTransport: ["docs/architecture/07-http-transport-plan.md"],
   hostApprovalUx: ["docs/architecture/08-host-approval-ux-plan.md"],
   externalMcpFixture: ["docs/architecture/09-external-mcp-compatibility-plan.md"]
@@ -320,7 +317,10 @@ function hasNonLocalTransportCompatibilityTarget(manifest) {
 }
 
 function checkApprovedValidationEvidence(path, validation, evidence) {
-  const commandPattern = validation === "check" ? /\bpnpm\s+(?:run\s+)?check\b/ : new RegExp(`\\bpnpm\\s+run\\s+${escapeRegExp(validation)}\\b`);
+  const commandPattern =
+    validation === "check"
+      ? /\bpnpm\s+(?:run\s+)?check\b/
+      : new RegExp(`\\bpnpm\\s+run\\s+${escapeRegExp(validation)}\\b`);
   if (!commandPattern.test(evidence)) {
     failures.push(`${path}: validation.${validation} must include the executed validation command`);
   }
@@ -407,76 +407,114 @@ function checkReleaseRecordValidator() {
     failures.push(`release-readiness self-test mismatch fixture was not rejected: ${mismatchFailures.join("; ")}`);
   }
 
-  const nonApprovedFutureVersionFailures = collectReleaseRecordFailures("<release-readiness-self-test-non-approved-future-version>", {
-    ...validRecord,
-    status: "proposed",
-    releaseVersion: "0.1.0-alpha.0",
-    rollback: {
-      ...validRecord.rollback,
-      lastKnownGoodVersion: "0.0.0"
+  const nonApprovedFutureVersionFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-non-approved-future-version>",
+    {
+      ...validRecord,
+      status: "proposed",
+      releaseVersion: "0.1.0-alpha.0",
+      rollback: {
+        ...validRecord.rollback,
+        lastKnownGoodVersion: "0.0.0"
+      }
     }
-  });
+  );
   if (nonApprovedFutureVersionFailures.length > 0) {
-    failures.push(`release-readiness self-test non-approved future version failed: ${nonApprovedFutureVersionFailures.join("; ")}`);
+    failures.push(
+      `release-readiness self-test non-approved future version failed: ${nonApprovedFutureVersionFailures.join("; ")}`
+    );
   }
 
-  const approvedZeroVersionFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-zero-version>", {
-    ...validApprovedShapeRecord,
-    status: "approved",
-    releaseVersion: "0.0.0"
-  });
+  const approvedZeroVersionFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-approved-zero-version>",
+    {
+      ...validApprovedShapeRecord,
+      status: "approved",
+      releaseVersion: "0.0.0"
+    }
+  );
   if (!approvedZeroVersionFailures.some((item) => item.includes("approved releaseVersion must not be 0.0.0"))) {
-    failures.push(`release-readiness self-test approved zero version was not rejected: ${approvedZeroVersionFailures.join("; ")}`);
+    failures.push(
+      `release-readiness self-test approved zero version was not rejected: ${approvedZeroVersionFailures.join("; ")}`
+    );
   }
 
-  const approvedMissingTargetCommitFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-missing-target-commit>", {
-    ...validApprovedShapeRecord,
-    targetCommit: "UNRECORDED"
-  });
-  if (!approvedMissingTargetCommitFailures.some((item) => item.includes("targetCommit must be recorded for approved releases"))) {
+  const approvedMissingTargetCommitFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-approved-missing-target-commit>",
+    {
+      ...validApprovedShapeRecord,
+      targetCommit: "UNRECORDED"
+    }
+  );
+  if (
+    !approvedMissingTargetCommitFailures.some((item) =>
+      item.includes("targetCommit must be recorded for approved releases")
+    )
+  ) {
     failures.push(
       `release-readiness self-test approved missing targetCommit was not rejected: ${approvedMissingTargetCommitFailures.join("; ")}`
     );
   }
 
-  const invalidTargetCommitFailures = collectReleaseRecordFailures("<release-readiness-self-test-invalid-target-commit>", {
-    ...validRecord,
-    targetCommit: "main"
-  });
-  if (!invalidTargetCommitFailures.some((item) => item.includes("targetCommit must be a full 40-character Git commit SHA"))) {
-    failures.push(`release-readiness self-test invalid targetCommit was not rejected: ${invalidTargetCommitFailures.join("; ")}`);
+  const invalidTargetCommitFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-invalid-target-commit>",
+    {
+      ...validRecord,
+      targetCommit: "main"
+    }
+  );
+  if (
+    !invalidTargetCommitFailures.some((item) =>
+      item.includes("targetCommit must be a full 40-character Git commit SHA")
+    )
+  ) {
+    failures.push(
+      `release-readiness self-test invalid targetCommit was not rejected: ${invalidTargetCommitFailures.join("; ")}`
+    );
   }
 
-  const approvedUnreachableTargetCommitFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-unreachable-target-commit>", {
-    ...validApprovedShapeRecord,
-    targetCommit: "0000000000000000000000000000000000000000"
-  });
-  if (!approvedUnreachableTargetCommitFailures.some((item) => item.includes("targetCommit must be reachable from current HEAD"))) {
+  const approvedUnreachableTargetCommitFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-approved-unreachable-target-commit>",
+    {
+      ...validApprovedShapeRecord,
+      targetCommit: "0000000000000000000000000000000000000000"
+    }
+  );
+  if (
+    !approvedUnreachableTargetCommitFailures.some((item) =>
+      item.includes("targetCommit must be reachable from current HEAD")
+    )
+  ) {
     failures.push(
       `release-readiness self-test approved unreachable targetCommit was not rejected: ${approvedUnreachableTargetCommitFailures.join("; ")}`
     );
   }
 
   if (historicalReachableCommit !== currentHead) {
-    const historicalApprovedFailures = collectReleaseRecordFailures("<release-readiness-self-test-historical-approved-record>", {
-      ...validApprovedShapeRecord,
-      targetCommit: historicalReachableCommit,
-      publicPackages: [
-        {
-          ...validApprovedShapeRecord.publicPackages[0],
-          name: "historical-package-name",
-          artifactName: "historical-artifact"
-        }
-      ],
-      artifacts: [
-        {
-          name: "historical-artifact",
-          source: "docs/ops/historical-release-artifact.md"
-        }
-      ]
-    });
+    const historicalApprovedFailures = collectReleaseRecordFailures(
+      "<release-readiness-self-test-historical-approved-record>",
+      {
+        ...validApprovedShapeRecord,
+        targetCommit: historicalReachableCommit,
+        publicPackages: [
+          {
+            ...validApprovedShapeRecord.publicPackages[0],
+            name: "historical-package-name",
+            artifactName: "historical-artifact"
+          }
+        ],
+        artifacts: [
+          {
+            name: "historical-artifact",
+            source: "docs/ops/historical-release-artifact.md"
+          }
+        ]
+      }
+    );
     if (historicalApprovedFailures.length > 0) {
-      failures.push(`release-readiness self-test historical approved record failed: ${historicalApprovedFailures.join("; ")}`);
+      failures.push(
+        `release-readiness self-test historical approved record failed: ${historicalApprovedFailures.join("; ")}`
+      );
     }
   }
 
@@ -491,37 +529,53 @@ function checkReleaseRecordValidator() {
     ]
   });
   if (!untrackedArtifactFailures.some((item) => item.includes("artifacts[0].source must be tracked"))) {
-    failures.push(`release-readiness self-test untracked artifact source was not rejected: ${untrackedArtifactFailures.join("; ")}`);
+    failures.push(
+      `release-readiness self-test untracked artifact source was not rejected: ${untrackedArtifactFailures.join("; ")}`
+    );
   }
 
-  const duplicatePackageArtifactNameFailures = collectReleaseRecordFailures("<release-readiness-self-test-duplicate-package-artifact-name>", {
-    ...validRecord,
-    publicPackages: [
-      {
-        ...validRecord.publicPackages[0]
-      },
-      {
-        ...validRecord.publicPackages[0],
-        name: "another-cli-package",
-        workspacePath: "packages/core"
-      }
-    ]
-  });
+  const duplicatePackageArtifactNameFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-duplicate-package-artifact-name>",
+    {
+      ...validRecord,
+      publicPackages: [
+        {
+          ...validRecord.publicPackages[0]
+        },
+        {
+          ...validRecord.publicPackages[0],
+          name: "another-cli-package",
+          workspacePath: "packages/core"
+        }
+      ]
+    }
+  );
   if (!duplicatePackageArtifactNameFailures.some((item) => item.includes("duplicate public package artifactName"))) {
-    failures.push(`release-readiness self-test duplicate package artifact name was not rejected: ${duplicatePackageArtifactNameFailures.join("; ")}`);
+    failures.push(
+      `release-readiness self-test duplicate package artifact name was not rejected: ${duplicatePackageArtifactNameFailures.join("; ")}`
+    );
   }
 
-  const missingPackageArtifactFailures = collectReleaseRecordFailures("<release-readiness-self-test-missing-package-artifact>", {
-    ...validRecord,
-    publicPackages: [
-      {
-        ...validRecord.publicPackages[0],
-        artifactName: "missing-package-artifact"
-      }
-    ]
-  });
-  if (!missingPackageArtifactFailures.some((item) => item.includes("publicPackages[0].artifactName must match an artifact name"))) {
-    failures.push(`release-readiness self-test missing package artifact was not rejected: ${missingPackageArtifactFailures.join("; ")}`);
+  const missingPackageArtifactFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-missing-package-artifact>",
+    {
+      ...validRecord,
+      publicPackages: [
+        {
+          ...validRecord.publicPackages[0],
+          artifactName: "missing-package-artifact"
+        }
+      ]
+    }
+  );
+  if (
+    !missingPackageArtifactFailures.some((item) =>
+      item.includes("publicPackages[0].artifactName must match an artifact name")
+    )
+  ) {
+    failures.push(
+      `release-readiness self-test missing package artifact was not rejected: ${missingPackageArtifactFailures.join("; ")}`
+    );
   }
 
   const missingValidationFailures = collectReleaseRecordFailures("<release-readiness-self-test-missing-validation>", {
@@ -545,16 +599,21 @@ function checkReleaseRecordValidator() {
     );
   }
 
-  const approvedWeakValidationFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-weak-validation>", {
-    ...validApprovedShapeRecord,
-    validation: {
-      ...validApprovedShapeRecord.validation,
-      docs: "docs passed",
-      check: "pnpm check passed"
+  const approvedWeakValidationFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-approved-weak-validation>",
+    {
+      ...validApprovedShapeRecord,
+      validation: {
+        ...validApprovedShapeRecord.validation,
+        docs: "docs passed",
+        check: "pnpm check passed"
+      }
     }
-  });
+  );
   if (
-    !approvedWeakValidationFailures.some((item) => item.includes("validation.docs must include the executed validation command")) ||
+    !approvedWeakValidationFailures.some((item) =>
+      item.includes("validation.docs must include the executed validation command")
+    ) ||
     !approvedWeakValidationFailures.some((item) => item.includes("validation.docs must include exit 0 evidence")) ||
     !approvedWeakValidationFailures.some((item) => item.includes("validation.check must include exit 0 evidence"))
   ) {
@@ -563,13 +622,16 @@ function checkReleaseRecordValidator() {
     );
   }
 
-  const approvedWeakRollbackFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-weak-rollback>", {
-    ...validApprovedShapeRecord,
-    rollback: {
-      lastKnownGoodVersion: validApprovedShapeRecord.releaseVersion,
-      procedure: "../rollback.md"
+  const approvedWeakRollbackFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-approved-weak-rollback>",
+    {
+      ...validApprovedShapeRecord,
+      rollback: {
+        lastKnownGoodVersion: validApprovedShapeRecord.releaseVersion,
+        procedure: "../rollback.md"
+      }
     }
-  });
+  );
   if (
     !approvedWeakRollbackFailures.some((item) =>
       item.includes("rollback.lastKnownGoodVersion must not equal releaseVersion")
@@ -583,13 +645,16 @@ function checkReleaseRecordValidator() {
     );
   }
 
-  const approvedUntrackedRollbackFailures = collectReleaseRecordFailures("<release-readiness-self-test-approved-untracked-rollback>", {
-    ...validApprovedShapeRecord,
-    rollback: {
-      lastKnownGoodVersion: "0.0.0",
-      procedure: "docs/ops/release-records"
+  const approvedUntrackedRollbackFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-approved-untracked-rollback>",
+    {
+      ...validApprovedShapeRecord,
+      rollback: {
+        lastKnownGoodVersion: "0.0.0",
+        procedure: "docs/ops/release-records"
+      }
     }
-  });
+  );
   if (!approvedUntrackedRollbackFailures.some((item) => item.includes("rollback.procedure must be tracked"))) {
     failures.push(
       `release-readiness self-test approved untracked rollback procedure was not rejected: ${approvedUntrackedRollbackFailures.join("; ")}`
@@ -607,57 +672,74 @@ function checkReleaseRecordValidator() {
     }
   });
   if (
-    !missingScopeFailures.some((item) => item.includes("releaseScope.httpTransport.status must be included or excluded")) ||
+    !missingScopeFailures.some((item) =>
+      item.includes("releaseScope.httpTransport.status must be included or excluded")
+    ) ||
     !missingScopeFailures.some((item) => item.includes("releaseScope.httpTransport.evidence must be recorded"))
   ) {
-    failures.push(`release-readiness self-test missing scope fixture was not rejected: ${missingScopeFailures.join("; ")}`);
+    failures.push(
+      `release-readiness self-test missing scope fixture was not rejected: ${missingScopeFailures.join("; ")}`
+    );
   }
 
-  const { externalMcpFixture, ...releaseScopeWithoutExternalMcpFixture } = validRecord.releaseScope;
+  const { externalMcpFixture: _externalMcpFixture, ...releaseScopeWithoutExternalMcpFixture } =
+    validRecord.releaseScope;
   const omittedScopeFailures = collectReleaseRecordFailures("<release-readiness-self-test-omitted-scope>", {
     ...validRecord,
     releaseScope: releaseScopeWithoutExternalMcpFixture
   });
   if (!omittedScopeFailures.some((item) => item.includes("releaseScope.externalMcpFixture must be an object"))) {
-    failures.push(`release-readiness self-test omitted scope fixture was not rejected: ${omittedScopeFailures.join("; ")}`);
+    failures.push(
+      `release-readiness self-test omitted scope fixture was not rejected: ${omittedScopeFailures.join("; ")}`
+    );
   }
 
-  const invalidScopeEvidenceFailures = collectReleaseRecordFailures("<release-readiness-self-test-invalid-scope-evidence>", {
-    ...validRecord,
-    releaseScope: {
-      ...validRecord.releaseScope,
-      mcpSdkDependency: {
-        ...validRecord.releaseScope.mcpSdkDependency,
-        evidence: "../private/sdk-decision.md"
-      },
-      hostApprovalUx: {
-        ...validRecord.releaseScope.hostApprovalUx,
-        evidence: "docs/architecture/missing-host-approval-decision.md"
-      },
-      httpTransport: {
-        ...validRecord.releaseScope.httpTransport,
-        evidence: "node_modules"
+  const invalidScopeEvidenceFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-invalid-scope-evidence>",
+    {
+      ...validRecord,
+      releaseScope: {
+        ...validRecord.releaseScope,
+        mcpSdkDependency: {
+          ...validRecord.releaseScope.mcpSdkDependency,
+          evidence: "../private/sdk-decision.md"
+        },
+        hostApprovalUx: {
+          ...validRecord.releaseScope.hostApprovalUx,
+          evidence: "docs/architecture/missing-host-approval-decision.md"
+        },
+        httpTransport: {
+          ...validRecord.releaseScope.httpTransport,
+          evidence: "node_modules"
+        }
       }
     }
-  });
+  );
   if (
-    !invalidScopeEvidenceFailures.some((item) => item.includes("releaseScope.mcpSdkDependency.evidence must be a safe repo-relative path")) ||
+    !invalidScopeEvidenceFailures.some((item) =>
+      item.includes("releaseScope.mcpSdkDependency.evidence must be a safe repo-relative path")
+    ) ||
     !invalidScopeEvidenceFailures.some((item) => item.includes("releaseScope.hostApprovalUx.evidence must exist")) ||
     !invalidScopeEvidenceFailures.some((item) => item.includes("releaseScope.httpTransport.evidence must be tracked"))
   ) {
-    failures.push(`release-readiness self-test invalid scope evidence fixture was not rejected: ${invalidScopeEvidenceFailures.join("; ")}`);
+    failures.push(
+      `release-readiness self-test invalid scope evidence fixture was not rejected: ${invalidScopeEvidenceFailures.join("; ")}`
+    );
   }
 
-  const wrongScopeEvidenceLocationFailures = collectReleaseRecordFailures("<release-readiness-self-test-wrong-scope-evidence-location>", {
-    ...validRecord,
-    releaseScope: {
-      ...validRecord.releaseScope,
-      mcpSdkDependency: {
-        ...validRecord.releaseScope.mcpSdkDependency,
-        evidence: "README.md"
+  const wrongScopeEvidenceLocationFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-wrong-scope-evidence-location>",
+    {
+      ...validRecord,
+      releaseScope: {
+        ...validRecord.releaseScope,
+        mcpSdkDependency: {
+          ...validRecord.releaseScope.mcpSdkDependency,
+          evidence: "README.md"
+        }
       }
     }
-  });
+  );
   if (
     !wrongScopeEvidenceLocationFailures.some((item) =>
       item.includes("releaseScope.mcpSdkDependency.evidence must be a docs/adr, docs/architecture, or docs/ops path")
@@ -668,28 +750,31 @@ function checkReleaseRecordValidator() {
     );
   }
 
-  const includedScopeExclusionEvidenceFailures = collectReleaseRecordFailures("<release-readiness-self-test-included-scope-exclusion-evidence>", {
-    ...validRecord,
-    releaseScope: {
-      ...validRecord.releaseScope,
-      mcpSdkDependency: {
-        ...validRecord.releaseScope.mcpSdkDependency,
-        status: "included"
-      },
-      httpTransport: {
-        ...validRecord.releaseScope.httpTransport,
-        status: "included"
-      },
-      hostApprovalUx: {
-        ...validRecord.releaseScope.hostApprovalUx,
-        status: "included"
-      },
-      externalMcpFixture: {
-        ...validRecord.releaseScope.externalMcpFixture,
-        status: "included"
+  const includedScopeExclusionEvidenceFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-included-scope-exclusion-evidence>",
+    {
+      ...validRecord,
+      releaseScope: {
+        ...validRecord.releaseScope,
+        mcpSdkDependency: {
+          ...validRecord.releaseScope.mcpSdkDependency,
+          status: "included"
+        },
+        httpTransport: {
+          ...validRecord.releaseScope.httpTransport,
+          status: "included"
+        },
+        hostApprovalUx: {
+          ...validRecord.releaseScope.hostApprovalUx,
+          status: "included"
+        },
+        externalMcpFixture: {
+          ...validRecord.releaseScope.externalMcpFixture,
+          status: "included"
+        }
       }
     }
-  });
+  );
   if (
     !includedScopeExclusionEvidenceFailures.some((item) =>
       item.includes("releaseScope.mcpSdkDependency.evidence must not use the exclusion evidence path")
@@ -709,20 +794,25 @@ function checkReleaseRecordValidator() {
     );
   }
 
-  const includedHttpTransportFailures = collectReleaseRecordFailures("<release-readiness-self-test-http-transport-included>", {
-    ...validRecord,
-    releaseScope: {
-      ...validRecord.releaseScope,
-      httpTransport: {
-        ...validRecord.releaseScope.httpTransport,
-        status: "included",
-        evidence: "docs/architecture/09-external-mcp-compatibility-plan.md"
+  const includedHttpTransportFailures = collectReleaseRecordFailures(
+    "<release-readiness-self-test-http-transport-included>",
+    {
+      ...validRecord,
+      releaseScope: {
+        ...validRecord.releaseScope,
+        httpTransport: {
+          ...validRecord.releaseScope.httpTransport,
+          status: "included",
+          evidence: "docs/architecture/09-external-mcp-compatibility-plan.md"
+        }
       }
     }
-  });
+  );
   if (
     !includedHttpTransportFailures.some((item) =>
-      item.includes(`releaseScope.httpTransport.status cannot be included while ${compatibilityManifestPath} targets are ${localCompatibilityTransport}-only`)
+      item.includes(
+        `releaseScope.httpTransport.status cannot be included while ${compatibilityManifestPath} targets are ${localCompatibilityTransport}-only`
+      )
     )
   ) {
     failures.push(
@@ -839,11 +929,13 @@ function isReachableCommit(value) {
 
 function getHistoricalReachableCommit() {
   try {
-    return execFileSync("git", ["rev-list", "--max-count=1", "--skip=1", "HEAD"], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"]
-    }).trim() || currentHead;
+    return (
+      execFileSync("git", ["rev-list", "--max-count=1", "--skip=1", "HEAD"], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"]
+      }).trim() || currentHead
+    );
   } catch {
     return currentHead;
   }

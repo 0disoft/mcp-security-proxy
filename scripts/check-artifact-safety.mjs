@@ -206,12 +206,18 @@ function checkRepositoryPath(value, label) {
 }
 
 function checkForbiddenSegments(value, label) {
-  for (const pathSegment of value.toLowerCase().split(/[\/\\]+/).filter(Boolean)) {
+  for (const pathSegment of value
+    .toLowerCase()
+    .split(/[/\\]+/)
+    .filter(Boolean)) {
     if (pathSegment === ".env" || pathSegment.startsWith(".env.")) {
       failures.push(`${label}: forbidden public artifact path segment "${pathSegment}"`);
     }
   }
-  for (const segment of value.toLowerCase().split(/[/.\\_-]+/).filter(Boolean)) {
+  for (const segment of value
+    .toLowerCase()
+    .split(/[/.\\_-]+/)
+    .filter(Boolean)) {
     if (forbiddenPathSegments.has(segment)) {
       failures.push(`${label}: forbidden public artifact path segment "${segment}"`);
     }
@@ -285,7 +291,9 @@ function checkArtifactSafetyValidator() {
       checkTextContentMarkers(sample, `<artifact-safety-self-test-forbidden-text-${name}>`);
     });
     if (!forbiddenTextFailures.some((item) => item.includes(`forbidden marker ${name}`))) {
-      failures.push(`artifact-safety self-test forbidden text marker ${name} was not rejected: ${forbiddenTextFailures.join("; ")}`);
+      failures.push(
+        `artifact-safety self-test forbidden text marker ${name} was not rejected: ${forbiddenTextFailures.join("; ")}`
+      );
     }
   }
 
@@ -311,11 +319,15 @@ function checkArtifactSafetyValidator() {
   });
   if (
     !unsafeRecordFailures.some((item) => item.includes("paths must not contain traversal or empty segments")) ||
-    !unsafeRecordFailures.some((item) => item.includes("artifact names must not contain path separators or traversal")) ||
+    !unsafeRecordFailures.some((item) =>
+      item.includes("artifact names must not contain path separators or traversal")
+    ) ||
     !unsafeRecordFailures.some((item) => item.includes('forbidden public artifact path segment "logs"')) ||
     !unsafeRecordFailures.some((item) => item.includes("referenced artifact source must be tracked"))
   ) {
-    failures.push(`artifact-safety self-test unsafe release record was not rejected: ${unsafeRecordFailures.join("; ")}`);
+    failures.push(
+      `artifact-safety self-test unsafe release record was not rejected: ${unsafeRecordFailures.join("; ")}`
+    );
   }
 
   const unsafeCompatibilityFailures = collectArtifactSafetyFailures(() => {
@@ -331,11 +343,17 @@ function checkArtifactSafetyValidator() {
     });
   });
   if (
-    !unsafeCompatibilityFailures.some((item) => item.includes("compatibility fixture references must stay under fixtures/")) ||
+    !unsafeCompatibilityFailures.some((item) =>
+      item.includes("compatibility fixture references must stay under fixtures/")
+    ) ||
     !unsafeCompatibilityFailures.some((item) => item.includes("referenced fixture must be tracked")) ||
-    !unsafeCompatibilityFailures.some((item) => item.includes("public audit fixture references must be explicitly redacted"))
+    !unsafeCompatibilityFailures.some((item) =>
+      item.includes("public audit fixture references must be explicitly redacted")
+    )
   ) {
-    failures.push(`artifact-safety self-test unsafe compatibility manifest was not rejected: ${unsafeCompatibilityFailures.join("; ")}`);
+    failures.push(
+      `artifact-safety self-test unsafe compatibility manifest was not rejected: ${unsafeCompatibilityFailures.join("; ")}`
+    );
   }
 }
 

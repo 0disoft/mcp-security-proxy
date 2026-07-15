@@ -42,10 +42,7 @@ const requiredFiles = [
   "fixtures/audit/decision-denied.redacted.jsonl"
 ];
 
-const forbiddenPhrases = [
-  "This document captures the durable design contract",
-  "It is intentionally a scaffold"
-];
+const forbiddenPhrases = ["This document captures the durable design contract", "It is intentionally a scaffold"];
 
 const root = process.cwd();
 const missing = requiredFiles.filter((file) => !existsSync(join(root, file)));
@@ -99,7 +96,9 @@ function checkCliCommandDocs() {
   const commands = extractCommandNames(commandSource);
   const expectedCommands = ["run", "config-snippet", "check-policy", "inspect-tools", "eval-call"];
   if (JSON.stringify(commands) !== JSON.stringify(expectedCommands)) {
-    failures.push(`packages/cli/src/commands.ts: expected command list ${expectedCommands.join(", ")}, got ${commands.join(", ")}`);
+    failures.push(
+      `packages/cli/src/commands.ts: expected command list ${expectedCommands.join(", ")}, got ${commands.join(", ")}`
+    );
   }
   for (const command of expectedCommands) {
     if (!commandContract.includes(`mcp-security-proxy ${command}`)) {
@@ -190,7 +189,9 @@ function escapeRegExp(value) {
 function checkOpsOwnerDocs() {
   const failures = [];
   const opsDir = join(root, "docs", "ops");
-  for (const name of readdirSync(opsDir).filter((item) => item.endsWith(".md")).sort()) {
+  for (const name of readdirSync(opsDir)
+    .filter((item) => item.endsWith(".md"))
+    .sort()) {
     const path = `docs/ops/${name}`;
     const text = readFileSync(join(root, path), "utf8");
     if (text.includes("Backup owner: UNASSIGNED")) {
@@ -420,7 +421,9 @@ function checkApprovalHookDocs() {
     "readonly approvalTimeoutMs?: number;"
   ]) {
     if (!stdioBridgeSource.includes(sourcePhrase)) {
-      failures.push(`packages/proxy-runtime/src/stdio-bridge.ts: missing approval bridge source phrase: ${sourcePhrase}`);
+      failures.push(
+        `packages/proxy-runtime/src/stdio-bridge.ts: missing approval bridge source phrase: ${sourcePhrase}`
+      );
     }
   }
 

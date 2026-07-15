@@ -55,17 +55,30 @@ function collectPlanFailures(plan, label) {
   assert(plan?.distTag === "bootstrap", "distTag must be bootstrap for the bootstrap marker");
   assert(plan?.registry === expectedRegistry, `registry must be ${expectedRegistry}`);
   assert(plan?.registryOwner === "0disoft", "registryOwner must be 0disoft");
-  assert(plan?.artifactDirectory === ".tmp/npm-bootstrap", "artifactDirectory must stay under the ignored bootstrap path");
+  assert(
+    plan?.artifactDirectory === ".tmp/npm-bootstrap",
+    "artifactDirectory must stay under the ignored bootstrap path"
+  );
   assert(plan?.credentialMode === "interactive-owner-session", "credentialMode must be interactive-owner-session");
   assert(plan?.credentialPersistence === "none", "credentialPersistence must be none");
   assert(
-    JSON.stringify((plan?.packages ?? []).map((item) => [item?.name, item?.workspacePath])) === JSON.stringify(expectedPackages),
+    JSON.stringify((plan?.packages ?? []).map((item) => [item?.name, item?.workspacePath])) ===
+      JSON.stringify(expectedPackages),
     "packages must match the five release-recorded package names and workspace paths in publish order"
   );
-  assert(plan?.trustedPublisher?.repository === "0disoft/mcp-security-proxy", "trustedPublisher.repository must match GitHub");
-  assert(plan?.trustedPublisher?.workflow === releaseWorkflowPath, `trustedPublisher.workflow must be ${releaseWorkflowPath}`);
+  assert(
+    plan?.trustedPublisher?.repository === "0disoft/mcp-security-proxy",
+    "trustedPublisher.repository must match GitHub"
+  );
+  assert(
+    plan?.trustedPublisher?.workflow === releaseWorkflowPath,
+    `trustedPublisher.workflow must be ${releaseWorkflowPath}`
+  );
   assert(plan?.trustedPublisher?.environment === "npm", "trustedPublisher.environment must be npm");
-  assert(plan?.postPublish?.configureTrustedPublisher === "required", "Trusted Publisher configuration must be required");
+  assert(
+    plan?.postPublish?.configureTrustedPublisher === "required",
+    "Trusted Publisher configuration must be required"
+  );
   assert(
     plan?.postPublish?.replaceInitialLatestTag === "required-by-first-oidc-release",
     "initial latest dist-tag replacement must be required by the first OIDC release"
@@ -85,13 +98,19 @@ function collectPlanFailures(plan, label) {
 
   if (plan?.status === "approved" || plan?.status === "completed") {
     assert(plan?.approval?.approvedBy === plan.registryOwner, "approvedBy must match registryOwner after approval");
-    assert(isFullCommitSha(plan?.approval?.sourceCommit), "approval.sourceCommit must be a full Git commit SHA after approval");
+    assert(
+      isFullCommitSha(plan?.approval?.sourceCommit),
+      "approval.sourceCommit must be a full Git commit SHA after approval"
+    );
   } else {
     assert(plan?.approval?.approvedBy === "UNRECORDED", "blocked plan approvedBy must stay UNRECORDED");
     assert(plan?.approval?.sourceCommit === "UNRECORDED", "blocked plan sourceCommit must stay UNRECORDED");
   }
   if (plan?.status === "completed") {
-    assert(plan?.completion?.completedBy === plan.registryOwner, "completedBy must match registryOwner after completion");
+    assert(
+      plan?.completion?.completedBy === plan.registryOwner,
+      "completedBy must match registryOwner after completion"
+    );
     assert(isFullCommitSha(plan?.completion?.sourceCommit), "completion.sourceCommit must be a full Git commit SHA");
     assert(
       Array.isArray(plan?.completion?.artifactSourceCommits) &&
@@ -99,18 +118,30 @@ function collectPlanFailures(plan, label) {
         plan.completion.artifactSourceCommits.every(isFullCommitSha),
       "completion.artifactSourceCommits must contain full Git commit SHAs"
     );
-    assert(isRecorded(plan?.completion?.registryEvidence), "completion.registryEvidence must record the registry verification");
+    assert(
+      isRecorded(plan?.completion?.registryEvidence),
+      "completion.registryEvidence must record the registry verification"
+    );
     assert(plan?.completion?.trustedPublisherConfigured === true, "Trusted Publisher completion evidence must be true");
     assert(plan?.completion?.bootstrapCredentialRemoved === true, "bootstrap credential removal evidence must be true");
   } else {
     assert(plan?.completion?.completedBy === "UNRECORDED", "incomplete plan completedBy must stay UNRECORDED");
-    assert(plan?.completion?.sourceCommit === "UNRECORDED", "incomplete plan completion sourceCommit must stay UNRECORDED");
+    assert(
+      plan?.completion?.sourceCommit === "UNRECORDED",
+      "incomplete plan completion sourceCommit must stay UNRECORDED"
+    );
     assert(
       plan?.completion?.artifactSourceCommits === undefined,
       "incomplete plan artifactSourceCommits must stay absent"
     );
-    assert(plan?.completion?.registryEvidence === "UNRECORDED", "incomplete plan registryEvidence must stay UNRECORDED");
-    assert(plan?.completion?.trustedPublisherConfigured === false, "incomplete plan must not claim Trusted Publisher configuration");
+    assert(
+      plan?.completion?.registryEvidence === "UNRECORDED",
+      "incomplete plan registryEvidence must stay UNRECORDED"
+    );
+    assert(
+      plan?.completion?.trustedPublisherConfigured === false,
+      "incomplete plan must not claim Trusted Publisher configuration"
+    );
     assert(plan?.completion?.bootstrapCredentialRemoved === false, "incomplete plan must not claim credential removal");
   }
   return planFailures;
@@ -291,9 +322,8 @@ function checkPlanValidator() {
 
 function runNpm(args) {
   const command = process.platform === "win32" ? process.execPath : "npm";
-  const prefix = process.platform === "win32"
-    ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
-    : [];
+  const prefix =
+    process.platform === "win32" ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")] : [];
   const result = spawnSync(command, [...prefix, ...args], {
     cwd: root,
     encoding: "utf8",

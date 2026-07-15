@@ -22,6 +22,10 @@ pnpm run check
 
 `pnpm run check` runs:
 
+- deterministic Prettier checks for TypeScript, JavaScript automation, package manifests, root JSON
+  configuration, and tracked GitHub workflows
+- Oxlint correctness and suspicious-rule checks for TypeScript and JavaScript, including Node.js and
+  Vitest-aware rules
 - workspace TypeScript typecheck
 - workspace tests
 - contract checks for contracts and core
@@ -100,7 +104,7 @@ It neither accepts dist-tags or semver ranges nor reads npm credentials.
 
 ## Validation
 
-- Required validation names: typecheck, test, contract, docs, schema-contract, migration-check,
+- Required validation names: format, lint, typecheck, test, contract, docs, schema-contract, migration-check,
   package-surface, api-report, registry-smoke, secret-scan, artifact-safety, repository-hygiene,
   validation-registry, ci-contract, compatibility, license-report, release-readiness,
   performance-smoke, check.

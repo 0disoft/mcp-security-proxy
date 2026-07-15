@@ -63,9 +63,8 @@ function installFilesystemServer(cwd) {
     "utf8"
   );
   const npmCommand = process.platform === "win32" ? process.execPath : "npm";
-  const npmCommandPrefix = process.platform === "win32"
-    ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
-    : [];
+  const npmCommandPrefix =
+    process.platform === "win32" ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")] : [];
   runCommand(
     npmCommand,
     [
@@ -95,9 +94,8 @@ function installPythonClient(cwd) {
   const pipConfigPath = join(cwd, "pip.conf");
   writeFileSync(pipConfigPath, "", "utf8");
   runCommand(pythonCommand, ["-m", "venv", venvRoot], cwd);
-  const venvPython = process.platform === "win32"
-    ? join(venvRoot, "Scripts", "python.exe")
-    : join(venvRoot, "bin", "python");
+  const venvPython =
+    process.platform === "win32" ? join(venvRoot, "Scripts", "python.exe") : join(venvRoot, "bin", "python");
   runCommand(
     venvPython,
     [

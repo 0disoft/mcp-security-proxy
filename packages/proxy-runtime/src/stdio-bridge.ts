@@ -117,7 +117,13 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     return { exitCode };
   };
   await recordOps(createStartOpsEvent(options.profileId, maxFrameBytes, options.maxJsonDepth, metrics));
-  const stderrDone = observeUpstreamStderr(upstream.stderr, options.profileId, recordAudit, maxFrameBytes, auditCorrelator);
+  const stderrDone = observeUpstreamStderr(
+    upstream.stderr,
+    options.profileId,
+    recordAudit,
+    maxFrameBytes,
+    auditCorrelator
+  );
 
   const clientDone = consumeFrames(options.clientInput, maxFrameBytes, async (line) => {
     metrics.clientFrames += 1;
@@ -165,14 +171,24 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
 
     if (first === "client") {
       upstream.stdin.end();
-      const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs, -2);
+      const exitCode = await waitForUpstreamExitOrKill(
+        upstream,
+        upstreamExit,
+        options.shutdownGraceMs ?? defaultShutdownGraceMs,
+        -2
+      );
       await upstreamDone;
       await stderrDone;
       return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit, auditCorrelator));
     }
 
     if (first === "upstream-output") {
-      const exitCode = await waitForUpstreamExitOrKill(upstream, upstreamExit, options.shutdownGraceMs ?? defaultShutdownGraceMs, -3);
+      const exitCode = await waitForUpstreamExitOrKill(
+        upstream,
+        upstreamExit,
+        options.shutdownGraceMs ?? defaultShutdownGraceMs,
+        -3
+      );
       await stderrDone;
       return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit, auditCorrelator));
     }
@@ -248,7 +264,11 @@ function snapshotMetrics(metrics: StdioProxyMetrics): StdioProxyMetrics {
   };
 }
 
-async function consumeFrames(input: Readable, maxFrameBytes: number, onLine: (line: string) => Promise<void>): Promise<void> {
+async function consumeFrames(
+  input: Readable,
+  maxFrameBytes: number,
+  onLine: (line: string) => Promise<void>
+): Promise<void> {
   const decoder = new StringDecoder("utf8");
   let buffer = "";
   let bytes = 0;
@@ -303,7 +323,9 @@ async function consumeFrames(input: Readable, maxFrameBytes: number, onLine: (li
   };
 
   for await (const chunk of input) {
-    await consumeText(typeof chunk === "string" ? chunk : decoder.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    await consumeText(
+      typeof chunk === "string" ? chunk : decoder.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    );
   }
 
   const remaining = decoder.end();
@@ -363,20 +385,23 @@ async function waitForUpstreamExitOrKill(
   timeoutExitCode: -2 | -3
 ): Promise<number> {
   const timeoutExit = new Promise<number>((resolve) => {
-    const timer = setTimeout(() => {
-      void requestUpstreamTermination(upstream, false);
-      const forceTimer = setTimeout(async () => {
-        await requestUpstreamTermination(upstream, true);
-        upstream.stdin.destroy();
-        upstream.stdout.destroy();
-        upstream.stderr?.destroy();
-        resolve(timeoutExitCode);
-      }, 250);
-      upstreamExit.finally(() => {
-        clearTimeout(forceTimer);
-        resolve(timeoutExitCode);
-      });
-    }, Math.max(0, shutdownGraceMs));
+    const timer = setTimeout(
+      () => {
+        void requestUpstreamTermination(upstream, false);
+        const forceTimer = setTimeout(async () => {
+          await requestUpstreamTermination(upstream, true);
+          upstream.stdin.destroy();
+          upstream.stdout.destroy();
+          upstream.stderr?.destroy();
+          resolve(timeoutExitCode);
+        }, 250);
+        upstreamExit.finally(() => {
+          clearTimeout(forceTimer);
+          resolve(timeoutExitCode);
+        });
+      },
+      Math.max(0, shutdownGraceMs)
+    );
     upstreamExit.finally(() => clearTimeout(timer));
   });
   return Promise.race([upstreamExit, timeoutExit]);

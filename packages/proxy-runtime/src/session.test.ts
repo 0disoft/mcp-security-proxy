@@ -253,7 +253,9 @@ describe("proxy runtime session", () => {
       kind: "error",
       decision: {
         action: "deny",
-        evidence: [{ code: "jsonrpc.invalid", reason: "JSON-RPC id must be a string, safe integer number, null, or absent" }]
+        evidence: [
+          { code: "jsonrpc.invalid", reason: "JSON-RPC id must be a string, safe integer number, null, or absent" }
+        ]
       }
     });
   });
@@ -891,7 +893,12 @@ describe("proxy runtime session", () => {
       kind: "error",
       decision: {
         action: "deny",
-        evidence: [{ code: "jsonrpc.upstream_error_data_redacted", reason: "upstream JSON-RPC error data removed before forwarding" }]
+        evidence: [
+          {
+            code: "jsonrpc.upstream_error_data_redacted",
+            reason: "upstream JSON-RPC error data removed before forwarding"
+          }
+        ]
       },
       redaction: {
         applied: true,
@@ -950,7 +957,12 @@ describe("proxy runtime session", () => {
       kind: "error",
       decision: {
         action: "deny",
-        evidence: [{ code: "jsonrpc.upstream_error_redacted", reason: "upstream JSON-RPC error extra fields removed before forwarding" }]
+        evidence: [
+          {
+            code: "jsonrpc.upstream_error_redacted",
+            reason: "upstream JSON-RPC error extra fields removed before forwarding"
+          }
+        ]
       },
       redaction: {
         applied: true,
@@ -1148,7 +1160,12 @@ describe("proxy runtime session", () => {
       kind: "error",
       decision: {
         action: "deny",
-        evidence: [{ code: "jsonrpc.upstream_error_message_redacted", reason: "upstream JSON-RPC error message redacted before forwarding" }]
+        evidence: [
+          {
+            code: "jsonrpc.upstream_error_message_redacted",
+            reason: "upstream JSON-RPC error message redacted before forwarding"
+          }
+        ]
       },
       redaction: {
         applied: true,
@@ -1411,7 +1428,9 @@ describe("proxy runtime session", () => {
         data: {
           decision: {
             action: "deny",
-            evidence: [{ code: "jsonrpc.invalid", reason: "JSON-RPC request or notification must not include result or error" }]
+            evidence: [
+              { code: "jsonrpc.invalid", reason: "JSON-RPC request or notification must not include result or error" }
+            ]
           }
         }
       }
@@ -1444,7 +1463,9 @@ describe("proxy runtime session", () => {
         data: {
           decision: {
             action: "deny",
-            evidence: [{ code: "jsonrpc.invalid", method: "tools/list", reason: "MCP request method must include a JSON-RPC id" }]
+            evidence: [
+              { code: "jsonrpc.invalid", method: "tools/list", reason: "MCP request method must include a JSON-RPC id" }
+            ]
           }
         }
       }
@@ -2078,7 +2099,13 @@ describe("proxy runtime session", () => {
         data: {
           decision: {
             action: "deny",
-            evidence: [{ code: "method.server_origin_ping_params", method: "ping", reason: "server-origin ping must not carry params" }]
+            evidence: [
+              {
+                code: "method.server_origin_ping_params",
+                method: "ping",
+                reason: "server-origin ping must not carry params"
+              }
+            ]
           }
         }
       }
@@ -2173,7 +2200,13 @@ describe("proxy runtime session", () => {
         data: {
           decision: {
             action: "deny",
-            evidence: [{ code: "method.server_origin_ping_params", method: "ping", reason: "server-origin ping must not carry params" }]
+            evidence: [
+              {
+                code: "method.server_origin_ping_params",
+                method: "ping",
+                reason: "server-origin ping must not carry params"
+              }
+            ]
           }
         }
       }
@@ -2250,7 +2283,9 @@ describe("proxy runtime session", () => {
       })
     );
 
-    const filtered = JSON.parse(inbound.forwardLine ?? "{}") as { readonly result?: { readonly tools?: readonly { readonly name: string }[] } };
+    const filtered = JSON.parse(inbound.forwardLine ?? "{}") as {
+      readonly result?: { readonly tools?: readonly { readonly name: string }[] };
+    };
     expect(filtered.result?.tools?.map((tool) => tool.name)).toEqual(["read_file"]);
     expect(inbound.auditEvents).toHaveLength(1);
     expect(inbound.auditEvents[0]).toMatchObject({
@@ -2320,7 +2355,9 @@ describe("proxy runtime session", () => {
       })
     );
 
-    const filtered = JSON.parse(inbound.forwardLine ?? "{}") as { readonly result?: { readonly tools?: readonly { readonly name: string }[] } };
+    const filtered = JSON.parse(inbound.forwardLine ?? "{}") as {
+      readonly result?: { readonly tools?: readonly { readonly name: string }[] };
+    };
     expect(filtered.result?.tools?.map((tool) => tool.name)).toEqual(["read_secret"]);
     expect(inbound.auditEvents).toHaveLength(1);
     expect(inbound.auditEvents[0]).toMatchObject({
@@ -2498,7 +2535,9 @@ describe("proxy runtime session", () => {
       kind: "discovery-filtered",
       decision: {
         action: "deny",
-        evidence: [{ code: "discovery.filtered", reason: "malformed tool discovery result sanitized to an empty tool list" }]
+        evidence: [
+          { code: "discovery.filtered", reason: "malformed tool discovery result sanitized to an empty tool list" }
+        ]
       }
     });
 

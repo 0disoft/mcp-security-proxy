@@ -384,7 +384,9 @@ describe("stdio proxy bridge", () => {
           data: expect.objectContaining({
             decision: expect.objectContaining({
               action: "deny",
-              evidence: [expect.objectContaining({ code: "policy.approval_hook_failed", reason: "approval hook timed out" })]
+              evidence: [
+                expect.objectContaining({ code: "policy.approval_hook_failed", reason: "approval hook timed out" })
+              ]
             })
           })
         })
@@ -396,7 +398,9 @@ describe("stdio proxy bridge", () => {
         toolName: "run_command",
         decision: expect.objectContaining({
           action: "deny",
-          evidence: [expect.objectContaining({ code: "policy.approval_hook_failed", reason: "approval hook timed out" })]
+          evidence: [
+            expect.objectContaining({ code: "policy.approval_hook_failed", reason: "approval hook timed out" })
+          ]
         })
       })
     );
@@ -703,7 +707,11 @@ function runHarness(
 }
 
 function createHarness(
-  options: { readonly failAuditWrites?: boolean; readonly upstreamExitCode?: number; readonly upstreamNeverExits?: boolean } = {}
+  options: {
+    readonly failAuditWrites?: boolean;
+    readonly upstreamExitCode?: number;
+    readonly upstreamNeverExits?: boolean;
+  } = {}
 ): {
   readonly clientInput: PassThrough;
   readonly clientOutput: PassThrough;
@@ -762,7 +770,9 @@ function createHarness(
 }
 
 function readPolicy(auditOnFailure?: PolicyDocument["profiles"][number]["audit"]["onFailure"]): PolicyDocument {
-  const policy = JSON.parse(readFileSync(resolve(repoRoot, "fixtures/policies/local-dev.json"), "utf8")) as PolicyDocument;
+  const policy = JSON.parse(
+    readFileSync(resolve(repoRoot, "fixtures/policies/local-dev.json"), "utf8")
+  ) as PolicyDocument;
   if (!auditOnFailure) {
     return policy;
   }

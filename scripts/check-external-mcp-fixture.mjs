@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { registryUrl, runCommand } from "./lib/package-consumer-smoke.mjs";
@@ -71,9 +71,8 @@ function installExternalPackages(cwd) {
     `${serverPackage}@${serverVersion}`
   ];
   const npmCommand = process.platform === "win32" ? process.execPath : "npm";
-  const npmCommandPrefix = process.platform === "win32"
-    ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
-    : [];
+  const npmCommandPrefix =
+    process.platform === "win32" ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")] : [];
   runCommand(npmCommand, [...npmCommandPrefix, ...npmArgs, `--registry=${registryUrl}`], cwd, {
     NODE_AUTH_TOKEN: "",
     NPM_TOKEN: "",

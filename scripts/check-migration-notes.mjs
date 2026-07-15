@@ -18,7 +18,11 @@ const semver = readText(semverPath);
 const release = readText(releasePath);
 
 for (const schemaVersion of [POLICY_SCHEMA_VERSION, DECISION_SCHEMA_VERSION, AUDIT_EVENT_SCHEMA_VERSION]) {
-  assertIncludes(migrationGuide, schemaVersion, `${migrationGuidePath}: missing current schema version ${schemaVersion}`);
+  assertIncludes(
+    migrationGuide,
+    schemaVersion,
+    `${migrationGuidePath}: missing current schema version ${schemaVersion}`
+  );
 }
 
 for (const phrase of [
@@ -44,8 +48,16 @@ for (const phrase of [
 }
 
 assertIncludes(semver, "docs/library/migration-guide.md", `${semverPath}: semver policy must link to migration guide`);
-assertIncludes(semver, "Policy or audit schema changes ship without a version impact note.", `${semverPath}: missing schema version-impact blocker`);
-assertIncludes(release, "Missing migration notes for policy, audit, CLI JSON, exit-code, or public API changes.", `${releasePath}: release blocker must include missing migration notes`);
+assertIncludes(
+  semver,
+  "Policy or audit schema changes ship without a version impact note.",
+  `${semverPath}: missing schema version-impact blocker`
+);
+assertIncludes(
+  release,
+  "Missing migration notes for policy, audit, CLI JSON, exit-code, or public API changes.",
+  `${releasePath}: release blocker must include missing migration notes`
+);
 
 if (forbiddenExamplePattern().test(migrationGuide)) {
   failures.push(`${migrationGuidePath}: migration examples must not include secret-like placeholder assignments`);

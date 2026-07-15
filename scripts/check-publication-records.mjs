@@ -9,7 +9,9 @@ const publicationRecords = [];
 if (!existsSync(publicationsDir)) {
   failures.push("docs/ops/publications is missing");
 } else {
-  for (const name of readdirSync(publicationsDir).filter((item) => item.endsWith(".publication.json")).sort()) {
+  for (const name of readdirSync(publicationsDir)
+    .filter((item) => item.endsWith(".publication.json"))
+    .sort()) {
     const path = `docs/ops/publications/${name}`;
     const record = readJson(path);
     publicationRecords.push({ path, record });
@@ -32,7 +34,9 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`publication records verified for ${publicationRecords.length} release${publicationRecords.length === 1 ? "" : "s"}`);
+console.log(
+  `publication records verified for ${publicationRecords.length} release${publicationRecords.length === 1 ? "" : "s"}`
+);
 
 function validatePublicationRecord(path, record) {
   const issues = [];
@@ -130,7 +134,7 @@ function checkPackages(add, publication, releaseRecord) {
     add("packages must be an array");
     return;
   }
-  const expectedNames = [...releaseRecord.publicPackages.map((item) => item.name)].sort();
+  const expectedNames = releaseRecord.publicPackages.map((item) => item.name).sort();
   const actualNames = publication.packages.map((item) => item?.name).sort();
   if (JSON.stringify(actualNames) !== JSON.stringify(expectedNames)) {
     add("packages must exactly match releaseRecord.publicPackages");

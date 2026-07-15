@@ -1,7 +1,4 @@
-import type {
-  Capability,
-  NormalizedToolCall
-} from "@0disoft/mcp-security-proxy-contracts";
+import type { Capability, NormalizedToolCall } from "@0disoft/mcp-security-proxy-contracts";
 import type { JsonRpcNotification, JsonRpcRequest } from "./jsonrpc.js";
 
 export interface ToolCallMetadata {
@@ -9,7 +6,10 @@ export interface ToolCallMetadata {
   readonly capabilities: readonly Capability[];
 }
 
-export function normalizeToolCallEnvelope(envelope: JsonRpcRequest | JsonRpcNotification, visibleTool: ToolCallMetadata): NormalizedToolCall {
+export function normalizeToolCallEnvelope(
+  envelope: JsonRpcRequest | JsonRpcNotification,
+  visibleTool: ToolCallMetadata
+): NormalizedToolCall {
   const params = isRecord(envelope.params) ? envelope.params : {};
   return {
     method: "tools/call",
@@ -69,7 +69,10 @@ function collectArgumentFacts(value: unknown, facts: NormalizedToolCall["argumen
 }
 
 function secretLabelForKey(key: string): string | undefined {
-  const normalized = key.replace(/([a-z0-9])([A-Z])/gu, "$1 $2").toLowerCase().replace(/[_-]+/gu, " ");
+  const normalized = key
+    .replace(/([a-z0-9])([A-Z])/gu, "$1 $2")
+    .toLowerCase()
+    .replace(/[_-]+/gu, " ");
   if (/\bapi\s*key\b|\bapikey\b/u.test(normalized)) {
     return "api-key";
   }

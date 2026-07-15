@@ -49,9 +49,21 @@ assertArrayEqual(
   MVP_ALLOWED_METHODS
 );
 assertArrayEqual("policy.rule.action", policySchema.$defs?.rule?.properties?.action?.enum, POLICY_ACTIONS);
-assertArrayEqual("policy.rule.capabilities", policySchema.$defs?.rule?.properties?.capabilities?.items?.enum, CAPABILITIES);
-assertArrayEqual("policy.audit.destination", policySchema.$defs?.auditPolicy?.properties?.destination?.enum, AUDIT_DESTINATIONS);
-assertArrayEqual("policy.audit.onFailure", policySchema.$defs?.auditPolicy?.properties?.onFailure?.enum, AUDIT_FAILURE_ACTIONS);
+assertArrayEqual(
+  "policy.rule.capabilities",
+  policySchema.$defs?.rule?.properties?.capabilities?.items?.enum,
+  CAPABILITIES
+);
+assertArrayEqual(
+  "policy.audit.destination",
+  policySchema.$defs?.auditPolicy?.properties?.destination?.enum,
+  AUDIT_DESTINATIONS
+);
+assertArrayEqual(
+  "policy.audit.onFailure",
+  policySchema.$defs?.auditPolicy?.properties?.onFailure?.enum,
+  AUDIT_FAILURE_ACTIONS
+);
 assertArrayEqual(
   "policy.redaction.kind",
   policySchema.$defs?.redactionDetector?.properties?.kind?.enum,
@@ -60,7 +72,10 @@ assertArrayEqual(
 
 assertEqual("decision.schemaVersion", decisionSchema.properties?.schemaVersion?.const, DECISION_SCHEMA_VERSION);
 assertArrayEqual("decision.action", decisionSchema.properties?.action?.enum, POLICY_ACTIONS);
-assertArrayEqual("decision.evidence.required", decisionSchema.properties?.evidence?.items?.required, ["code", "reason"]);
+assertArrayEqual("decision.evidence.required", decisionSchema.properties?.evidence?.items?.required, [
+  "code",
+  "reason"
+]);
 assertArrayEqual(
   "decision.evidence.code",
   decisionSchema.properties?.evidence?.items?.properties?.code?.enum,
@@ -74,8 +89,16 @@ assertEqual(
   auditSchema.$defs?.correlation?.properties?.correlationVersion?.const,
   AUDIT_CORRELATION_VERSION
 );
-assertArrayEqual("audit.correlation.direction", auditSchema.$defs?.correlation?.properties?.direction?.enum, AUDIT_DIRECTIONS);
-assertArrayEqual("audit.correlation.jsonRpcIdType", auditSchema.$defs?.correlation?.properties?.jsonRpcIdType?.enum, JSON_RPC_ID_TYPES);
+assertArrayEqual(
+  "audit.correlation.direction",
+  auditSchema.$defs?.correlation?.properties?.direction?.enum,
+  AUDIT_DIRECTIONS
+);
+assertArrayEqual(
+  "audit.correlation.jsonRpcIdType",
+  auditSchema.$defs?.correlation?.properties?.jsonRpcIdType?.enum,
+  JSON_RPC_ID_TYPES
+);
 
 assertEqual("ops.schemaVersion", opsSchema.$defs?.base?.properties?.schemaVersion?.const, OPS_EVENT_SCHEMA_VERSION);
 assertArrayEqual("ops.kind", opsSchema.$defs?.base?.properties?.kind?.enum, OPS_EVENT_KINDS);

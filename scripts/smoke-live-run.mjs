@@ -208,7 +208,9 @@ try {
     frameGuardChild.once("exit", (code) => resolve(code ?? 1));
   });
   if (frameGuardExitCode !== 0) {
-    throw new Error(`expected frame guard live run smoke to exit 0, got ${frameGuardExitCode}: ${Buffer.concat(frameGuardStderrChunks).toString("utf8")}`);
+    throw new Error(
+      `expected frame guard live run smoke to exit 0, got ${frameGuardExitCode}: ${Buffer.concat(frameGuardStderrChunks).toString("utf8")}`
+    );
   }
   const frameGuardOutputLines = Buffer.concat(frameGuardStdoutChunks)
     .toString("utf8")
@@ -269,7 +271,9 @@ try {
     depthGuardChild.once("exit", (code) => resolve(code ?? 1));
   });
   if (depthGuardExitCode !== 0) {
-    throw new Error(`expected depth guard live run smoke to exit 0, got ${depthGuardExitCode}: ${Buffer.concat(depthGuardStderrChunks).toString("utf8")}`);
+    throw new Error(
+      `expected depth guard live run smoke to exit 0, got ${depthGuardExitCode}: ${Buffer.concat(depthGuardStderrChunks).toString("utf8")}`
+    );
   }
   const depthGuardOutputText = Buffer.concat(depthGuardStdoutChunks).toString("utf8");
   if (depthGuardOutputText.length > 0) {
@@ -309,7 +313,9 @@ try {
   const malformedDiscoveryStderrChunks = [];
   malformedDiscoveryChild.stdout.on("data", (chunk) => malformedDiscoveryStdoutChunks.push(chunk));
   malformedDiscoveryChild.stderr.on("data", (chunk) => malformedDiscoveryStderrChunks.push(chunk));
-  malformedDiscoveryChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "malformed-tools", method: "tools/list" })}\n`);
+  malformedDiscoveryChild.stdin.write(
+    `${JSON.stringify({ jsonrpc: "2.0", id: "malformed-tools", method: "tools/list" })}\n`
+  );
   malformedDiscoveryChild.stdin.end();
   const malformedDiscoveryExitCode = await new Promise((resolve, reject) => {
     malformedDiscoveryChild.once("error", reject);
@@ -326,8 +332,14 @@ try {
     .filter((line) => line.length > 0)
     .map((line) => JSON.parse(line));
   const malformedDiscoveryToolsResult = malformedDiscoveryOutputLines.find((line) => line.id === "malformed-tools");
-  if (!malformedDiscoveryToolsResult || !Array.isArray(malformedDiscoveryToolsResult.result?.tools) || malformedDiscoveryToolsResult.result.tools.length !== 0) {
-    throw new Error(`unexpected malformed discovery sanitized response: ${JSON.stringify(malformedDiscoveryToolsResult)}`);
+  if (
+    !malformedDiscoveryToolsResult ||
+    !Array.isArray(malformedDiscoveryToolsResult.result?.tools) ||
+    malformedDiscoveryToolsResult.result.tools.length !== 0
+  ) {
+    throw new Error(
+      `unexpected malformed discovery sanitized response: ${JSON.stringify(malformedDiscoveryToolsResult)}`
+    );
   }
   const malformedDiscoveryOutputText = malformedDiscoveryOutputLines.map((line) => JSON.stringify(line)).join("\n");
   if (
@@ -393,7 +405,13 @@ try {
   const noisyDiscoveryToolsResult = noisyDiscoveryOutputLines.find((line) => line.id === "noisy-tools");
   const noisyTools = noisyDiscoveryToolsResult?.result?.tools;
   const noisyTool = Array.isArray(noisyTools) ? noisyTools[0] : undefined;
-  if (!noisyTool || noisyTools.length !== 1 || noisyTool.name !== "read_file" || noisyTool.debug !== undefined || noisyTool._meta !== undefined) {
+  if (
+    !noisyTool ||
+    noisyTools.length !== 1 ||
+    noisyTool.name !== "read_file" ||
+    noisyTool.debug !== undefined ||
+    noisyTool._meta !== undefined
+  ) {
     throw new Error(`unexpected noisy discovery sanitized response: ${JSON.stringify(noisyDiscoveryToolsResult)}`);
   }
   if ("debug" in noisyDiscoveryToolsResult.result) {
@@ -461,7 +479,9 @@ try {
     duplicateDiscoveryOutputLines.push(line);
     return line.id === "duplicate-tools";
   });
-  duplicateDiscoveryChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "duplicate-tools", method: "tools/list" })}\n`);
+  duplicateDiscoveryChild.stdin.write(
+    `${JSON.stringify({ jsonrpc: "2.0", id: "duplicate-tools", method: "tools/list" })}\n`
+  );
   await waitForDuplicateTools;
   duplicateDiscoveryChild.stdin.write(
     `${JSON.stringify({
@@ -499,10 +519,14 @@ try {
   const duplicateDiscoveryCallResult = duplicateDiscoveryOutputLines.find((line) => line.id === "duplicate-call");
   const duplicateTools = duplicateDiscoveryToolsResult?.result?.tools;
   if (!Array.isArray(duplicateTools) || duplicateTools.length !== 0) {
-    throw new Error(`unexpected duplicate discovery sanitized response: ${JSON.stringify(duplicateDiscoveryToolsResult)}`);
+    throw new Error(
+      `unexpected duplicate discovery sanitized response: ${JSON.stringify(duplicateDiscoveryToolsResult)}`
+    );
   }
   if (duplicateDiscoveryCallResult?.error?.data?.decision?.evidence?.[0]?.code !== "tool.not_visible") {
-    throw new Error(`expected duplicate discovery to hide ambiguous tool callability: ${JSON.stringify(duplicateDiscoveryCallResult)}`);
+    throw new Error(
+      `expected duplicate discovery to hide ambiguous tool callability: ${JSON.stringify(duplicateDiscoveryCallResult)}`
+    );
   }
   const duplicateDiscoveryOutputText = duplicateDiscoveryOutputLines.map((line) => JSON.stringify(line)).join("\n");
   for (const marker of [
@@ -516,7 +540,10 @@ try {
     }
   }
   const duplicateDiscoveryAudit = readFileSync(duplicateDiscoveryAuditLog, "utf8");
-  if (duplicateDiscoveryAudit.includes("RAW_DUPLICATE_DESCRIPTOR") || duplicateDiscoveryAudit.includes("RAW_STDERR_MARKER")) {
+  if (
+    duplicateDiscoveryAudit.includes("RAW_DUPLICATE_DESCRIPTOR") ||
+    duplicateDiscoveryAudit.includes("RAW_STDERR_MARKER")
+  ) {
     throw new Error("raw duplicate discovery or stderr marker leaked into audit log");
   }
   if (!duplicateDiscoveryAudit.includes('"code":"discovery.filtered"')) {
@@ -554,13 +581,17 @@ try {
     replacedDiscoveryOutputLines.push(line);
     return line.id === "replace-tools-initial";
   });
-  replacedDiscoveryChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "replace-tools-initial", method: "tools/list" })}\n`);
+  replacedDiscoveryChild.stdin.write(
+    `${JSON.stringify({ jsonrpc: "2.0", id: "replace-tools-initial", method: "tools/list" })}\n`
+  );
   await waitForInitialReplacementTools;
   const waitForRefreshedReplacementTools = waitForJsonLine(replacedDiscoveryChild.stdout, (line) => {
     replacedDiscoveryOutputLines.push(line);
     return line.id === "replace-tools-refreshed";
   });
-  replacedDiscoveryChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "replace-tools-refreshed", method: "tools/list" })}\n`);
+  replacedDiscoveryChild.stdin.write(
+    `${JSON.stringify({ jsonrpc: "2.0", id: "replace-tools-refreshed", method: "tools/list" })}\n`
+  );
   await waitForRefreshedReplacementTools;
   replacedDiscoveryChild.stdin.write(
     `${JSON.stringify({
@@ -594,35 +625,55 @@ try {
       replacedDiscoveryOutputLines.push(line);
     }
   }
-  const initialReplacementToolsResult = replacedDiscoveryOutputLines.find((line) => line.id === "replace-tools-initial");
-  const refreshedReplacementToolsResult = replacedDiscoveryOutputLines.find((line) => line.id === "replace-tools-refreshed");
-  const replacedDiscoveryCallResult = replacedDiscoveryOutputLines.find((line) => line.id === "replace-call-after-hidden");
+  const initialReplacementToolsResult = replacedDiscoveryOutputLines.find(
+    (line) => line.id === "replace-tools-initial"
+  );
+  const refreshedReplacementToolsResult = replacedDiscoveryOutputLines.find(
+    (line) => line.id === "replace-tools-refreshed"
+  );
+  const replacedDiscoveryCallResult = replacedDiscoveryOutputLines.find(
+    (line) => line.id === "replace-call-after-hidden"
+  );
   if (
     !initialReplacementToolsResult ||
     initialReplacementToolsResult.result.tools.length !== 1 ||
     initialReplacementToolsResult.result.tools[0].name !== "read_file"
   ) {
-    throw new Error(`unexpected initial replacement discovery response: ${JSON.stringify(initialReplacementToolsResult)}`);
+    throw new Error(
+      `unexpected initial replacement discovery response: ${JSON.stringify(initialReplacementToolsResult)}`
+    );
   }
   if (!refreshedReplacementToolsResult || refreshedReplacementToolsResult.result.tools.length !== 0) {
-    throw new Error(`unexpected refreshed replacement discovery response: ${JSON.stringify(refreshedReplacementToolsResult)}`);
+    throw new Error(
+      `unexpected refreshed replacement discovery response: ${JSON.stringify(refreshedReplacementToolsResult)}`
+    );
   }
   if (
     !replacedDiscoveryCallResult?.error?.data?.decision ||
     replacedDiscoveryCallResult.error.data.decision.action !== "deny" ||
-    !JSON.stringify(replacedDiscoveryCallResult.error.data.decision.evidence).includes("tool was not visible in filtered discovery")
+    !JSON.stringify(replacedDiscoveryCallResult.error.data.decision.evidence).includes(
+      "tool was not visible in filtered discovery"
+    )
   ) {
-    throw new Error(`expected replaced discovery to deny stale visible tool call: ${JSON.stringify(replacedDiscoveryCallResult)}`);
+    throw new Error(
+      `expected replaced discovery to deny stale visible tool call: ${JSON.stringify(replacedDiscoveryCallResult)}`
+    );
   }
   const replacedDiscoveryOutputText = replacedDiscoveryOutputLines.map((line) => JSON.stringify(line)).join("\n");
   if (replacedDiscoveryOutputText.includes("RAW_REPLACED_DISCOVERY_HIDDEN_TOOL_MARKER")) {
     throw new Error("raw replaced discovery marker leaked into client output");
   }
   const replacedDiscoveryAudit = readFileSync(replacedDiscoveryAuditLog, "utf8");
-  if (replacedDiscoveryAudit.includes("RAW_REPLACED_DISCOVERY_HIDDEN_TOOL_MARKER") || replacedDiscoveryAudit.includes("RAW_STDERR_MARKER")) {
+  if (
+    replacedDiscoveryAudit.includes("RAW_REPLACED_DISCOVERY_HIDDEN_TOOL_MARKER") ||
+    replacedDiscoveryAudit.includes("RAW_STDERR_MARKER")
+  ) {
     throw new Error("raw replaced discovery or stderr marker leaked into audit log");
   }
-  if (!replacedDiscoveryAudit.includes('"code":"discovery.filtered"') || !replacedDiscoveryAudit.includes('"code":"tool.not_visible"')) {
+  if (
+    !replacedDiscoveryAudit.includes('"code":"discovery.filtered"') ||
+    !replacedDiscoveryAudit.includes('"code":"tool.not_visible"')
+  ) {
     throw new Error(`expected replaced discovery filter and deny audit events, got ${replacedDiscoveryAudit}`);
   }
 
@@ -652,7 +703,9 @@ try {
   const unmatchedResponseStderrChunks = [];
   unmatchedResponseChild.stdout.on("data", (chunk) => unmatchedResponseStdoutChunks.push(chunk));
   unmatchedResponseChild.stderr.on("data", (chunk) => unmatchedResponseStderrChunks.push(chunk));
-  unmatchedResponseChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "unmatched-response-tools", method: "tools/list" })}\n`);
+  unmatchedResponseChild.stdin.write(
+    `${JSON.stringify({ jsonrpc: "2.0", id: "unmatched-response-tools", method: "tools/list" })}\n`
+  );
   unmatchedResponseChild.stdin.end();
   const unmatchedResponseExitCode = await new Promise((resolve, reject) => {
     unmatchedResponseChild.once("error", reject);
@@ -668,24 +721,35 @@ try {
     .split("\n")
     .filter((line) => line.length > 0)
     .map((line) => JSON.parse(line));
-  const unmatchedResponseToolsResult = unmatchedResponseOutputLines.find((line) => line.id === "unmatched-response-tools");
-  const forgedUnmatchedResponse = unmatchedResponseOutputLines.find((line) => line.id === "live-unmatched-upstream-response");
+  const unmatchedResponseToolsResult = unmatchedResponseOutputLines.find(
+    (line) => line.id === "unmatched-response-tools"
+  );
+  const forgedUnmatchedResponse = unmatchedResponseOutputLines.find(
+    (line) => line.id === "live-unmatched-upstream-response"
+  );
   if (
     !unmatchedResponseToolsResult ||
     unmatchedResponseToolsResult.result.tools.length !== 1 ||
     unmatchedResponseToolsResult.result.tools[0].name !== "read_file"
   ) {
-    throw new Error(`unexpected unmatched-response filtered tools response: ${JSON.stringify(unmatchedResponseToolsResult)}`);
+    throw new Error(
+      `unexpected unmatched-response filtered tools response: ${JSON.stringify(unmatchedResponseToolsResult)}`
+    );
   }
   if (forgedUnmatchedResponse) {
-    throw new Error(`forged unmatched upstream response leaked to client stdout: ${JSON.stringify(forgedUnmatchedResponse)}`);
+    throw new Error(
+      `forged unmatched upstream response leaked to client stdout: ${JSON.stringify(forgedUnmatchedResponse)}`
+    );
   }
   const unmatchedResponseOutputText = unmatchedResponseOutputLines.map((line) => JSON.stringify(line)).join("\n");
   if (unmatchedResponseOutputText.includes("RAW_UNMATCHED_RESPONSE_MARKER")) {
     throw new Error("raw unmatched upstream response marker leaked into client output");
   }
   const unmatchedResponseAudit = readFileSync(unmatchedResponseAuditLog, "utf8");
-  if (unmatchedResponseAudit.includes("RAW_UNMATCHED_RESPONSE_MARKER") || unmatchedResponseAudit.includes("RAW_STDERR_MARKER")) {
+  if (
+    unmatchedResponseAudit.includes("RAW_UNMATCHED_RESPONSE_MARKER") ||
+    unmatchedResponseAudit.includes("RAW_STDERR_MARKER")
+  ) {
     throw new Error("raw unmatched upstream response or stderr marker leaked into audit log");
   }
   if (!unmatchedResponseAudit.includes('"code":"jsonrpc.unmatched_response"')) {
@@ -723,7 +787,9 @@ try {
     invalidResponseOutputLines.push(line);
     return line.id === "invalid-response-tools";
   });
-  invalidResponseChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "invalid-response-tools", method: "tools/list" })}\n`);
+  invalidResponseChild.stdin.write(
+    `${JSON.stringify({ jsonrpc: "2.0", id: "invalid-response-tools", method: "tools/list" })}\n`
+  );
   await waitForInvalidResponseTools;
   invalidResponseChild.stdin.write(
     `${JSON.stringify({
@@ -764,13 +830,18 @@ try {
     invalidResponseToolsResult.result.tools.length !== 1 ||
     invalidResponseToolsResult.result.tools[0].name !== "read_file"
   ) {
-    throw new Error(`unexpected invalid-response filtered tools response: ${JSON.stringify(invalidResponseToolsResult)}`);
+    throw new Error(
+      `unexpected invalid-response filtered tools response: ${JSON.stringify(invalidResponseToolsResult)}`
+    );
   }
   if (invalidResponseCallResult) {
     throw new Error(`invalid upstream response leaked to client stdout: ${JSON.stringify(invalidResponseCallResult)}`);
   }
   const invalidResponseOutputText = invalidResponseOutputLines.map((line) => JSON.stringify(line)).join("\n");
-  if (invalidResponseOutputText.includes("RAW_INVALID_RESPONSE_RESULT_MARKER") || invalidResponseOutputText.includes("RAW_INVALID_RESPONSE_ERROR_MARKER")) {
+  if (
+    invalidResponseOutputText.includes("RAW_INVALID_RESPONSE_RESULT_MARKER") ||
+    invalidResponseOutputText.includes("RAW_INVALID_RESPONSE_ERROR_MARKER")
+  ) {
     throw new Error("raw invalid upstream response marker leaked into client output");
   }
   const invalidResponseAudit = readFileSync(invalidResponseAuditLog, "utf8");
@@ -873,7 +944,9 @@ try {
   });
 
   if (exitCode !== 0) {
-    throw new Error(`expected live run smoke to exit 0, got ${exitCode}: ${Buffer.concat(stderrChunks).toString("utf8")}`);
+    throw new Error(
+      `expected live run smoke to exit 0, got ${exitCode}: ${Buffer.concat(stderrChunks).toString("utf8")}`
+    );
   }
   const stderrText = Buffer.concat(stderrChunks).toString("utf8");
   if (stderrText.includes("RAW_REQUEST_EXTRA_FIELD_MARKER")) {
@@ -898,7 +971,9 @@ try {
     throw new Error(`unexpected initialize response: ${JSON.stringify(initializeResult)}`);
   }
   if (!preInitializedToolsResult || preInitializedToolsResult.result?.tools?.length !== 0) {
-    throw new Error(`expected tools/list before initialized notification to be empty: ${JSON.stringify(preInitializedToolsResult)}`);
+    throw new Error(
+      `expected tools/list before initialized notification to be empty: ${JSON.stringify(preInitializedToolsResult)}`
+    );
   }
   if (!toolsResult || toolsResult.result.tools.length !== 1 || toolsResult.result.tools[0].name !== "read_file") {
     throw new Error(`unexpected filtered tools response: ${JSON.stringify(toolsResult)}`);
@@ -970,7 +1045,9 @@ try {
     upstreamErrorOutputLines.push(line);
     return line.id === "upstream-error-tools";
   });
-  upstreamErrorChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "upstream-error-tools", method: "tools/list" })}\n`);
+  upstreamErrorChild.stdin.write(
+    `${JSON.stringify({ jsonrpc: "2.0", id: "upstream-error-tools", method: "tools/list" })}\n`
+  );
   await waitForUpstreamErrorTools;
   upstreamErrorChild.stdin.write(
     `${JSON.stringify({
@@ -1006,7 +1083,11 @@ try {
   }
   const upstreamErrorToolsResult = upstreamErrorOutputLines.find((line) => line.id === "upstream-error-tools");
   const upstreamErrorCallResult = upstreamErrorOutputLines.find((line) => line.id === "upstream-error-call");
-  if (!upstreamErrorToolsResult || upstreamErrorToolsResult.result.tools.length !== 1 || upstreamErrorToolsResult.result.tools[0].name !== "read_file") {
+  if (
+    !upstreamErrorToolsResult ||
+    upstreamErrorToolsResult.result.tools.length !== 1 ||
+    upstreamErrorToolsResult.result.tools[0].name !== "read_file"
+  ) {
     throw new Error(`unexpected upstream error filtered tools response: ${JSON.stringify(upstreamErrorToolsResult)}`);
   }
   if (
@@ -1037,7 +1118,10 @@ try {
   if (!upstreamErrorAudit.includes('"code":"jsonrpc.upstream_error_redacted"')) {
     throw new Error(`expected upstream error redaction audit event, got ${upstreamErrorAudit}`);
   }
-  if (!upstreamErrorAudit.includes('"jsonrpc_error_data":1') || !upstreamErrorAudit.includes('"jsonrpc_error_message":1')) {
+  if (
+    !upstreamErrorAudit.includes('"jsonrpc_error_data":1') ||
+    !upstreamErrorAudit.includes('"jsonrpc_error_message":1')
+  ) {
     throw new Error(`expected upstream error redaction counts, got ${upstreamErrorAudit}`);
   }
 
@@ -1081,7 +1165,9 @@ try {
     pingChild.once("exit", (code) => resolve(code ?? 1));
   });
   if (pingExitCode !== 0) {
-    throw new Error(`expected server-origin ping live run smoke to exit 0, got ${pingExitCode}: ${Buffer.concat(pingStderrChunks).toString("utf8")}`);
+    throw new Error(
+      `expected server-origin ping live run smoke to exit 0, got ${pingExitCode}: ${Buffer.concat(pingStderrChunks).toString("utf8")}`
+    );
   }
   for (const line of Buffer.concat(pingStdoutChunks)
     .toString("utf8")
@@ -1094,7 +1180,11 @@ try {
   }
   const pingToolsResult = pingOutputLines.find((line) => line.id === "ping-tools");
   const serverPingResult = pingOutputLines.find((line) => line.id === "live-server-origin-ping");
-  if (!pingToolsResult || pingToolsResult.result.tools.length !== 1 || pingToolsResult.result.tools[0].name !== "read_file") {
+  if (
+    !pingToolsResult ||
+    pingToolsResult.result.tools.length !== 1 ||
+    pingToolsResult.result.tools[0].name !== "read_file"
+  ) {
     throw new Error(`unexpected server-origin ping filtered tools response: ${JSON.stringify(pingToolsResult)}`);
   }
   if (serverPingResult?.method !== "ping" || "params" in serverPingResult) {
@@ -1139,7 +1229,9 @@ try {
     invalidPingResponseOutputLines.push(line);
     return line.id === "live-server-origin-ping";
   });
-  invalidPingResponseChild.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: "invalid-ping-response-tools", method: "tools/list" })}\n`);
+  invalidPingResponseChild.stdin.write(
+    `${JSON.stringify({ jsonrpc: "2.0", id: "invalid-ping-response-tools", method: "tools/list" })}\n`
+  );
   await waitForInvalidPingResponseRequest;
   invalidPingResponseChild.stdin.write(
     `${JSON.stringify({
@@ -1171,27 +1263,41 @@ try {
       invalidPingResponseOutputLines.push(line);
     }
   }
-  const invalidPingResponseToolsResult = invalidPingResponseOutputLines.find((line) => line.id === "invalid-ping-response-tools");
-  const invalidPingResponseRequest = invalidPingResponseOutputLines.find((line) => line.id === "live-server-origin-ping");
+  const invalidPingResponseToolsResult = invalidPingResponseOutputLines.find(
+    (line) => line.id === "invalid-ping-response-tools"
+  );
+  const invalidPingResponseRequest = invalidPingResponseOutputLines.find(
+    (line) => line.id === "live-server-origin-ping"
+  );
   if (
     !invalidPingResponseToolsResult ||
     invalidPingResponseToolsResult.result.tools.length !== 1 ||
     invalidPingResponseToolsResult.result.tools[0].name !== "read_file"
   ) {
-    throw new Error(`unexpected invalid-ping-response filtered tools response: ${JSON.stringify(invalidPingResponseToolsResult)}`);
+    throw new Error(
+      `unexpected invalid-ping-response filtered tools response: ${JSON.stringify(invalidPingResponseToolsResult)}`
+    );
   }
   if (invalidPingResponseRequest?.method !== "ping" || "params" in invalidPingResponseRequest) {
-    throw new Error(`unexpected invalid-ping-response forwarded server-origin ping request: ${JSON.stringify(invalidPingResponseRequest)}`);
+    throw new Error(
+      `unexpected invalid-ping-response forwarded server-origin ping request: ${JSON.stringify(invalidPingResponseRequest)}`
+    );
   }
   const invalidPingResponseOutputText = invalidPingResponseOutputLines.map((line) => JSON.stringify(line)).join("\n");
   if (invalidPingResponseOutputText.includes("RAW_CLIENT_PING_RESPONSE_MARKER")) {
     throw new Error("raw invalid client ping response marker leaked into client output");
   }
   const invalidPingResponseAudit = readFileSync(invalidPingResponseAuditLog, "utf8");
-  if (invalidPingResponseAudit.includes("RAW_CLIENT_PING_RESPONSE_MARKER") || invalidPingResponseAudit.includes("RAW_BAD_PING_RESPONSE_FORWARD_MARKER")) {
+  if (
+    invalidPingResponseAudit.includes("RAW_CLIENT_PING_RESPONSE_MARKER") ||
+    invalidPingResponseAudit.includes("RAW_BAD_PING_RESPONSE_FORWARD_MARKER")
+  ) {
     throw new Error("raw invalid client ping response or upstream forward marker leaked into audit log");
   }
-  if (!invalidPingResponseAudit.includes('"code":"jsonrpc.invalid"') || !invalidPingResponseAudit.includes('"method":"ping"')) {
+  if (
+    !invalidPingResponseAudit.includes('"code":"jsonrpc.invalid"') ||
+    !invalidPingResponseAudit.includes('"method":"ping"')
+  ) {
     throw new Error(`expected invalid client ping response audit event, got ${invalidPingResponseAudit}`);
   }
   if (!invalidPingResponseAudit.includes('"stderr_line":1') || invalidPingResponseAudit.includes('"stderr_line":2')) {
@@ -1241,23 +1347,32 @@ try {
     .filter((line) => line.length > 0)
     .map((line) => JSON.parse(line));
   const deniedPingToolsResult = deniedPingOutputLines.find((line) => line.id === "denied-ping-tools");
-  const deniedServerPingResult = deniedPingOutputLines.find((line) => line.id === "live-server-origin-ping-with-params");
+  const deniedServerPingResult = deniedPingOutputLines.find(
+    (line) => line.id === "live-server-origin-ping-with-params"
+  );
   if (
     !deniedPingToolsResult ||
     deniedPingToolsResult.result.tools.length !== 1 ||
     deniedPingToolsResult.result.tools[0].name !== "read_file"
   ) {
-    throw new Error(`unexpected denied server-origin ping filtered tools response: ${JSON.stringify(deniedPingToolsResult)}`);
+    throw new Error(
+      `unexpected denied server-origin ping filtered tools response: ${JSON.stringify(deniedPingToolsResult)}`
+    );
   }
   if (deniedServerPingResult) {
-    throw new Error(`server-origin ping with params leaked to client stdout: ${JSON.stringify(deniedServerPingResult)}`);
+    throw new Error(
+      `server-origin ping with params leaked to client stdout: ${JSON.stringify(deniedServerPingResult)}`
+    );
   }
   const deniedPingOutputText = deniedPingOutputLines.map((line) => JSON.stringify(line)).join("\n");
   if (deniedPingOutputText.includes("RAW_SERVER_PING_PARAMS_MARKER")) {
     throw new Error("raw server-origin ping params leaked into client output");
   }
   const deniedPingAudit = readFileSync(deniedPingAuditLog, "utf8");
-  if (deniedPingAudit.includes("RAW_SERVER_PING_PARAMS_MARKER") || deniedPingAudit.includes("RAW_PING_DENY_ACK_MARKER")) {
+  if (
+    deniedPingAudit.includes("RAW_SERVER_PING_PARAMS_MARKER") ||
+    deniedPingAudit.includes("RAW_PING_DENY_ACK_MARKER")
+  ) {
     throw new Error("raw denied server-origin ping fixture content leaked into audit log");
   }
   if (!deniedPingAudit.includes('"code":"method.server_origin_ping_params"')) {
@@ -1366,7 +1481,9 @@ try {
     secretChild.once("exit", (code) => resolve(code ?? 1));
   });
   if (secretExitCode !== 0) {
-    throw new Error(`expected secret-label live run smoke to exit 0, got ${secretExitCode}: ${Buffer.concat(secretStderrChunks).toString("utf8")}`);
+    throw new Error(
+      `expected secret-label live run smoke to exit 0, got ${secretExitCode}: ${Buffer.concat(secretStderrChunks).toString("utf8")}`
+    );
   }
   for (const line of Buffer.concat(secretStdoutChunks)
     .toString("utf8")
@@ -1380,7 +1497,11 @@ try {
   const secretToolsResult = secretOutputLines.find((line) => line.id === "secret-tools");
   const secretCallResult = secretOutputLines.find((line) => line.id === "secret-call");
   const secretDeniedResult = secretOutputLines.find((line) => line.id === "secret-denied");
-  if (!secretToolsResult || secretToolsResult.result.tools.length !== 1 || secretToolsResult.result.tools[0].name !== "read_secret") {
+  if (
+    !secretToolsResult ||
+    secretToolsResult.result.tools.length !== 1 ||
+    secretToolsResult.result.tools[0].name !== "read_secret"
+  ) {
     throw new Error(`unexpected secret filtered tools response: ${JSON.stringify(secretToolsResult)}`);
   }
   if (secretCallResult?.error || !secretCallResult?.result) {
@@ -1406,7 +1527,6 @@ try {
   if (!secretAudit.includes('"code":"policy.default_deny"')) {
     throw new Error(`expected secret deny audit event, got ${secretAudit}`);
   }
-
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }

@@ -1,7 +1,4 @@
-import type {
-  RedactionPolicy,
-  RedactionSummary
-} from "@0disoft/mcp-security-proxy-contracts";
+import type { RedactionPolicy, RedactionSummary } from "@0disoft/mcp-security-proxy-contracts";
 
 export interface RedactionResult {
   readonly value: string;
@@ -23,12 +20,8 @@ const pathLikePatterns = [
   /(?:^|\s)(?:\.{1,2}|~|workspace|home|users?|tmp|temp|private|secrets?)[\\/]\S+/gi,
   /(?:^|\s)\S+[\\/]\S*\.[A-Za-z0-9]{1,12}(?=\s|$)/g
 ] as const;
-const environmentValuePatterns = [
-  /\b[A-Z_][A-Z0-9_]{1,}\s*=\s*(?:"[^"]*"|'[^']*'|[^\s;]+)/g
-] as const;
-const promptLikePatterns = [
-  /\bprompt\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\r\n;]+)/gi
-] as const;
+const environmentValuePatterns = [/\b[A-Z_][A-Z0-9_]{1,}\s*=\s*(?:"[^"]*"|'[^']*'|[^\s;]+)/g] as const;
+const promptLikePatterns = [/\bprompt\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\r\n;]+)/gi] as const;
 
 type RedactionKind = RedactionPolicy["detectors"][number]["kind"];
 
@@ -58,7 +51,9 @@ export function redactText(value: string, options: RedactionPolicy | string = "[
   };
 }
 
-function resolveDetectors(options: RedactionPolicy | string): readonly { readonly kind: RedactionKind; readonly replacement: string }[] {
+function resolveDetectors(
+  options: RedactionPolicy | string
+): readonly { readonly kind: RedactionKind; readonly replacement: string }[] {
   if (typeof options === "string") {
     return [
       { kind: "secret_like", replacement: options },

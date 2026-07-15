@@ -47,10 +47,18 @@ export function isJsonRpcRequest(value: unknown): value is JsonRpcRequest | Json
 }
 
 export function isJsonRpcResponse(value: unknown): value is JsonRpcResponse {
-  return isRecord(value) && value["jsonrpc"] === "2.0" && !("method" in value) && "id" in value && ("result" in value || "error" in value);
+  return (
+    isRecord(value) &&
+    value["jsonrpc"] === "2.0" &&
+    !("method" in value) &&
+    "id" in value &&
+    ("result" in value || "error" in value)
+  );
 }
 
-export function isJsonRpcErrorResponse(value: JsonRpcEnvelope): value is Extract<JsonRpcResponse, { readonly error: JsonRpcErrorObject }> {
+export function isJsonRpcErrorResponse(
+  value: JsonRpcEnvelope
+): value is Extract<JsonRpcResponse, { readonly error: JsonRpcErrorObject }> {
   return "error" in value;
 }
 

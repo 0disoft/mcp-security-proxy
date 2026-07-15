@@ -80,14 +80,18 @@ try {
   const sourceCommit = runGit(["rev-parse", "HEAD"]).trim();
   writeFileSync(
     join(outputRoot, "manifest.json"),
-    `${JSON.stringify({
-      schemaVersion: "msp.npm-bootstrap-artifacts.v1",
-      sourceCommit,
-      registry: plan.registry,
-      credentialIncluded: false,
-      bootstrapLatestDisplacementRequired: true,
-      artifacts
-    }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        schemaVersion: "msp.npm-bootstrap-artifacts.v1",
+        sourceCommit,
+        registry: plan.registry,
+        credentialIncluded: false,
+        bootstrapLatestDisplacementRequired: true,
+        artifacts
+      },
+      null,
+      2
+    )}\n`,
     "utf8"
   );
 
@@ -174,7 +178,13 @@ function createBootstrapManifest(sourceManifest) {
 
 function validateArchive(item, archivePath) {
   const entries = readTarEntries(archivePath);
-  for (const required of ["package/package.json", "package/README.md", "package/LICENSE", "package/dist/index.js", "package/dist/index.d.ts"]) {
+  for (const required of [
+    "package/package.json",
+    "package/README.md",
+    "package/LICENSE",
+    "package/dist/index.js",
+    "package/dist/index.d.ts"
+  ]) {
     if (!entries.has(required)) {
       throw new Error(`${item.name}: bootstrap tarball is missing ${required}`);
     }
@@ -192,7 +202,9 @@ function validateArchive(item, archivePath) {
     const allowed =
       ["package/package.json", "package/README.md", "package/LICENSE"].includes(path) ||
       path.startsWith("package/dist/") ||
-      (item.workspacePath === "packages/contracts" && path.startsWith("package/schemas/") && path.endsWith(".schema.json"));
+      (item.workspacePath === "packages/contracts" &&
+        path.startsWith("package/schemas/") &&
+        path.endsWith(".schema.json"));
     if (!allowed || /\/(?:src|node_modules)\//.test(path) || /\.(?:test|spec)\./.test(path)) {
       throw new Error(`${item.name}: bootstrap tarball contains unapproved path ${path}`);
     }
@@ -243,9 +255,8 @@ function copyRequiredPath(source, destination) {
 
 function runNpm(args) {
   const command = process.platform === "win32" ? process.execPath : "npm";
-  const prefix = process.platform === "win32"
-    ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
-    : [];
+  const prefix =
+    process.platform === "win32" ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")] : [];
   runCommand(command, [...prefix, ...args], root);
 }
 

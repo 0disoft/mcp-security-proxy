@@ -1,10 +1,4 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -20,9 +14,8 @@ import {
 const root = process.cwd();
 const packageManagerCommand = "pnpm";
 const npmCommand = process.platform === "win32" ? process.execPath : "npm";
-const npmCommandPrefix = process.platform === "win32"
-  ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")]
-  : [];
+const npmCommandPrefix =
+  process.platform === "win32" ? [join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")] : [];
 
 const tempRoot = mkdtempSync(join(tmpdir(), "mcp-security-proxy-consumer-"));
 
@@ -70,11 +63,7 @@ try {
 function packAndInspectPackage(spec) {
   const packDirectory = join(tempRoot, "packs", spec.directory);
   mkdirSync(packDirectory, { recursive: true });
-  runCommand(
-    packageManagerCommand,
-    ["--filter", spec.name, "pack", "--pack-destination", packDirectory],
-    root
-  );
+  runCommand(packageManagerCommand, ["--filter", spec.name, "pack", "--pack-destination", packDirectory], root);
 
   const archives = readdirSync(packDirectory).filter((name) => name.endsWith(".tgz"));
   if (archives.length !== 1) {
@@ -110,12 +99,18 @@ function packAndInspectPackage(spec) {
   const manifest = JSON.parse(manifestBytes.toString("utf8"));
   assertEqual(manifest.name === spec.name, `${spec.name}: packed manifest name drifted`);
   assertEqual(manifest.types === "./dist/index.d.ts", `${spec.name}: packed types entry must use dist/index.d.ts`);
-  assertEqual(manifest.exports?.["."]?.types === "./dist/index.d.ts", `${spec.name}: packed export types entry drifted`);
+  assertEqual(
+    manifest.exports?.["."]?.types === "./dist/index.d.ts",
+    `${spec.name}: packed export types entry drifted`
+  );
   assertEqual(manifest.exports?.["."]?.default === "./dist/index.js", `${spec.name}: packed runtime export drifted`);
   assertEqual(manifest.repository?.url === repositoryUrl, `${spec.name}: packed repository URL drifted`);
   assertEqual(manifest.publishConfig?.access === "public", `${spec.name}: packed access must be public`);
   assertEqual(manifest.publishConfig?.registry === registryUrl, `${spec.name}: packed registry must be npmjs.org`);
-  assertEqual(!JSON.stringify(manifest).includes("workspace:"), `${spec.name}: packed manifest retained a workspace protocol`);
+  assertEqual(
+    !JSON.stringify(manifest).includes("workspace:"),
+    `${spec.name}: packed manifest retained a workspace protocol`
+  );
   for (const [dependencyName, dependencyVersion] of Object.entries(manifest.dependencies ?? {})) {
     if (packages.some((item) => item.name === dependencyName)) {
       assertEqual(

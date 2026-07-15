@@ -172,7 +172,10 @@ function normalizeLicense(value) {
     return value.trim();
   }
   if (Array.isArray(value)) {
-    return value.map((item) => normalizeLicense(item)).filter(Boolean).join(" OR ");
+    return value
+      .map((item) => normalizeLicense(item))
+      .filter(Boolean)
+      .join(" OR ");
   }
   if (value && typeof value === "object" && typeof value.type === "string") {
     return value.type.trim();

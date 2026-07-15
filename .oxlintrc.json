@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "plugins": ["typescript", "unicorn", "oxc", "node", "vitest"],
+  "ignorePatterns": ["**/dist/**", "**/.tmp/**", "**/node_modules/**"],
+  "rules": {
+    "eslint/no-shadow": "off",
+    "eslint/no-underscore-dangle": "off",
+    "eslint/no-useless-concat": "off",
+    "unicorn/no-array-sort": "off",
+    "vitest/no-conditional-expect": "off",
+    "vitest/require-mock-type-parameters": "off",
+    "vitest/valid-expect": "off"
+  }
+}

@@ -35,6 +35,11 @@ Any exception must be documented before release.
 - `typescript`: dev dependency, Apache-2.0.
 - `@types/node`: dev dependency, MIT.
 - `vitest`: dev dependency, MIT.
+- `prettier@3.9.5`: pinned dev dependency, MIT, used only for deterministic local and CI formatting
+  checks. It is not included in published package runtime dependencies or artifacts.
+- `oxlint@1.74.0`: pinned dev dependency, MIT, used only for correctness and suspicious-rule linting
+  of TypeScript and JavaScript. Its platform binary is development-only and is not included in
+  published package runtime dependencies or artifacts.
 - MCP SDK packages: prohibited in workspace manifests. Exact SDK versions may exist only in ignored
   temporary external-compatibility environments and do not become product dependency approvals.
 - `@openai/codex@0.144.4`: Apache-2.0 external host-configuration fixture dependency installed only

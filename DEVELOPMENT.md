@@ -26,6 +26,8 @@ before release.
   frames, and excessive JSON depth.
 - Validation needed before merge: use VALIDATION.md names. Prefer focused scripts for the changed
   surface, then `pnpm check` before merging broad or release-adjacent changes.
+- Run `pnpm format` and `pnpm lint` before focused type or test checks. Formatting fixes are applied
+  intentionally with the pinned local Prettier version; CI never downloads an unpinned formatter.
 
 ## Working Notes
 

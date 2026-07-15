@@ -24,7 +24,11 @@ export function findBlockingArgumentIssue(facts: readonly ArgumentFact[]): Match
     }
 
     if (fact.kind === "network" && !normalizeNetworkValue(fact.value).ok) {
-      return { kind: "network", code: "policy.ambiguous_network", reason: "ambiguous network target denied by default" };
+      return {
+        kind: "network",
+        code: "policy.ambiguous_network",
+        reason: "ambiguous network target denied by default"
+      };
     }
   }
 
@@ -32,7 +36,9 @@ export function findBlockingArgumentIssue(facts: readonly ArgumentFact[]): Match
 }
 
 export function pathRuleMatches(rule: PathRule, facts: readonly ArgumentFact[], mode: "allow" | "deny"): boolean {
-  const pathFacts = facts.filter((fact): fact is Extract<ArgumentFact, { readonly kind: "path" }> => fact.kind === "path");
+  const pathFacts = facts.filter(
+    (fact): fact is Extract<ArgumentFact, { readonly kind: "path" }> => fact.kind === "path"
+  );
   if (pathFacts.length === 0) {
     return false;
   }
@@ -96,9 +102,12 @@ export function networkRuleMatches(
 }
 
 export function secretRuleMatches(rule: SecretRule, facts: readonly ArgumentFact[], mode: "allow" | "deny"): boolean {
-  const secretFacts = facts.filter((fact): fact is Extract<ArgumentFact, { readonly kind: "secret" }> => fact.kind === "secret");
+  const secretFacts = facts.filter(
+    (fact): fact is Extract<ArgumentFact, { readonly kind: "secret" }> => fact.kind === "secret"
+  );
   const labels = new Set(rule.labels.map((label) => normalizeSecretLabel(label)));
-  const factMatches = (fact: Extract<ArgumentFact, { readonly kind: "secret" }>): boolean => labels.has(normalizeSecretLabel(fact.label));
+  const factMatches = (fact: Extract<ArgumentFact, { readonly kind: "secret" }>): boolean =>
+    labels.has(normalizeSecretLabel(fact.label));
 
   return mode === "deny" ? secretFacts.some(factMatches) : secretFacts.every(factMatches);
 }
@@ -169,7 +178,9 @@ function basename(value: string): string {
 }
 
 function isDeniedShellCommand(fact: Extract<ArgumentFact, { readonly kind: "command" }>): boolean {
-  const executable = basename(fact.executable).toLowerCase().replace(/\.exe$/u, "");
+  const executable = basename(fact.executable)
+    .toLowerCase()
+    .replace(/\.exe$/u, "");
   const firstArg = fact.argv[0]?.toLowerCase();
   const secondArg = fact.argv[1]?.toLowerCase();
 

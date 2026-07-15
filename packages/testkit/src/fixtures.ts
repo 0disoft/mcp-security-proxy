@@ -1,7 +1,4 @@
-import type {
-  NormalizedToolCall,
-  NormalizedToolDescriptor
-} from "@0disoft/mcp-security-proxy-contracts";
+import type { NormalizedToolCall, NormalizedToolDescriptor } from "@0disoft/mcp-security-proxy-contracts";
 
 export function createFileReadToolDescriptor(): NormalizedToolDescriptor {
   return {

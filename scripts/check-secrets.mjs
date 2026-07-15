@@ -15,9 +15,7 @@ const detectors = [
   { name: "api-key-assignment", pattern: /\bapi[_-]?key\s*[:=]/i }
 ];
 
-const ignoredTextFiles = new Set([
-  "scripts/check-secrets.mjs"
-]);
+const ignoredTextFiles = new Set(["scripts/check-secrets.mjs"]);
 
 const trackedFiles = execFileSync("git", ["ls-files"], {
   cwd: root,

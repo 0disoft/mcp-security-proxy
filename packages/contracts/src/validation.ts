@@ -19,11 +19,7 @@ import {
   type SecretRule,
   type ServerProfile
 } from "./policy.js";
-import {
-  DECISION_SCHEMA_VERSION,
-  type ArgumentFact,
-  type NormalizedToolCall
-} from "./decision.js";
+import { DECISION_SCHEMA_VERSION, type ArgumentFact, type NormalizedToolCall } from "./decision.js";
 import { AUDIT_EVENT_SCHEMA_VERSION } from "./audit.js";
 import { OPS_EVENT_SCHEMA_VERSION } from "./ops.js";
 
@@ -61,7 +57,12 @@ export function validatePolicyDocument(value: unknown): ValidationResult<PolicyD
     return invalid("policy must be an object");
   }
 
-  validateKnownProperties(value, "policy", ["schemaVersion", "defaultAction", "methodPolicy", "profiles", "redaction"], errors);
+  validateKnownProperties(
+    value,
+    "policy",
+    ["schemaVersion", "defaultAction", "methodPolicy", "profiles", "redaction"],
+    errors
+  );
   if (value["schemaVersion"] !== POLICY_SCHEMA_VERSION) {
     errors.push(`schemaVersion must be ${POLICY_SCHEMA_VERSION}`);
   }
@@ -211,7 +212,12 @@ function parseProfiles(value: unknown, errors: string[]): readonly ServerProfile
   return profiles;
 }
 
-function parseProfile(value: unknown, profileIndex: number, seenProfileIds: Set<string>, errors: string[]): ServerProfile | undefined {
+function parseProfile(
+  value: unknown,
+  profileIndex: number,
+  seenProfileIds: Set<string>,
+  errors: string[]
+): ServerProfile | undefined {
   const path = `profiles[${profileIndex}]`;
   if (!isRecord(value)) {
     errors.push(`${path} must be an object`);
@@ -260,7 +266,12 @@ function parseRules(value: unknown, path: string, errors: string[]): readonly Po
   return rules;
 }
 
-function parsePolicyRule(value: unknown, path: string, seenRuleIds: Set<string>, errors: string[]): PolicyRule | undefined {
+function parsePolicyRule(
+  value: unknown,
+  path: string,
+  seenRuleIds: Set<string>,
+  errors: string[]
+): PolicyRule | undefined {
   if (!isRecord(value)) {
     errors.push(`${path} must be an object`);
     return undefined;
@@ -434,7 +445,12 @@ function parseAudit(value: unknown, path: string, errors: string[]): AuditPolicy
     errors.push(`${path} must be an object`);
     return undefined;
   }
-  validateKnownProperties(value, path, ["destination", "path", "onFailure", "includeRawArguments", "includeFullPaths"], errors);
+  validateKnownProperties(
+    value,
+    path,
+    ["destination", "path", "onFailure", "includeRawArguments", "includeFullPaths"],
+    errors
+  );
   if (!isAuditDestination(value["destination"])) {
     errors.push(`${path}.destination must be file or stdout`);
   }
@@ -518,7 +534,9 @@ function parseRedactionDetector(
     errors.push(`${path}.replacement must be a string`);
   }
 
-  return isNonEmptyString(value["id"]) && isRedactionDetectorKind(value["kind"]) && typeof value["replacement"] === "string"
+  return isNonEmptyString(value["id"]) &&
+    isRedactionDetectorKind(value["kind"]) &&
+    typeof value["replacement"] === "string"
     ? {
         id: value["id"],
         kind: value["kind"],
@@ -527,7 +545,12 @@ function parseRedactionDetector(
     : undefined;
 }
 
-function parseCapabilityArray(value: unknown, path: string, errors: string[], required: boolean): readonly Capability[] | undefined {
+function parseCapabilityArray(
+  value: unknown,
+  path: string,
+  errors: string[],
+  required: boolean
+): readonly Capability[] | undefined {
   if (value === undefined && !required) {
     return undefined;
   }
@@ -536,13 +559,19 @@ function parseCapabilityArray(value: unknown, path: string, errors: string[], re
     return undefined;
   }
   if (value.length === 0) {
-    errors.push(path === "capabilities" ? "capabilities must be a non-empty array" : `${path} must be a non-empty array`);
+    errors.push(
+      path === "capabilities" ? "capabilities must be a non-empty array" : `${path} must be a non-empty array`
+    );
   }
 
   const parsed: Capability[] = [];
   for (const item of value) {
     if (!isCapability(item)) {
-      errors.push(path === "capabilities" ? `unsupported capability: ${String(item)}` : `${path} contains unsupported capability: ${String(item)}`);
+      errors.push(
+        path === "capabilities"
+          ? `unsupported capability: ${String(item)}`
+          : `${path} contains unsupported capability: ${String(item)}`
+      );
       continue;
     }
     parsed.push(item);
@@ -726,7 +755,12 @@ function isCanonicalIp(value: string): boolean {
   }
 }
 
-function parseStringArray(value: unknown, path: string, errors: string[], required: boolean): readonly string[] | undefined {
+function parseStringArray(
+  value: unknown,
+  path: string,
+  errors: string[],
+  required: boolean
+): readonly string[] | undefined {
   if (value === undefined && !required) {
     return undefined;
   }
@@ -737,7 +771,12 @@ function parseStringArray(value: unknown, path: string, errors: string[], requir
   return value;
 }
 
-function parseNonEmptyStringArray(value: unknown, path: string, errors: string[], required: boolean): readonly string[] | undefined {
+function parseNonEmptyStringArray(
+  value: unknown,
+  path: string,
+  errors: string[],
+  required: boolean
+): readonly string[] | undefined {
   if (value === undefined && !required) {
     return undefined;
   }

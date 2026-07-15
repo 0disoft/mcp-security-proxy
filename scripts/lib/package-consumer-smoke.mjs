@@ -149,7 +149,8 @@ export function runInstalledPackageConsumerSmoke({ consumerRoot, root, expectedV
   const codexDescriptor = JSON.parse(codexConfigResult.stdout);
   if (
     codexDescriptor.command !== "codex" ||
-    stableJson(codexDescriptor.args) !== stableJson(["mcp", "add", "msp-fixture", "--", "mcp-security-proxy", ...expectedArgs])
+    stableJson(codexDescriptor.args) !==
+      stableJson(["mcp", "add", "msp-fixture", "--", "mcp-security-proxy", ...expectedArgs])
   ) {
     throw new Error("installed CLI Codex config snippet did not preserve nested command and argv boundaries");
   }

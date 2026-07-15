@@ -8,15 +8,20 @@ export function resolveExpectedVersion(args, environment) {
     argumentVersion = normalizedArgs[index + 1];
     index += 1;
   }
-  const tagVersion = environment.GITHUB_REF_TYPE === "tag" && environment.GITHUB_REF_NAME?.startsWith("v")
-    ? environment.GITHUB_REF_NAME.slice(1)
-    : undefined;
+  const tagVersion =
+    environment.GITHUB_REF_TYPE === "tag" && environment.GITHUB_REF_NAME?.startsWith("v")
+      ? environment.GITHUB_REF_NAME.slice(1)
+      : undefined;
   const candidates = [argumentVersion, environment.MSP_REGISTRY_SMOKE_VERSION, tagVersion].filter(Boolean);
   if (candidates.length === 0 || new Set(candidates).size !== 1) {
     throw new Error("registry smoke requires one unambiguous exact version");
   }
   const version = candidates[0];
-  if (!/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.test(version)) {
+  if (
+    !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.test(
+      version
+    )
+  ) {
     throw new Error(`registry smoke version must be exact semver, received ${version}`);
   }
   return version;

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { runCliAsync, type CliRunIo } from "./commands.js";
+import { runCliAsync } from "./commands.js";
 import type { UpstreamCommand, UpstreamProcess } from "@0disoft/mcp-security-proxy-runtime";
 import { createUpstreamEnvironment } from "./upstream-environment.js";
 import { createProcessTreeTerminator, shouldCreateProcessGroup } from "./process-tree.js";

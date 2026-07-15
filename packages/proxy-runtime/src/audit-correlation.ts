@@ -1,9 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
-import {
-  AUDIT_CORRELATION_VERSION,
-  type AuditCorrelation
-} from "@0disoft/mcp-security-proxy-contracts";
+import { AUDIT_CORRELATION_VERSION, type AuditCorrelation } from "@0disoft/mcp-security-proxy-contracts";
 import type { JsonRpcId } from "@0disoft/mcp-security-proxy-mcp-adapter";
 
 export type AuditDirection = AuditCorrelation["direction"];

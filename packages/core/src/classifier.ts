@@ -1,7 +1,4 @@
-import type {
-  Capability,
-  NormalizedToolDescriptor
-} from "@0disoft/mcp-security-proxy-contracts";
+import type { Capability, NormalizedToolDescriptor } from "@0disoft/mcp-security-proxy-contracts";
 
 export interface ClassifierEvidence {
   readonly capability: Capability;
