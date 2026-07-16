@@ -1,7 +1,7 @@
 {
   "name": "@0disoft/mcp-security-proxy-runtime",
   "description": "Stdio proxy session and subprocess runtime for MCP Security Proxy.",
-  "version": "0.2.0-alpha.1",
+  "version": "0.2.0-alpha.2",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   AUDIT_EVENT_SCHEMA_VERSION,
@@ -12,10 +12,34 @@ const failures = [];
 const migrationGuidePath = "docs/library/migration-guide.md";
 const semverPath = "docs/library/semver.md";
 const releasePath = "docs/ops/release.md";
+const cliManifestPath = "packages/cli/package.json";
+const publicationsPath = "docs/ops/publications";
 
 const migrationGuide = readText(migrationGuidePath);
 const semver = readText(semverPath);
 const release = readText(releasePath);
+const currentPackageVersion = readJson(cliManifestPath).version;
+const latestPublishedVersion = findLatestPublishedVersion();
+
+if (typeof currentPackageVersion !== "string" || currentPackageVersion.length === 0) {
+  failures.push(`${cliManifestPath}: package version must be a non-empty string`);
+}
+
+if (latestPublishedVersion) {
+  assertIncludes(
+    migrationGuide,
+    `The latest published prerelease is \`${latestPublishedVersion}\``,
+    `${migrationGuidePath}: latest published prerelease must be ${latestPublishedVersion}`
+  );
+}
+
+if (latestPublishedVersion && currentPackageVersion !== latestPublishedVersion) {
+  assertIncludes(
+    migrationGuide,
+    `The approved \`${currentPackageVersion}\` candidate`,
+    `${migrationGuidePath}: current package candidate must be ${currentPackageVersion}`
+  );
+}
 
 for (const schemaVersion of [POLICY_SCHEMA_VERSION, DECISION_SCHEMA_VERSION, AUDIT_EVENT_SCHEMA_VERSION]) {
   assertIncludes(
@@ -26,7 +50,6 @@ for (const schemaVersion of [POLICY_SCHEMA_VERSION, DECISION_SCHEMA_VERSION, AUD
 }
 
 for (const phrase of [
-  "The first public prerelease is `0.2.0-alpha.1`",
   "policy schema fields, defaults, rule ordering, or matcher semantics",
   "audit event schema fields, redaction behavior, or event classification",
   "public library exports, public type names, or package entrypoints",
@@ -78,6 +101,43 @@ function assertIncludes(text, phrase, failure) {
 
 function readText(path) {
   return readFileSync(join(root, path), "utf8");
+}
+
+function readJson(path) {
+  return JSON.parse(readText(path));
+}
+
+function findLatestPublishedVersion() {
+  const completed = readdirSync(join(root, publicationsPath))
+    .filter((name) => name.endsWith(".publication.json"))
+    .map((name) => ({ name, record: readJson(join(publicationsPath, name)) }))
+    .filter(({ record }) => record.status === "completed");
+
+  if (completed.length === 0) {
+    failures.push(`${publicationsPath}: at least one completed publication record is required`);
+    return undefined;
+  }
+
+  for (const { name, record } of completed) {
+    if (typeof record.releaseVersion !== "string" || record.releaseVersion.length === 0) {
+      failures.push(`${join(publicationsPath, name)}: releaseVersion must be a non-empty string`);
+    }
+    if (typeof record.publishedAt !== "string" || Number.isNaN(Date.parse(record.publishedAt))) {
+      failures.push(`${join(publicationsPath, name)}: publishedAt must be a valid timestamp`);
+    }
+  }
+
+  const latest = completed
+    .filter(
+      ({ record }) =>
+        typeof record.releaseVersion === "string" &&
+        record.releaseVersion.length > 0 &&
+        typeof record.publishedAt === "string" &&
+        !Number.isNaN(Date.parse(record.publishedAt))
+    )
+    .sort((left, right) => Date.parse(right.record.publishedAt) - Date.parse(left.record.publishedAt))[0];
+
+  return latest?.record.releaseVersion;
 }
 
 function forbiddenExamplePattern() {

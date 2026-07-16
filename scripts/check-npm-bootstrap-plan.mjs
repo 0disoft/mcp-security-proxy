@@ -206,10 +206,50 @@ function findApprovedProductReleaseVersion(plan) {
         .sort((left, right) => left.localeCompare(right));
       return JSON.stringify(names) === JSON.stringify(expectedNames);
     });
-  if (matches.length !== 1 || typeof matches[0].releaseVersion !== "string") {
+  const selected = selectLatestLinearRelease(matches);
+  if (!selected || typeof selected.releaseVersion !== "string") {
     return undefined;
   }
-  return matches[0].releaseVersion;
+  return selected.releaseVersion;
+}
+
+function selectLatestLinearRelease(records) {
+  let selected;
+  for (const record of records) {
+    if (!selected) {
+      selected = record;
+      continue;
+    }
+    if (selected.targetCommit === record.targetCommit) {
+      if (selected.releaseVersion !== record.releaseVersion) {
+        failures.push(
+          `approved product releases conflict at target ${record.targetCommit}: ${selected.releaseVersion} and ${record.releaseVersion}`
+        );
+        return undefined;
+      }
+      continue;
+    }
+    if (isAncestorCommit(selected.targetCommit, record.targetCommit)) {
+      selected = record;
+      continue;
+    }
+    if (!isAncestorCommit(record.targetCommit, selected.targetCommit)) {
+      failures.push(
+        `approved product release targets ${selected.targetCommit} and ${record.targetCommit} are not on one linear history`
+      );
+      return undefined;
+    }
+  }
+  return selected;
+}
+
+function isAncestorCommit(ancestor, descendant) {
+  const ancestry = spawnSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+    cwd: root,
+    stdio: "ignore",
+    windowsHide: true
+  });
+  return ancestry.status === 0;
 }
 
 function checkRunbookAndWorkflow() {

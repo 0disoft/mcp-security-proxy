@@ -43,8 +43,8 @@ Migration notes must include:
 
 ## Current Migration Notes
 
-The first public prerelease is `0.2.0-alpha.1`. Changes after that immutable publication are
-unreleased until a later prerelease record approves and publishes them.
+The latest published prerelease is `0.2.0-alpha.1`. The approved `0.2.0-alpha.2` candidate contains
+the additive changes below and remains unpublished until its release workflow succeeds.
 
 - Unreleased CLI addition: `config-snippet --target stdio-json` adds a read-only command and extends
   the public `CommandName` union. Existing commands and exit codes are unchanged. Users previously
