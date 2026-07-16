@@ -116,6 +116,38 @@ generation:
 The Codex descriptor is registration instructions, not proof that it was executed or that an
 authenticated Codex session successfully used a tool.
 
+For `--target gemini-cli-json`, the descriptor explicitly selects project-scoped stdio
+registration. Two consecutive separators at the proxy's upstream boundary are intentional:
+Gemini's parser consumes one and writes the second into `.gemini/settings.json`.
+
+```json
+{
+  "command": "gemini",
+  "args": [
+    "mcp",
+    "add",
+    "--scope",
+    "project",
+    "--transport",
+    "stdio",
+    "secured-filesystem",
+    "mcp-security-proxy",
+    "run",
+    "--policy",
+    "./policy.json",
+    "--profile",
+    "local",
+    "--",
+    "--",
+    "node",
+    "server.js"
+  ]
+}
+```
+
+The generator never emits Gemini's `--trust` option. This descriptor proves neither execution nor
+an authenticated Gemini session.
+
 ## Review Blockers
 
 - A command changes without updating help, examples, output, and exit-code expectations.

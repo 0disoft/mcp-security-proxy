@@ -104,6 +104,11 @@ The Codex host-configuration fixture separately pins `@openai/codex@0.144.4`, ge
 stdio command through `codex mcp get --json`. This proves the recorded configuration shape only;
 it is not a live authenticated Codex tool-use or approval UX claim.
 
+The Gemini host-configuration fixture pins `@google/gemini-cli@0.50.0`, executes a generated
+`gemini-cli-json` descriptor in an isolated temporary project and home, and verifies the stored
+project-scoped stdio command. This is configuration-shape evidence only, not authenticated Gemini
+tool use, workspace trust, or approval UX evidence.
+
 ## Review Blockers
 
 - Public exports change without semver and migration notes.

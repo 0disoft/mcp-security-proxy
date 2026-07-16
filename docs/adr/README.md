@@ -24,6 +24,7 @@ Track durable architecture decisions for MCP Security Proxy.
 - 0007: external client compatibility matrix
 - 0008: runtime MCP SDK boundary
 - 0009: Codex configuration adapter
+- 0010: Gemini CLI configuration adapter
 
 ## Review Blockers
 

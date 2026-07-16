@@ -45,6 +45,9 @@ Any exception must be documented before release.
 - `@openai/codex@0.144.4`: Apache-2.0 external host-configuration fixture dependency installed only
   in a temporary directory with registry credentials cleared. It is not a workspace, runtime, or
   published package dependency.
+- `@google/gemini-cli@0.50.0`: Apache-2.0 external host-configuration fixture dependency installed
+  only in a temporary directory with registry credentials cleared. It is not a workspace, runtime,
+  or published package dependency.
 - `@microsoft/api-extractor`: pinned dev dependency, MIT, used only to generate and verify tracked
   public API reports. It is not included in published package runtime dependencies or artifacts.
 - `minimatch@10.2.3`: transitive dev dependency through `@microsoft/api-extractor`,

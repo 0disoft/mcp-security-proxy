@@ -41,6 +41,7 @@ const requiredKinds = new Set([
   "cli.json.inspect-tools",
   "cli.json.eval-call",
   "host.config.codex",
+  "host.config.gemini",
   "library.policy-parse",
   "library.decision-result",
   "library.audit-jsonl",
@@ -83,6 +84,8 @@ const requiredEvidenceIds = new Set([
   "cli-config-snippet-stdio-json",
   "cli-config-snippet-codex-cli-json",
   "host-config-codex-cli",
+  "cli-config-snippet-gemini-cli-json",
+  "host-config-gemini-cli",
   "cli-inspect-tools-local",
   "cli-eval-call-allowed-local",
   "cli-eval-call-denied-local",
@@ -245,6 +248,9 @@ async function checkEvidenceEntry(item) {
   }
   if (kind === "host.config.codex") {
     checkCodexConfigFixture(id, path, item.command);
+  }
+  if (kind === "host.config.gemini") {
+    checkGeminiConfigFixture(id, path, item.command);
   }
   if (kind === "library.policy-parse") {
     await checkLibraryPolicyParseFixture(id, path, item);
@@ -687,6 +693,37 @@ function checkCodexConfigFixture(id, path, command) {
     summary.isolation?.workingDirectory !== "<temporary-working-directory>"
   ) {
     failures.push(`${path}: Codex fixture isolation paths must stay normalized`);
+  }
+}
+
+function checkGeminiConfigFixture(id, path, command) {
+  const expectedCommand = ["node", "scripts/check-gemini-config-fixture.mjs"];
+  if (stableJson(command) !== stableJson(expectedCommand)) {
+    failures.push(`${id}: Gemini host config evidence must run ${expectedCommand.join(" ")}`);
+  }
+  const summary = readJson(path);
+  if (summary.schemaVersion !== "msp.host-config-fixture.v1") {
+    failures.push(`${path}: schemaVersion must be msp.host-config-fixture.v1`);
+  }
+  if (summary.target !== "gemini-cli-config" || summary.fixtureSource !== "external-host-cli") {
+    failures.push(`${path}: target and fixtureSource must identify Gemini CLI config evidence`);
+  }
+  if (summary.host?.package !== "@google/gemini-cli" || summary.host?.version !== "0.50.0") {
+    failures.push(`${path}: host must be pinned to @google/gemini-cli@0.50.0`);
+  }
+  if (
+    summary.descriptor?.command !== "gemini" ||
+    summary.observed?.scope !== "project" ||
+    summary.observed?.transport?.type !== "stdio"
+  ) {
+    failures.push(`${path}: descriptor and observed transport must preserve project-scoped Gemini stdio configuration`);
+  }
+  if (
+    summary.isolation?.home !== "<temporary-home>" ||
+    summary.isolation?.settings !== "<temporary-working-directory>/.gemini/settings.json" ||
+    summary.isolation?.workingDirectory !== "<temporary-working-directory>"
+  ) {
+    failures.push(`${path}: Gemini fixture isolation paths must stay normalized`);
   }
 }
 

@@ -19,6 +19,12 @@ Generate Codex registration argv without editing Codex configuration:
 mcp-security-proxy config-snippet --target codex-cli-json --name secured-filesystem --policy ./policy.json --profile local -- node server.js
 ```
 
+Generate project-scoped Gemini registration argv without editing Gemini configuration:
+
+```sh
+mcp-security-proxy config-snippet --target gemini-cli-json --name secured-filesystem --policy ./policy.json --profile local -- node server.js
+```
+
 The CLI controls MCP discovery and tool calls at the protocol boundary. It is not an
 operating-system sandbox and does not bundle a host approval UI.
 

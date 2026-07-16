@@ -67,7 +67,16 @@ const allowedFlagsByCommand: Readonly<Record<CommandName, ReadonlySet<string>>> 
     "json",
     "help"
   ]),
-  "config-snippet": new Set(["target", "name", "policy", "profile", "proxy-command", "codex-command", "help"]),
+  "config-snippet": new Set([
+    "target",
+    "name",
+    "policy",
+    "profile",
+    "proxy-command",
+    "codex-command",
+    "gemini-command",
+    "help"
+  ]),
   "check-policy": new Set(["policy", "json", "help"]),
   "inspect-tools": new Set(["input", "policy", "profile", "json", "help"]),
   "eval-call": new Set(["policy", "input", "profile", "approval-hook", "json", "help"])
@@ -313,7 +322,7 @@ function configSnippet(
 ): CliResult {
   const target = readRequiredStringFlag(flags, "target");
   assertConfigSnippetValue("--target", target);
-  if (target !== "stdio-json" && target !== "codex-cli-json") {
+  if (target !== "stdio-json" && target !== "codex-cli-json" && target !== "gemini-cli-json") {
     throw new CliError(2, `unsupported config snippet target: ${target}`);
   }
   const policyPath = readRequiredStringFlag(flags, "policy");
@@ -321,17 +330,24 @@ function configSnippet(
   const proxyCommand = readOptionalStringFlag(flags, "proxy-command") ?? "mcp-security-proxy";
   const serverName = readOptionalStringFlag(flags, "name");
   const codexCommand = readOptionalStringFlag(flags, "codex-command") ?? "codex";
+  const geminiCommand = readOptionalStringFlag(flags, "gemini-command") ?? "gemini";
   if (target === "stdio-json" && flags["name"] !== undefined) {
-    throw new CliError(2, "--name is only supported for --target codex-cli-json");
+    throw new CliError(2, "--name is only supported for host-specific config targets");
   }
-  if (target === "stdio-json" && flags["codex-command"] !== undefined) {
+  if (target !== "codex-cli-json" && flags["codex-command"] !== undefined) {
     throw new CliError(2, "--codex-command is only supported for --target codex-cli-json");
   }
-  if (target === "codex-cli-json" && !serverName) {
+  if (target !== "gemini-cli-json" && flags["gemini-command"] !== undefined) {
+    throw new CliError(2, "--gemini-command is only supported for --target gemini-cli-json");
+  }
+  if (target !== "stdio-json" && !serverName) {
     throw new CliError(2, "missing required --name");
   }
   if (serverName && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/u.test(serverName)) {
     throw new CliError(2, "--name must use 1..64 ASCII letters, numbers, hyphens, or underscores");
+  }
+  if (target === "gemini-cli-json" && serverName?.includes("_")) {
+    throw new CliError(2, "Gemini MCP server names must not contain underscores");
   }
   if (!separatorSeen) {
     throw new CliError(2, "config-snippet requires -- before the upstream command");
@@ -346,6 +362,7 @@ function configSnippet(
     ["--profile", profileId],
     ["--proxy-command", proxyCommand],
     ["--codex-command", codexCommand],
+    ["--gemini-command", geminiCommand],
     ["upstream command", upstreamCommand],
     ...upstreamArgs.map((value, index) => [`upstream argument ${index + 1}`, value])
   ] as const) {
@@ -361,15 +378,54 @@ function configSnippet(
     command: proxyCommand,
     args: ["run", "--policy", policyPath, "--profile", profileId, "--", upstreamCommand, ...upstreamArgs]
   };
-  const descriptor =
-    target === "stdio-json"
-      ? proxyDescriptor
-      : {
-          command: codexCommand,
-          args: ["mcp", "add", serverName, "--", proxyDescriptor.command, ...proxyDescriptor.args]
-        };
+  const descriptor = buildConfigSnippetDescriptor(target, serverName, proxyDescriptor, codexCommand, geminiCommand);
   io.stdout(JSON.stringify(descriptor));
   return { exitCode: 0 };
+}
+
+function buildConfigSnippetDescriptor(
+  target: "stdio-json" | "codex-cli-json" | "gemini-cli-json",
+  serverName: string | undefined,
+  proxyDescriptor: Readonly<{ command: string; args: readonly string[] }>,
+  codexCommand: string,
+  geminiCommand: string
+): Readonly<{ command: string; args: readonly string[] }> {
+  if (target === "stdio-json") {
+    return proxyDescriptor;
+  }
+  if (!serverName) {
+    throw new CliError(2, "missing required --name");
+  }
+  if (target === "codex-cli-json") {
+    return {
+      command: codexCommand,
+      args: ["mcp", "add", serverName, "--", proxyDescriptor.command, ...proxyDescriptor.args]
+    };
+  }
+
+  const upstreamSeparatorIndex = proxyDescriptor.args.indexOf("--");
+  if (upstreamSeparatorIndex < 0) {
+    throw new CliError(2, "Gemini config generation requires an upstream separator");
+  }
+  const geminiProxyArgs = [
+    ...proxyDescriptor.args.slice(0, upstreamSeparatorIndex),
+    "--",
+    ...proxyDescriptor.args.slice(upstreamSeparatorIndex)
+  ];
+  return {
+    command: geminiCommand,
+    args: [
+      "mcp",
+      "add",
+      "--scope",
+      "project",
+      "--transport",
+      "stdio",
+      serverName,
+      proxyDescriptor.command,
+      ...geminiProxyArgs
+    ]
+  };
 }
 
 function assertConfigSnippetValue(label: string, value: string): void {
@@ -503,15 +559,16 @@ function commandHelp(command: CommandName): string {
   }
   if (command === "config-snippet") {
     return [
-      "Usage: mcp-security-proxy config-snippet --target <stdio-json|codex-cli-json> [--name <server>] --policy <path> --profile <name> [options] -- <upstream> [args...]",
+      "Usage: mcp-security-proxy config-snippet --target <stdio-json|codex-cli-json|gemini-cli-json> [--name <server>] --policy <path> --profile <name> [options] -- <upstream> [args...]",
       "",
       "Options:",
-      "  --target <target>              stdio-json or codex-cli-json",
-      "  --name <server>                Codex MCP server name, required for codex-cli-json",
+      "  --target <target>              stdio-json, codex-cli-json, or gemini-cli-json",
+      "  --name <server>                MCP server name, required for host-specific targets",
       "  --policy <path>                local policy file referenced by the generated invocation",
       "  --profile <name>               existing policy profile referenced by the generated invocation",
       "  --proxy-command <path>         proxy executable, default: mcp-security-proxy",
       "  --codex-command <path>         Codex executable, default: codex",
+      "  --gemini-command <path>        Gemini executable, default: gemini",
       "  --help                         show this help",
       "",
       "This command validates but never modifies the policy or host configuration files."

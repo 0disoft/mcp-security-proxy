@@ -27,8 +27,8 @@ The CLI should make MCP policy review usable without writing host integration co
 run a local stdio proxy, print a read-only host configuration descriptor, validate policies,
 inspect discovered tools, and dry-run tool calls.
 
-The first host-specific descriptor targets the official Codex `mcp add` command. It generates
-registration argv only and never edits Codex configuration directly.
+Host-specific descriptors target the official Codex and Gemini `mcp add` commands. They generate
+registration argv only and never edit host configuration directly.
 
 The live `run` command keeps stdout reserved for newline-delimited MCP JSON-RPC messages. Startup
 errors and usage errors go to stderr, and audit events go to the selected profile's audit file or

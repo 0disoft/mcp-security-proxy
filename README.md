@@ -42,6 +42,8 @@ Implemented foundation:
   upstream argv preservation
 - read-only Codex registration descriptors verified with a pinned Codex CLI and isolated temporary
   `CODEX_HOME`
+- read-only project-scoped Gemini registration descriptors verified with a pinned Gemini CLI,
+  temporary home, and temporary project
 - bounded JSON-RPC frame size and parsed depth guards
 - stable decision evidence codes for audit consumers
 - embeddable runtime approval hook API for approval-required tool calls

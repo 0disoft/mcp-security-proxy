@@ -1,0 +1,23 @@
+{
+  "command": "gemini",
+  "args": [
+    "mcp",
+    "add",
+    "--scope",
+    "project",
+    "--transport",
+    "stdio",
+    "msp-fixture",
+    "mcp-security-proxy",
+    "run",
+    "--policy",
+    "fixtures/policies/local-dev.json",
+    "--profile",
+    "local",
+    "--",
+    "--",
+    "fixture server",
+    "--root",
+    "workspace/public files"
+  ]
+}

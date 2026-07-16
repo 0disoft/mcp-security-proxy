@@ -97,7 +97,86 @@ describe("dry-run CLI commands", () => {
     expect(output.stdout.join("\n")).toContain("Usage: mcp-security-proxy config-snippet");
     expect(output.stdout.join("\n")).toContain("never modifies the policy or host configuration files");
     expect(output.stdout.join("\n")).toContain("codex-cli-json");
+    expect(output.stdout.join("\n")).toContain("gemini-cli-json");
     expect(output.stderr).toEqual([]);
+  });
+
+  it("prints a read-only Gemini MCP add descriptor with a preserved nested separator", () => {
+    const output = invoke([
+      "config-snippet",
+      "--target",
+      "gemini-cli-json",
+      "--name",
+      "secured-filesystem",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--gemini-command",
+      "C:\\Program Files\\Gemini\\gemini.cmd",
+      "--",
+      "fixture server",
+      "--root",
+      "workspace/public files"
+    ]);
+
+    expect(output.exitCode).toBe(0);
+    expect(output.stderr).toEqual([]);
+    expect(output.stdoutJson()).toEqual({
+      command: "C:\\Program Files\\Gemini\\gemini.cmd",
+      args: [
+        "mcp",
+        "add",
+        "--scope",
+        "project",
+        "--transport",
+        "stdio",
+        "secured-filesystem",
+        "mcp-security-proxy",
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--",
+        "--",
+        "fixture server",
+        "--root",
+        "workspace/public files"
+      ]
+    });
+  });
+
+  it("requires Gemini-compatible server names", () => {
+    const missing = invoke([
+      "config-snippet",
+      "--target",
+      "gemini-cli-json",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server"
+    ]);
+    const underscore = invoke([
+      "config-snippet",
+      "--target",
+      "gemini-cli-json",
+      "--name",
+      "invalid_name",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "fixture-server"
+    ]);
+
+    expect(missing.exitCode).toBe(2);
+    expect(missing.stderr).toEqual(["missing required --name"]);
+    expect(underscore.exitCode).toBe(2);
+    expect(underscore.stderr).toEqual(["Gemini MCP server names must not contain underscores"]);
   });
 
   it("prints a read-only Codex MCP add descriptor", () => {
@@ -190,7 +269,7 @@ describe("dry-run CLI commands", () => {
     ]);
 
     expect(output.exitCode).toBe(2);
-    expect(output.stderr).toEqual(["--name is only supported for --target codex-cli-json"]);
+    expect(output.stderr).toEqual(["--name is only supported for host-specific config targets"]);
   });
 
   it("rejects unsupported config snippet targets", () => {

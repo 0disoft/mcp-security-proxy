@@ -61,6 +61,10 @@ The external compatibility aggregate also installs exact `@openai/codex@0.144.4`
 directory with registry credentials cleared and verifies generated MCP registration under a
 temporary `CODEX_HOME`. It never reads or writes the runner user's Codex configuration.
 
+The aggregate also installs exact `@google/gemini-cli@0.50.0`, runs generated project-scoped MCP
+registration under an isolated home and working directory, and verifies only the temporary
+`.gemini/settings.json`. It does not authenticate or start a Gemini model session.
+
 `pnpm run ci-contract` keeps this workflow aligned with the documented Node.js version, pnpm
 version, Python compatibility version, read-only permissions, pinned actions, local check command,
 diff hygiene command, and the cross-platform process-tree smoke matrix.

@@ -72,6 +72,12 @@ arguments are reproduced verbatim, so users must not put credentials or secret v
 stored in that descriptor and defaults to `codex`. Generation does not execute Codex or modify
 `CODEX_HOME`; the descriptor changes Codex configuration only if a user explicitly runs it.
 
+`--target gemini-cli-json` requires an underscore-free `--name <server>` and emits project-scoped
+stdio `gemini mcp add` argv. `--gemini-command <path>` selects the executable and defaults to
+`gemini`. The doubled `--` at the nested upstream boundary is intentional: Gemini consumes one
+separator while storing the second as part of the proxy argv. Generation never writes
+`.gemini/settings.json` and never enables Gemini's `--trust` option.
+
 ### `mcp-security-proxy check-policy`
 
 Implemented. Validates policy syntax, schema version, method policy, profiles, rules, audit
@@ -95,10 +101,11 @@ prints the decision without forwarding it.
 - `--policy` points to the local policy file.
 - `--profile` selects the server policy profile.
 - `--input` points to captured tool-list or tool-call JSON for dry-run commands.
-- `--target` selects the host-neutral `stdio-json` or Codex `codex-cli-json` output contract.
-- `--name` supplies the safe Codex MCP server name required by `codex-cli-json`.
+- `--target` selects `stdio-json`, `codex-cli-json`, or `gemini-cli-json` output.
+- `--name` supplies the safe MCP server name required by host-specific targets.
 - `--proxy-command` selects the proxy executable referenced by `config-snippet` without invoking it.
 - `--codex-command` selects the Codex executable referenced by `codex-cli-json` without invoking it.
+- `--gemini-command` selects the Gemini executable referenced by `gemini-cli-json` without invoking it.
 - `--approval-hook` marks approval hook availability for dry-run call evaluation.
 - `--audit-log` optionally overrides the selected profile's JSON Lines audit file for live proxy
   behavior. CLI `run` rejects profiles configured with `audit.destination: stdout`.

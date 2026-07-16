@@ -154,6 +154,44 @@ export function runInstalledPackageConsumerSmoke({ consumerRoot, root, expectedV
   ) {
     throw new Error("installed CLI Codex config snippet did not preserve nested command and argv boundaries");
   }
+
+  const geminiConfigResult = runCommand(
+    process.execPath,
+    [
+      join(consumerRoot, "node_modules", "@0disoft", "mcp-security-proxy-cli", "dist", "main.js"),
+      "config-snippet",
+      "--target",
+      "gemini-cli-json",
+      "--name",
+      "msp-fixture",
+      "--policy",
+      policyPath,
+      "--profile",
+      "local",
+      "--",
+      "fixture server",
+      "--root",
+      "workspace/public files"
+    ],
+    consumerRoot
+  );
+  const geminiDescriptor = JSON.parse(geminiConfigResult.stdout);
+  const expectedGeminiArgs = [
+    "mcp",
+    "add",
+    "--scope",
+    "project",
+    "--transport",
+    "stdio",
+    "msp-fixture",
+    "mcp-security-proxy",
+    ...expectedArgs.slice(0, 6),
+    "--",
+    ...expectedArgs.slice(6)
+  ];
+  if (geminiDescriptor.command !== "gemini" || stableJson(geminiDescriptor.args) !== stableJson(expectedGeminiArgs)) {
+    throw new Error("installed CLI Gemini config snippet did not preserve nested command and argv boundaries");
+  }
 }
 
 export function runCommand(command, args, cwd, extraEnvironment = {}) {

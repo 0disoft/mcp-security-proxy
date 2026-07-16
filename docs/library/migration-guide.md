@@ -57,6 +57,10 @@ unreleased until a later prerelease record approves and publishes them.
   `--name` and emits `codex mcp add` command/argv without executing it. Existing `stdio-json` output
   is unchanged. No user Codex configuration is migrated automatically; rollback is to ignore the
   new target or remove a registration separately through Codex if the generated command was run.
+- Unreleased Gemini adapter addition: `config-snippet --target gemini-cli-json` requires an
+  underscore-free `--name` and emits project-scoped `gemini mcp add` argv without executing it.
+  Existing targets are unchanged. Rollback is to ignore the target or remove the project-scoped
+  registration through Gemini if the descriptor was run.
 
 - Current draft schema versions: `msp.policy.v1`, `msp.decision.v1`, and `msp.audit-event.v1`.
 - Current draft decision note: decision evidence requires a stable `code` field. The

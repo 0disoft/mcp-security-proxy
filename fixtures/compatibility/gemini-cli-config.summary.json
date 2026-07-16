@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "msp.host-config-fixture.v1",
+  "target": "gemini-cli-config",
+  "fixtureSource": "external-host-cli",
+  "host": {
+    "package": "@google/gemini-cli",
+    "version": "0.50.0"
+  },
+  "descriptor": {
+    "command": "gemini",
+    "args": [
+      "mcp",
+      "add",
+      "--scope",
+      "project",
+      "--transport",
+      "stdio",
+      "msp-fixture",
+      "mcp-security-proxy",
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--",
+      "--",
+      "fixture server",
+      "--root",
+      "workspace/public files"
+    ]
+  },
+  "observed": {
+    "name": "msp-fixture",
+    "scope": "project",
+    "transport": {
+      "type": "stdio",
+      "command": "mcp-security-proxy",
+      "args": [
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--",
+        "fixture server",
+        "--root",
+        "workspace/public files"
+      ]
+    }
+  },
+  "isolation": {
+    "home": "<temporary-home>",
+    "settings": "<temporary-working-directory>/.gemini/settings.json",
+    "workingDirectory": "<temporary-working-directory>"
+  }
+}
