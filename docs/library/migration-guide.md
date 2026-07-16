@@ -43,21 +43,20 @@ Migration notes must include:
 
 ## Current Migration Notes
 
-The latest published prerelease is `0.2.0-alpha.1`. The approved `0.2.0-alpha.2` candidate contains
-the additive changes below and remains unpublished until its release workflow succeeds.
+The latest published prerelease is `0.2.0-alpha.2`. It contains the additive changes below.
 
-- Unreleased CLI addition: `config-snippet --target stdio-json` adds a read-only command and extends
-  the public `CommandName` union. Existing commands and exit codes are unchanged. Users previously
-  hand-authored a host command and argv array; they may now generate the same descriptor after the
-  CLI validates the policy and profile. No existing configuration edit is required. The output may
-  contain supplied local paths but never policy contents or environment values. Rollback is to
-  ignore the additive command and continue invoking `run` directly. This is minor/additive API and
-  CLI surface for the next prerelease.
-- Unreleased Codex adapter addition: `config-snippet --target codex-cli-json` requires a safe
+- `0.2.0-alpha.2` CLI addition: `config-snippet --target stdio-json` adds a read-only command and
+  extends the public `CommandName` union. Existing commands and exit codes are unchanged. Users
+  previously hand-authored a host command and argv array; they may now generate the same descriptor
+  after the CLI validates the policy and profile. No existing configuration edit is required. The
+  output may contain supplied local paths but never policy contents or environment values. Rollback
+  is to ignore the additive command and continue invoking `run` directly. This is minor/additive API and
+  CLI surface.
+- `0.2.0-alpha.2` Codex adapter addition: `config-snippet --target codex-cli-json` requires a safe
   `--name` and emits `codex mcp add` command/argv without executing it. Existing `stdio-json` output
   is unchanged. No user Codex configuration is migrated automatically; rollback is to ignore the
   new target or remove a registration separately through Codex if the generated command was run.
-- Unreleased Gemini adapter addition: `config-snippet --target gemini-cli-json` requires an
+- `0.2.0-alpha.2` Gemini adapter addition: `config-snippet --target gemini-cli-json` requires an
   underscore-free `--name` and emits project-scoped `gemini mcp add` argv without executing it.
   Existing targets are unchanged. Rollback is to ignore the target or remove the project-scoped
   registration through Gemini if the descriptor was run.
