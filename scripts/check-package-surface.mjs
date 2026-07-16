@@ -333,6 +333,25 @@ const checkPackageSurfaceValidator = () => {
     );
   }
 
+  const historicalTarget = getHistoricalReachableCommit();
+  const latestReleaseRecordPackages = collectReleasePackageVersions([
+    {
+      status: "approved",
+      releaseVersion: "0.1.0-alpha.1",
+      targetCommit: currentHead,
+      publicPackages: [{ workspacePath: "packages/cli" }]
+    },
+    {
+      status: "approved",
+      releaseVersion: "0.1.0-alpha.0",
+      targetCommit: historicalTarget,
+      publicPackages: [{ workspacePath: "packages/cli" }]
+    }
+  ]);
+  if (latestReleaseRecordPackages.get("packages/cli/package.json") !== "0.1.0-alpha.1") {
+    failures.push("package-surface self-test latest linear release record did not own package posture");
+  }
+
   const nonApprovedReleaseRecordPackages = collectReleasePackageVersions([
     {
       status: "proposed",
@@ -474,7 +493,7 @@ function readReleaseRecords() {
 }
 
 function collectReleasePackageVersions(records) {
-  const packageVersions = new Map();
+  const packageApprovals = new Map();
   for (const record of records) {
     if (!record || typeof record !== "object" || Array.isArray(record)) {
       continue;
@@ -493,16 +512,37 @@ function collectReleasePackageVersions(records) {
         continue;
       }
       const packageManifestPath = `${item.workspacePath}/package.json`;
-      const previousVersion = packageVersions.get(packageManifestPath);
-      if (previousVersion && previousVersion !== record.releaseVersion) {
+      const previous = packageApprovals.get(packageManifestPath);
+      if (!previous) {
+        packageApprovals.set(packageManifestPath, {
+          targetCommit: record.targetCommit,
+          version: record.releaseVersion
+        });
+        continue;
+      }
+      if (previous.targetCommit === record.targetCommit) {
+        if (previous.version !== record.releaseVersion) {
+          failures.push(
+            `${packageManifestPath}: conflicting release versions ${previous.version} and ${record.releaseVersion} at target ${record.targetCommit}`
+          );
+        }
+        continue;
+      }
+      if (isAncestorCommit(previous.targetCommit, record.targetCommit)) {
+        packageApprovals.set(packageManifestPath, {
+          targetCommit: record.targetCommit,
+          version: record.releaseVersion
+        });
+        continue;
+      }
+      if (!isAncestorCommit(record.targetCommit, previous.targetCommit)) {
         failures.push(
-          `${packageManifestPath}: conflicting release versions ${previousVersion} and ${record.releaseVersion}`
+          `${packageManifestPath}: approved release targets ${previous.targetCommit} and ${record.targetCommit} are not on one linear history`
         );
       }
-      packageVersions.set(packageManifestPath, record.releaseVersion);
     }
   }
-  return packageVersions;
+  return new Map([...packageApprovals].map(([path, approval]) => [path, approval.version]));
 }
 
 function isNonPlaceholderString(value) {
@@ -515,6 +555,19 @@ function isReachableCommit(value) {
   }
   try {
     execFileSync("git", ["merge-base", "--is-ancestor", value, currentHead], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "ignore", "ignore"]
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isAncestorCommit(ancestor, descendant) {
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "ignore", "ignore"]

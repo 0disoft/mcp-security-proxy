@@ -57,8 +57,11 @@ Until release readiness approves the recorded public package names and artifacts
 exists. When `docs/ops/release-records/*.release.json` records a package as public with
 `status: "approved"` and a `targetCommit` reachable from the current HEAD, the same check allows
 only that recorded `packages/*` manifest to use the recorded release version and public package
-posture. Unreachable approved release records do not unlock current package manifests. Packages not
-listed in a reachable approved release record must remain private and versioned as `0.0.0`.
+posture. When multiple historical approvals name the same package, only the approval whose target
+commit is the latest descendant on one linear history owns the current manifest version. Conflicting
+versions at the same target and approvals on incomparable histories fail validation. Unreachable
+approved release records do not unlock current package manifests. Packages not listed in a
+reachable approved release record must remain private and versioned as `0.0.0`.
 The same validation builds and packs the five release-recorded package candidates, rejects source,
 test, config, and undeclared artifact paths, checks that pnpm rewrites `workspace:*` dependencies,
 installs the tarballs into a clean offline npm consumer, resolves ESM and TypeScript declarations,
