@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   type AuditEvent,
   type Capability,
@@ -42,8 +43,11 @@ export interface ProxySessionOptions {
 }
 
 export interface ApprovalRequest {
+  readonly approvalId: string;
+  readonly profileId: string;
   readonly call: NormalizedToolCall;
   readonly decision: PolicyDecision;
+  readonly signal: AbortSignal;
 }
 
 export interface ApprovalResult {
@@ -468,8 +472,20 @@ export class ProxySession {
     call: NormalizedToolCall,
     decision: PolicyDecision
   ): Promise<ApprovalResult> {
-    const approval = approvalHook({ call, decision });
-    return await withApprovalTimeout(approval, this.approvalTimeoutMs);
+    const controller = new AbortController();
+    const request: ApprovalRequest = Object.freeze({
+      approvalId: randomUUID(),
+      profileId: this.options.profileId,
+      call: deepFreeze(structuredClone(call)),
+      decision: deepFreeze(structuredClone(decision)),
+      signal: controller.signal
+    });
+    const approval = Promise.resolve().then(() => approvalHook(request));
+    const result = await withApprovalTimeout(approval, this.approvalTimeoutMs, controller);
+    if (!isApprovalResult(result)) {
+      throw new Error("approval hook returned an invalid result");
+    }
+    return result;
   }
 
   handleServerLine(line: string): ProxyFrameResult {
@@ -1560,23 +1576,28 @@ function resolvePositiveInteger(value: number | undefined, fallback: number): nu
 }
 
 async function withApprovalTimeout(
-  approval: ApprovalResult | Promise<ApprovalResult>,
-  timeoutMs: number
+  approval: Promise<ApprovalResult>,
+  timeoutMs: number,
+  controller: AbortController
 ): Promise<ApprovalResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const approvalPromise = Promise.resolve(approval);
+  const approvalPromise = approval;
   approvalPromise.catch(() => undefined);
   try {
     return await Promise.race([
       approvalPromise,
       new Promise<ApprovalResult>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new ApprovalHookTimeout()), timeoutMs);
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new ApprovalHookTimeout());
+        }, timeoutMs);
       })
     ]);
   } finally {
     if (timer) {
       clearTimeout(timer);
     }
+    controller.abort();
   }
 }
 
@@ -1591,4 +1612,22 @@ function noRedaction(): RedactionSummary {
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isApprovalResult(value: unknown): value is ApprovalResult {
+  return (
+    isRecord(value) &&
+    typeof value.approved === "boolean" &&
+    (value.reason === undefined || typeof value.reason === "string")
+  );
+}
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value !== "object" || value === null || Object.isFrozen(value)) {
+    return value;
+  }
+  for (const nested of Object.values(value)) {
+    deepFreeze(nested);
+  }
+  return Object.freeze(value);
 }

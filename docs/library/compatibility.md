@@ -63,6 +63,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Library decision-result fixture.
 - Library audit JSONL formatter fixture.
 - Runtime audit correlation fixture covering matched request/response routing and raw-ID absence.
+- Approval hook conformance fixture covering explicit approval, rejection, hook error, abort-signal
+  cleanup, concurrent opaque-ID isolation, and raw hook detail omission.
 - Library tool-call normalization fixture.
 - Runtime live stdio smoke command evidence for the implemented local proxy path.
 - Hosted Windows process-tree evidence covering managed shutdown and abrupt proxy termination via

@@ -18,11 +18,60 @@ import type { Writable } from 'node:stream';
 export type ApprovalHook = (request: ApprovalRequest) => ApprovalResult | Promise<ApprovalResult>;
 
 // @public (undocumented)
+export interface ApprovalHookConformanceAdapter {
+    // (undocumented)
+    readonly createHook: (scenario: ApprovalHookConformanceScenario) => ApprovalHook | Promise<ApprovalHook>;
+}
+
+// @public (undocumented)
+export type ApprovalHookConformanceCaseId = "explicit-approval" | "explicit-rejection" | "hook-error" | "abort-signal" | "concurrent-isolation";
+
+// @public (undocumented)
+export interface ApprovalHookConformanceCaseResult {
+    // (undocumented)
+    readonly code: ApprovalHookConformanceCode;
+    // (undocumented)
+    readonly id: ApprovalHookConformanceCaseId;
+    // (undocumented)
+    readonly passed: boolean;
+}
+
+// @public (undocumented)
+export type ApprovalHookConformanceCode = "approval_hook.approve_valid" | "approval_hook.reject_valid" | "approval_hook.error_rejected" | "approval_hook.abort_settled" | "approval_hook.concurrent_isolated" | "approval_hook.adapter_setup_failed" | "approval_hook.not_settled" | "approval_hook.unexpected_result" | "approval_hook.unexpected_error" | "approval_hook.abort_settled_early" | "approval_hook.abort_not_settled" | "approval_hook.abort_approved" | "approval_hook.concurrent_mismatch";
+
+// @public (undocumented)
+export interface ApprovalHookConformanceOptions {
+    // (undocumented)
+    readonly abortAfterMs?: number;
+    // (undocumented)
+    readonly settleTimeoutMs?: number;
+}
+
+// @public (undocumented)
+export interface ApprovalHookConformanceReport {
+    // (undocumented)
+    readonly cases: readonly ApprovalHookConformanceCaseResult[];
+    // (undocumented)
+    readonly passed: boolean;
+    // (undocumented)
+    readonly schemaVersion: "msp.approval-hook-conformance.v1";
+}
+
+// @public (undocumented)
+export type ApprovalHookConformanceScenario = "approve" | "reject" | "error" | "abort" | "concurrent";
+
+// @public (undocumented)
 export interface ApprovalRequest {
+    // (undocumented)
+    readonly approvalId: string;
     // (undocumented)
     readonly call: NormalizedToolCall;
     // (undocumented)
     readonly decision: PolicyDecision;
+    // (undocumented)
+    readonly profileId: string;
+    // (undocumented)
+    readonly signal: AbortSignal;
 }
 
 // @public (undocumented)
@@ -153,6 +202,9 @@ export interface ProxyStartupPlanInput {
     // (undocumented)
     readonly upstreamCommand: readonly string[];
 }
+
+// @public (undocumented)
+export function runApprovalHookConformance(adapter: ApprovalHookConformanceAdapter, options?: ApprovalHookConformanceOptions): Promise<ApprovalHookConformanceReport>;
 
 // @public (undocumented)
 export function runStdioProxy(options: StdioProxyOptions): Promise<StdioProxyResult>;

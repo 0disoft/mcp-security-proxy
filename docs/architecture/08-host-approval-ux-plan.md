@@ -35,6 +35,8 @@ A host approval UX must preserve these runtime invariants:
 - the prompt shown to a user is derived from normalized call facts and decision evidence, not raw
   MCP payloads;
 - optional runtime approval timeouts fail closed without forwarding the call;
+- host work observes `ApprovalRequest.signal` and closes pending UI or background work after abort;
+- concurrent prompts are keyed by opaque `ApprovalRequest.approvalId`, never raw JSON-RPC ids;
 - a stale approval must not approve a different JSON-RPC request id, tool name, capability, or
   argument-fact summary;
 - deny, timeout, close, dismiss, and navigation-away states must all resolve to deny.
@@ -99,5 +101,6 @@ Approval UX support remains blocked until:
 ## Current Status
 
 The runtime approval hook is implemented for embedding hosts. Host-specific approval UX is not
-implemented. The CLI `run` command intentionally does not bundle approval UX and rejects
-`--approval-hook` for live runs.
+implemented. The public runtime conformance kit covers hook mechanics but does not approve any host
+UX. The CLI `run` command intentionally does not bundle approval UX and rejects `--approval-hook`
+for live runs.

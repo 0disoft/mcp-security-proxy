@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
-import { createProxySession } from "./session.js";
+import { createProxySession, type ApprovalRequest } from "./session.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
@@ -3652,6 +3652,120 @@ describe("proxy runtime session", () => {
         method: "tools/call",
         discoveryGeneration: 1,
         durationMs: expect.any(Number)
+      }
+    });
+  });
+
+  it("provides an immutable, cancellation-aware approval request with opaque identity", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+    let captured: ApprovalRequest | undefined;
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-request-contract",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      (request) => {
+        captured = request;
+        expect(request.profileId).toBe("local");
+        expect(request.approvalId).toMatch(/^[a-f0-9-]{36}$/u);
+        expect(request.signal.aborted).toBe(false);
+        expect(Object.isFrozen(request)).toBe(true);
+        expect(Object.isFrozen(request.call)).toBe(true);
+        expect(Object.isFrozen(request.call.capabilities)).toBe(true);
+        expect(Object.isFrozen(request.decision)).toBe(true);
+        expect(Object.isFrozen(request.decision.evidence)).toBe(true);
+        expect(() => (request.call.capabilities as string[]).push("shell")).toThrow(TypeError);
+        return { approved: true };
+      }
+    );
+
+    expect(result.forwardLine).toBeDefined();
+    expect(captured?.signal.aborted).toBe(true);
+  });
+
+  it("aborts a timed-out hook so the host can release pending approval work", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local",
+      approvalTimeoutMs: 1
+    });
+    primeShellDiscovery(session);
+    let observedAbort = false;
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-hook-abort",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      (request) =>
+        new Promise((resolve) => {
+          request.signal.addEventListener(
+            "abort",
+            () => {
+              observedAbort = true;
+              resolve({ approved: false });
+            },
+            { once: true }
+          );
+        })
+    );
+
+    expect(observedAbort).toBe(true);
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      error: {
+        data: {
+          decision: {
+            evidence: [{ code: "policy.approval_hook_failed", reason: "approval hook timed out" }]
+          }
+        }
+      }
+    });
+  });
+
+  it("fails closed when a JavaScript hook returns a non-boolean approval result", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-invalid-result",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      (() => ({ approved: "yes" })) as unknown as import("./session.js").ApprovalHook
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      error: {
+        data: {
+          decision: {
+            evidence: [{ code: "policy.approval_hook_failed", reason: "approval hook failed closed" }]
+          }
+        }
       }
     });
   });

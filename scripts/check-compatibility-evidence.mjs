@@ -46,6 +46,7 @@ const requiredKinds = new Set([
   "library.decision-result",
   "library.audit-jsonl",
   "library.tool-call-normalization",
+  "library.approval-hook-conformance",
   "runtime.live-smoke",
   "runtime.ops-log",
   "runtime.session-result"
@@ -112,6 +113,7 @@ const requiredEvidenceIds = new Set([
   "library-decision-workflow-approval-hook",
   "library-audit-jsonl-method-denied",
   "library-tool-call-normalization",
+  "library-approval-hook-conformance",
   "runtime-live-stdio-smoke",
   "runtime-ops-log-local",
   "runtime-approval-rejected-redacted",
@@ -263,6 +265,9 @@ async function checkEvidenceEntry(item) {
   }
   if (kind === "library.tool-call-normalization") {
     await checkLibraryToolCallNormalizationFixture(id, path, item);
+  }
+  if (kind === "library.approval-hook-conformance") {
+    await checkLibraryApprovalHookConformanceFixture(id, path);
   }
   if (kind === "runtime.session-result") {
     await checkRuntimeSessionFixture(id, path, item);
@@ -877,6 +882,40 @@ async function checkLibraryPolicyParseFixture(id, path, item) {
   const actual = parsePolicyDocumentJson(readText(item.policy));
   const expected = readJson(path);
   assertJsonEqual(id, actual, expected);
+}
+
+async function checkLibraryApprovalHookConformanceFixture(id, path) {
+  const { runApprovalHookConformance } = await import("../packages/proxy-runtime/dist/index.js");
+  const rawMarker = "RAW_APPROVAL_CONFORMANCE_FIXTURE_MARKER";
+  const actual = await runApprovalHookConformance(
+    {
+      createHook: (scenario) => {
+        if (scenario === "approve") {
+          return () => ({ approved: true });
+        }
+        if (scenario === "reject") {
+          return () => ({ approved: false, reason: rawMarker });
+        }
+        if (scenario === "error") {
+          return () => {
+            throw new Error(rawMarker);
+          };
+        }
+        if (scenario === "abort") {
+          return (request) =>
+            new Promise((resolve) => {
+              request.signal.addEventListener("abort", () => resolve({ approved: false }), { once: true });
+            });
+        }
+        return (request) => ({ approved: request.approvalId.endsWith("-approve") });
+      }
+    },
+    { abortAfterMs: 1, settleTimeoutMs: 25 }
+  );
+  if (JSON.stringify(actual).includes(rawMarker)) {
+    failures.push(`${id}: conformance report exposed raw hook details`);
+  }
+  assertJsonEqual(id, actual, readJson(path));
 }
 
 async function checkLibraryAuditJsonlFixture(id, path, item) {

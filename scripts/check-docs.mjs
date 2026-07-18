@@ -402,21 +402,40 @@ function checkApprovalHookDocs() {
   const failures = [];
   const approvalDocsPath = "docs/library/approval-hooks.md";
   const publicApiPath = "docs/library/public-api.md";
+  const runtimeReadmePath = "packages/proxy-runtime/README.md";
   const sessionSource = readFileSync(join(root, "packages/proxy-runtime/src/session.ts"), "utf8");
   const stdioBridgeSource = readFileSync(join(root, "packages/proxy-runtime/src/stdio-bridge.ts"), "utf8");
+  const conformanceSource = readFileSync(join(root, "packages/proxy-runtime/src/approval-conformance.ts"), "utf8");
   const approvalDocs = readFileSync(join(root, approvalDocsPath), "utf8");
   const publicApiDoc = readFileSync(join(root, publicApiPath), "utf8");
+  const runtimeReadme = readFileSync(join(root, runtimeReadmePath), "utf8");
 
   for (const sourcePhrase of [
     "export interface ApprovalRequest",
+    "readonly approvalId: string;",
+    "readonly profileId: string;",
     "readonly call: NormalizedToolCall;",
     "readonly decision: PolicyDecision;",
+    "readonly signal: AbortSignal;",
     "export interface ApprovalResult",
     "readonly approved: boolean;",
     "export type ApprovalHook"
   ]) {
     if (!sessionSource.includes(sourcePhrase)) {
       failures.push(`packages/proxy-runtime/src/session.ts: missing approval hook source phrase: ${sourcePhrase}`);
+    }
+  }
+
+  for (const sourcePhrase of [
+    'schemaVersion: "msp.approval-hook-conformance.v1"',
+    '"approve" | "reject" | "error" | "abort" | "concurrent"',
+    "approval_hook.abort_not_settled",
+    "approval_hook.concurrent_isolated"
+  ]) {
+    if (!conformanceSource.includes(sourcePhrase)) {
+      failures.push(
+        `packages/proxy-runtime/src/approval-conformance.ts: missing conformance source phrase: ${sourcePhrase}`
+      );
     }
   }
 
@@ -441,7 +460,12 @@ function checkApprovalHookDocs() {
     "No persistent or remembered approval store",
     "policy.approval_denied",
     "policy.approval_hook_failed",
-    "policy.approval_hook_missing"
+    "policy.approval_hook_missing",
+    "runApprovalHookConformance",
+    "opaque per-call correlation value",
+    "hosts must close pending UI, listeners, and background work when it aborts",
+    "never includes hook rejection reasons or thrown error text",
+    "approval_hook.not_settled"
   ]) {
     if (!approvalDocs.includes(phrase)) {
       failures.push(`${approvalDocsPath}: missing approval hook contract phrase: ${phrase}`);
@@ -450,6 +474,11 @@ function checkApprovalHookDocs() {
 
   if (!publicApiDoc.includes("docs/library/approval-hooks.md")) {
     failures.push(`${publicApiPath}: public API docs must link the approval hook contract`);
+  }
+  for (const phrase of ["runApprovalHookConformance", "opaque `approvalId`", "AbortSignal"]) {
+    if (!runtimeReadme.includes(phrase)) {
+      failures.push(`${runtimeReadmePath}: missing approval conformance consumer phrase: ${phrase}`);
+    }
   }
 
   return failures;

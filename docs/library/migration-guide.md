@@ -68,6 +68,12 @@ The latest published prerelease is `0.2.0-alpha.2`. It contains the additive cha
   fail-closed decisions now emit stable codes so consumers do not parse human-readable reason text.
 - Current draft runtime API note: proxy session and stdio bridge options may include an optional
   approval timeout. Existing embedders that omit it keep the previous no-runtime-timeout behavior.
+- Current draft approval hook note: `ApprovalRequest` now adds opaque `approvalId`, `profileId`, and
+  `signal` fields. Existing hooks may ignore the additive fields, but hosts with pending UI or
+  background work should stop it when `signal` aborts and key concurrent prompts by `approvalId`.
+  Hook results now require an exact boolean `approved` field; malformed JavaScript results fail
+  closed. `runApprovalHookConformance` is an additive runtime export for synthetic host validation.
+  Rollback removes cancellation and conformance support and restores the older timeout leak risk.
 - Current draft audit policy note: `includeFullPaths` is fixed to `false` because full-path capture
   is not implemented. CLI `run` requires `audit.destination: file`, uses the profile `audit.path`
   by default, and treats `--audit-log` as an explicit path override. Embedding hosts may still own

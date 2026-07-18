@@ -369,7 +369,7 @@ describe("stdio proxy bridge", () => {
         }
       })}\n`
     );
-    await sleep(10);
+    await waitForCondition(() => Buffer.concat(harness.clientOutputCapture).includes('"approval-call-timeout"'), 1_000);
     harness.clientInput.end();
     harness.upstream.stdout.end();
     harness.upstream.stderr.end();
@@ -819,6 +819,16 @@ function nextTick(): Promise<void> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForCondition(condition: () => boolean, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition()) {
+    if (Date.now() >= deadline) {
+      throw new Error("timed out waiting for test condition");
+    }
+    await sleep(1);
+  }
 }
 
 function readLines(chunks: readonly Buffer[]): readonly string[] {

@@ -49,9 +49,13 @@ This repository type owns public API surface, package compatibility, semantic ve
 - `mcp`: protocol adapter types for MCP messages and `normalizeToolCallEnvelope` for deriving
   normalized tool-call facts without binding the package to one host.
 - `proxy-runtime`: evaluate newline-delimited JSON-RPC messages at the proxy boundary and return
-  forward, denial, and audit actions without owning subprocess IO.
+  forward, denial, and audit actions without owning subprocess IO. The package also exports
+  `runApprovalHookConformance` for synthetic approval, rejection, error, abort, and concurrent hook
+  validation.
 - `approval`: host-owned approval callback types used by the runtime before forwarding
-  approval-required calls. The approval hook API contract is docs/library/approval-hooks.md.
+  approval-required calls. Requests carry opaque approval identity, profile identity, immutable
+  normalized facts, and an abort signal. The approval hook API and conformance contract is
+  docs/library/approval-hooks.md.
 
 ## Public Type Principles
 
