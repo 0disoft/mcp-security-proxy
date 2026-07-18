@@ -1,10 +1,15 @@
 name: Registry Smoke
+run-name: "Registry Smoke receipt: version=${{ inputs.version }}; release-run=${{ inputs.release_run_id }}"
 
 on:
   workflow_dispatch:
     inputs:
       version:
         description: Exact published semver to verify
+        required: true
+        type: string
+      release_run_id:
+        description: Successful Release workflow run id for this version
         required: true
         type: string
 

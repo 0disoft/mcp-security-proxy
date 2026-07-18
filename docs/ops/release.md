@@ -92,6 +92,14 @@ Smoke workflow runs, observed npm dist-tags, package integrity values, and SLSA 
 exact package sets. Receipt validation is offline consistency checking; only `registry-smoke`
 re-verifies the current public registry state.
 
+The manually dispatched Registry Smoke requires the successful Release run ID in addition to the
+exact version. Its structured run name triggers the read-only Publication Receipt workflow only
+after Registry Smoke completes successfully. That follow-up resolves the release tag through the
+GitHub API, revalidates both workflow runs and all public npm metadata, and uploads the generated
+receipt as a temporary workflow artifact. It cannot commit or rewrite publication records; an owner
+must review the artifact, place it under `docs/ops/publications/`, run release readiness, and commit
+the immutable evidence.
+
 The one-time package-name initialization path is owned by `docs/ops/npm-bootstrap.md` and
 `docs/ops/npm-bootstrap-plan.json`. It stages `0.0.0-bootstrap.0` tarballs without changing source
 manifests, uses only the non-default `bootstrap` dist-tag, and cannot run through the normal release

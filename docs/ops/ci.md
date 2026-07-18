@@ -91,6 +91,8 @@ validation evidence.
 Post-publication facts are stored separately from approval records. The release-readiness aggregate
 validates each tracked publication receipt against its approved package set, release workflow run,
 registry smoke run, integrity values, and provenance linkage without making network requests.
+The separate read-only Publication Receipt workflow generates a reviewable JSON artifact after a
+successful manually dispatched Registry Smoke; it never writes to the repository.
 
 The first-package bootstrap path is not a GitHub Actions workflow. Its source of truth is
 `docs/ops/npm-bootstrap.md`; it keeps credentials in an interactive npm owner session and produces
@@ -101,15 +103,34 @@ path added to the normal release workflow.
 ## Registry Smoke Workflow
 
 `.github/workflows/registry-smoke.yml` is a read-only, manually dispatched recovery and verification
-workflow. It requires an exact published semver, installs all five packages from public npm with an
-empty temporary user config and lifecycle scripts disabled, verifies sha512 integrity and npm SLSA
-provenance metadata, then runs the shared ESM, TypeScript declaration, and CLI help consumer checks.
+workflow. It requires an exact published semver and the successful Release workflow run ID for that
+version. Those inputs form a strict run name consumed by receipt automation; they do not grant write
+access. The workflow installs all five packages from public npm with an empty temporary user config
+and lifecycle scripts disabled, verifies sha512 integrity and npm SLSA provenance metadata, then
+runs the shared ESM, TypeScript declaration, and CLI help consumer checks.
 The same temporary consumer installs the exact pinned MCP SDK and filesystem server, starts the
 registry-installed CLI as a real stdio proxy, completes initialize and discovery, proves one
 in-scope read succeeds, proves an out-of-scope read is denied, and checks that audit output contains
 decision codes without raw paths or arguments. The onboarding path uses no workspace `dist` output
 or repository fixture policy. It neither accepts dist-tags or semver ranges nor reads npm
 credentials.
+
+## Publication Receipt Workflow
+
+`.github/workflows/publication-receipt.yml` starts only from the completed Registry Smoke event and
+runs its job only when that smoke concluded successfully. It checks out the default branch with
+read-only Actions and contents permissions, then `scripts/generate-publication-receipt.mjs` parses
+the structured smoke run name and verifies the completed Release and Registry Smoke runs through
+GitHub's public Actions API. The generator resolves the version tag to its commit, loads the matching
+approved release and completed bootstrap records, and reads public npm metadata for the exact
+five-package set. It rejects package tag drift, a bootstrap tag that does not match the completed
+plan, missing integrity, missing SLSA provenance, missing SHA-1 shasums, and publication timestamps
+that do not precede the completed smoke.
+
+The resulting `<version>.publication.json` is retained as a workflow artifact for 30 days. The
+workflow has no contents write permission and does not open a pull request or commit evidence.
+Owners review and commit the immutable receipt separately so generated network observations cannot
+silently rewrite the repository's release history.
 
 ## Validation
 

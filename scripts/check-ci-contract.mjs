@@ -7,6 +7,7 @@ const root = process.cwd();
 const workflowPath = ".github/workflows/ci.yml";
 const releaseWorkflowPath = ".github/workflows/release.yml";
 const registrySmokeWorkflowPath = ".github/workflows/registry-smoke.yml";
+const publicationReceiptWorkflowPath = ".github/workflows/publication-receipt.yml";
 const registrySmokeSourcePath = "scripts/check-registry-packages.mjs";
 const registryOnboardingSmokePath = "scripts/lib/registry-onboarding-smoke.mjs";
 const ciDocPath = "docs/ops/ci.md";
@@ -16,6 +17,7 @@ const failures = [];
 const manifest = readJson("package.json");
 const workflow = readText(workflowPath);
 const registrySmokeWorkflow = readText(registrySmokeWorkflowPath);
+const publicationReceiptWorkflow = readText(publicationReceiptWorkflowPath);
 const registrySmokeSource = readText(registrySmokeSourcePath);
 const registryOnboardingSmoke = readText(registryOnboardingSmokePath);
 const ciDoc = readText(ciDocPath);
@@ -68,6 +70,7 @@ assertContains(workflow, "pnpm run process-tree-smoke", `${workflowPath}: proces
 assertContains(workflow, "fail-fast: false", `${workflowPath}: process-tree matrix completion`);
 checkWorkflowPublishSurfaces(workflowFiles);
 checkRegistrySmokeWorkflowContract(registrySmokeWorkflow);
+checkPublicationReceiptWorkflowContract(publicationReceiptWorkflow);
 checkRegistryOnboardingSmokeContract();
 
 assertContains(ciDoc, `installs Node.js ${workflowNodeVersion}`, `${ciDocPath}: documented Node.js version`);
@@ -353,11 +356,21 @@ function checkReleaseWorkflowContract(releaseWorkflow) {
 
 function checkRegistrySmokeWorkflowContract(registrySmokeWorkflow) {
   assertContains(registrySmokeWorkflow, "name: Registry Smoke", `${registrySmokeWorkflowPath}: workflow name`);
+  assertContains(
+    registrySmokeWorkflow,
+    'run-name: "Registry Smoke receipt: version=${{ inputs.version }}; release-run=${{ inputs.release_run_id }}"',
+    `${registrySmokeWorkflowPath}: structured publication receipt request`
+  );
   assertContains(registrySmokeWorkflow, "workflow_dispatch:", `${registrySmokeWorkflowPath}: manual trigger`);
   assertContains(
     registrySmokeWorkflow,
     "version:\n        description: Exact published semver to verify\n        required: true\n        type: string",
     `${registrySmokeWorkflowPath}: exact version input`
+  );
+  assertContains(
+    registrySmokeWorkflow,
+    "release_run_id:\n        description: Successful Release workflow run id for this version\n        required: true\n        type: string",
+    `${registrySmokeWorkflowPath}: release run input`
   );
   assertContains(
     registrySmokeWorkflow,
@@ -398,6 +411,67 @@ function checkRegistrySmokeWorkflowContract(registrySmokeWorkflow) {
     "pnpm run registry-smoke",
     `${registrySmokeWorkflowPath}: registry smoke command`
   );
+}
+
+function checkPublicationReceiptWorkflowContract(publicationReceiptWorkflow) {
+  assertContains(
+    publicationReceiptWorkflow,
+    "name: Publication Receipt",
+    `${publicationReceiptWorkflowPath}: workflow name`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "workflow_run:\n    workflows:\n      - Registry Smoke\n    types:\n      - completed",
+    `${publicationReceiptWorkflowPath}: completed Registry Smoke trigger`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "permissions:\n  actions: read\n  contents: read",
+    `${publicationReceiptWorkflowPath}: read-only actions and contents permissions`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "cancel-in-progress: false",
+    `${publicationReceiptWorkflowPath}: receipt jobs must not cancel in progress`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "if: ${{ github.event.workflow_run.conclusion == 'success' }}",
+    `${publicationReceiptWorkflowPath}: successful smoke conclusion gate`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "runs-on: ubuntu-latest",
+    `${publicationReceiptWorkflowPath}: Ubuntu runner`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "timeout-minutes: 5",
+    `${publicationReceiptWorkflowPath}: bounded timeout`
+  );
+  assertPinnedAction(publicationReceiptWorkflowPath, publicationReceiptWorkflow, "actions/checkout");
+  assertPinnedAction(publicationReceiptWorkflowPath, publicationReceiptWorkflow, "actions/setup-node");
+  assertPinnedAction(publicationReceiptWorkflowPath, publicationReceiptWorkflow, "actions/upload-artifact");
+  assertContains(
+    publicationReceiptWorkflow,
+    `node-version: ${workflowNodeVersion}`,
+    `${publicationReceiptWorkflowPath}: Node.js version`
+  );
+  for (const phrase of [
+    "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}",
+    "MSP_PUBLICATION_RECEIPT_REQUEST: ${{ github.event.workflow_run.display_title }}",
+    "MSP_REGISTRY_SMOKE_RUN_ID: ${{ github.event.workflow_run.id }}",
+    "MSP_PUBLICATION_RECEIPT_OUTPUT_DIR: publication-receipt",
+    "node scripts/generate-publication-receipt.mjs",
+    "path: publication-receipt/*.publication.json",
+    "if-no-files-found: error"
+  ]) {
+    assertContains(
+      publicationReceiptWorkflow,
+      phrase,
+      `${publicationReceiptWorkflowPath}: missing receipt contract phrase ${phrase}`
+    );
+  }
 }
 
 function checkRegistryOnboardingSmokeContract() {
