@@ -76,6 +76,7 @@ for (const phrase of [
   'process.platform === "win32"',
   'runProcessTreeScenario("abrupt-proxy-termination")',
   'proxyChild.kill("SIGKILL")',
+  "extractSafeContainmentDiagnostic",
   "Windows Job Object kill-on-close"
 ]) {
   assertContains(processTreeSmoke, phrase, `${processTreeSmokePath}: missing abrupt termination phrase ${phrase}`);

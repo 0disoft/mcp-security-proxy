@@ -51,7 +51,7 @@ async function runProcessTreeScenario(mode) {
     );
     const stderrChunks = [];
     proxyChild.stderr.on("data", (chunk) => stderrChunks.push(chunk));
-    await waitForFile(descendantPidPath, 15_000);
+    await waitForFixtureStartup(descendantPidPath, proxyChild, stderrChunks, 15_000);
     descendantPid = Number(readFileSync(descendantPidPath, "utf8"));
     if (!Number.isSafeInteger(descendantPid) || descendantPid < 1) {
       throw new Error(`fixture returned invalid descendant PID: ${descendantPid}`);
@@ -87,14 +87,28 @@ async function runProcessTreeScenario(mode) {
   }
 }
 
-async function waitForFile(path, timeoutMs) {
+async function waitForFixtureStartup(path, proxyChild, stderrChunks, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (!existsSync(path)) {
+    if (proxyChild.exitCode !== null) {
+      const diagnostic = extractSafeContainmentDiagnostic(stderrChunks);
+      throw new Error(
+        `proxy exited ${proxyChild.exitCode ?? 1} before process-tree fixture startup${diagnostic ? `: ${diagnostic}` : ""}`
+      );
+    }
     if (Date.now() >= deadline) {
-      throw new Error(`timed out waiting for fixture file: ${path}`);
+      throw new Error("timed out waiting for process-tree fixture startup");
     }
     await delay(20);
   }
+}
+
+function extractSafeContainmentDiagnostic(stderrChunks) {
+  const lines = Buffer.concat(stderrChunks)
+    .toString("utf8")
+    .split(/\r?\n/u)
+    .filter((line) => line.startsWith("Windows process containment "));
+  return lines.at(-1)?.slice(0, 256);
 }
 
 function waitForChildExit(child, timeoutMs) {
