@@ -104,7 +104,12 @@ path added to the normal release workflow.
 workflow. It requires an exact published semver, installs all five packages from public npm with an
 empty temporary user config and lifecycle scripts disabled, verifies sha512 integrity and npm SLSA
 provenance metadata, then runs the shared ESM, TypeScript declaration, and CLI help consumer checks.
-It neither accepts dist-tags or semver ranges nor reads npm credentials.
+The same temporary consumer installs the exact pinned MCP SDK and filesystem server, starts the
+registry-installed CLI as a real stdio proxy, completes initialize and discovery, proves one
+in-scope read succeeds, proves an out-of-scope read is denied, and checks that audit output contains
+decision codes without raw paths or arguments. The onboarding path uses no workspace `dist` output
+or repository fixture policy. It neither accepts dist-tags or semver ranges nor reads npm
+credentials.
 
 ## Validation
 

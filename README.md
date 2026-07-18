@@ -17,6 +17,19 @@ This is not an OS sandbox. It cannot stop a server process from doing work outsi
 Its job is narrower and sharper: inspect the MCP protocol boundary before an agent gets a tool or
 before a tool call leaves the host.
 
+## Quick Start
+
+Node.js 24 or newer is required. Install the published CLI and the pinned filesystem MCP server:
+
+```sh
+npm install --global @0disoft/mcp-security-proxy-cli@0.2.0-alpha.2 @modelcontextprotocol/server-filesystem@2026.7.4
+```
+
+Then follow the [npm CLI Quick Start](packages/cli/README.md#quick-start) to create a deny-by-default
+policy, validate it, and generate or apply a host registration. The example exposes only
+`read_text_file` under one explicit lexical path. It does not turn the filesystem server into an OS
+sandbox or protect against symlink and junction escapes outside the MCP argument boundary.
+
 ## Source Files
 
 - AGENTS.md: agent working rules

@@ -38,6 +38,10 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Policy and audit schemas must remain deterministic across supported runtimes.
 - Public registry compatibility evidence comes from exact-version registry smoke; local package
   compatibility evidence remains the offline packed-artifact consumer test.
+- Registry onboarding compatibility additionally requires a real stdio session using only the
+  registry-installed CLI, exact pinned MCP SDK, and exact pinned filesystem server in a temporary
+  consumer project. It must cover filtered discovery, an allowed read, a default-denied read,
+  orderly shutdown, and audit redaction without workspace build output or repository fixture files.
 
 ## Compatibility Evidence Required
 

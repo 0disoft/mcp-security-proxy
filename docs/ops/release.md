@@ -78,9 +78,12 @@ exists.
 After all five immutable versions are published, the release workflow runs `pnpm run
 registry-smoke`. This post-publication check requires the exact tag version, verifies npm registry
 integrity and SLSA provenance metadata, installs all five packages without lifecycle scripts or npm
-credentials, and repeats the shared ESM, TypeScript, and CLI consumer checks. It cannot be used as
-pre-publication approval evidence. Failure after publication triggers the rollback and deprecation
-procedure; it never retries `npm publish` for the same immutable version.
+credentials, repeats the shared ESM, TypeScript, and CLI consumer checks, and runs a complete MCP
+stdio onboarding session with the registry-installed CLI and pinned filesystem server. That session
+proves filtered discovery, one allowed read, one default-denied read, orderly shutdown, and redacted
+audit evidence without using checkout build output. It cannot be used as pre-publication approval
+evidence. Failure after publication triggers the rollback and deprecation procedure; it never
+retries `npm publish` for the same immutable version.
 
 Completed publication evidence lives under `docs/ops/publications/*.publication.json`. A
 publication receipt records the immutable release tag and commit, successful Release and Registry

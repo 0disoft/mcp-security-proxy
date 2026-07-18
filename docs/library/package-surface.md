@@ -70,8 +70,11 @@ This validates package shape without publishing it.
 
 `pnpm run registry-smoke -- --version <exact-semver>` is the separate post-publication check. It
 downloads the five exact versions from public npm, verifies registry integrity and provenance
-metadata, and applies the same ESM, TypeScript, and CLI consumer contract. It is intentionally not
-part of the offline `check` aggregate and does not accept `latest`, ranges, or unpublished versions.
+metadata, and applies the same ESM, TypeScript, and CLI consumer contract. It then uses the
+registry-installed CLI, exact pinned MCP SDK, and exact pinned filesystem server for an actual
+stdio onboarding session with filtered discovery, allowed and denied reads, orderly shutdown, and
+redacted audit evidence. It is intentionally not part of the offline `check` aggregate and does
+not accept `latest`, ranges, or unpublished versions.
 
 ## Expected Package Surfaces
 

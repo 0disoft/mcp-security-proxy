@@ -17,6 +17,7 @@ Status: Draft
 - Gemini configuration compatibility evidence source: docs/ops/gemini-config-compatibility-evidence.md
 - npm package bootstrap source: docs/ops/npm-bootstrap.md and docs/ops/npm-bootstrap-plan.json
 - npm publication evidence source: docs/ops/publications/*.publication.json
+- npm user Quick Start source: packages/cli/README.md, summarized by the root README.md
 - Operational standard source: docs/ops/00-operational-contract.md
 - Validation source: VALIDATION.md
 - Agent routing source: .agents/context-map.md

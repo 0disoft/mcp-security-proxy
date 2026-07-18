@@ -74,7 +74,8 @@ const cliContractFailures = [
   ...checkAuditCorrelationPlanDocs(),
   ...checkPathPolicyBoundaryDocs(),
   ...checkDecisionCodeDocs(),
-  ...checkApprovalHookDocs()
+  ...checkApprovalHookDocs(),
+  ...checkQuickStartDocs()
 ];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
@@ -450,5 +451,35 @@ function checkApprovalHookDocs() {
     failures.push(`${publicApiPath}: public API docs must link the approval hook contract`);
   }
 
+  return failures;
+}
+
+function checkQuickStartDocs() {
+  const failures = [];
+  const rootReadme = readFileSync(join(root, "README.md"), "utf8");
+  const cliReadme = readFileSync(join(root, "packages/cli/README.md"), "utf8");
+  const installCommand =
+    "npm install --global @0disoft/mcp-security-proxy-cli@0.2.0-alpha.2 " +
+    "@modelcontextprotocol/server-filesystem@2026.7.4";
+
+  if (!rootReadme.includes(installCommand) || !rootReadme.includes("packages/cli/README.md#quick-start")) {
+    failures.push("README.md: npm Quick Start must install exact versions and link the CLI onboarding contract");
+  }
+  for (const phrase of [
+    installCommand,
+    '"defaultAction": "deny"',
+    '"tools": ["read_text_file"]',
+    '"includeRawArguments": false',
+    "mcp-security-proxy check-policy",
+    "mcp-security-proxy config-snippet --target codex-cli-json",
+    "codex mcp add secured-filesystem",
+    "npm root --global",
+    "Join-Path $globalRoot",
+    "not an\noperating-system sandbox"
+  ]) {
+    if (!cliReadme.includes(phrase)) {
+      failures.push(`packages/cli/README.md: npm Quick Start is missing ${phrase}`);
+    }
+  }
   return failures;
 }

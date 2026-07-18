@@ -7,6 +7,8 @@ const root = process.cwd();
 const workflowPath = ".github/workflows/ci.yml";
 const releaseWorkflowPath = ".github/workflows/release.yml";
 const registrySmokeWorkflowPath = ".github/workflows/registry-smoke.yml";
+const registrySmokeSourcePath = "scripts/check-registry-packages.mjs";
+const registryOnboardingSmokePath = "scripts/lib/registry-onboarding-smoke.mjs";
 const ciDocPath = "docs/ops/ci.md";
 const registryUrl = "https://registry.npmjs.org";
 const failures = [];
@@ -14,6 +16,8 @@ const failures = [];
 const manifest = readJson("package.json");
 const workflow = readText(workflowPath);
 const registrySmokeWorkflow = readText(registrySmokeWorkflowPath);
+const registrySmokeSource = readText(registrySmokeSourcePath);
+const registryOnboardingSmoke = readText(registryOnboardingSmokePath);
 const ciDoc = readText(ciDocPath);
 const normalizedCiDoc = ciDoc.replace(/\s+/g, " ");
 const workflowFiles = listWorkflowFiles();
@@ -64,6 +68,7 @@ assertContains(workflow, "pnpm run process-tree-smoke", `${workflowPath}: proces
 assertContains(workflow, "fail-fast: false", `${workflowPath}: process-tree matrix completion`);
 checkWorkflowPublishSurfaces(workflowFiles);
 checkRegistrySmokeWorkflowContract(registrySmokeWorkflow);
+checkRegistryOnboardingSmokeContract();
 
 assertContains(ciDoc, `installs Node.js ${workflowNodeVersion}`, `${ciDocPath}: documented Node.js version`);
 assertContains(ciDoc, `installs Python ${workflowPythonVersion}`, `${ciDocPath}: documented Python version`);
@@ -392,6 +397,33 @@ function checkRegistrySmokeWorkflowContract(registrySmokeWorkflow) {
     registrySmokeWorkflow,
     "pnpm run registry-smoke",
     `${registrySmokeWorkflowPath}: registry smoke command`
+  );
+}
+
+function checkRegistryOnboardingSmokeContract() {
+  assertContains(
+    registrySmokeSource,
+    "runRegistryOnboardingSmoke({ consumerRoot, expectedVersion })",
+    `${registrySmokeSourcePath}: registry onboarding invocation`
+  );
+  for (const phrase of [
+    '@modelcontextprotocol/sdk", version: "1.29.0"',
+    '@modelcontextprotocol/server-filesystem", version: "2026.7.4"',
+    'schemaVersion: "msp.registry-onboarding-smoke.v1"',
+    'visibleTools) !== JSON.stringify(["read_text_file"])',
+    'evidenceCodes?.includes("policy.default_deny")',
+    "registry onboarding smoke audit output exposed fixture paths or raw arguments"
+  ]) {
+    assertContains(
+      registryOnboardingSmoke,
+      phrase,
+      `${registryOnboardingSmokePath}: missing registry onboarding contract phrase`
+    );
+  }
+  assertContains(
+    normalizedCiDoc,
+    "starts the registry-installed CLI as a real stdio proxy",
+    `${ciDocPath}: documented registry onboarding session`
   );
 }
 
