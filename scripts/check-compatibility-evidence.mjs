@@ -8,6 +8,7 @@ const manifestPath = "fixtures/compatibility/manifest.json";
 const localCompatibilityTarget = "local-stdio-mvp";
 const externalCompatibilityTarget = "external-filesystem-stdio";
 const externalPythonCompatibilityTarget = "external-filesystem-python-stdio";
+const externalFetchCompatibilityTarget = "external-fetch-stdio";
 const externalCompatibilityTargets = new Map([
   [
     externalCompatibilityTarget,
@@ -16,7 +17,8 @@ const externalCompatibilityTargets = new Map([
       server: { package: "@modelcontextprotocol/server-filesystem", version: "2026.7.4" },
       manifest: "fixtures/compatibility/external-filesystem-stdio.manifest.json",
       summary: "fixtures/compatibility/external-filesystem-stdio.summary.json",
-      harness: "scripts/check-external-mcp-fixture.mjs"
+      harness: "scripts/check-external-mcp-fixture.mjs",
+      summaryProfile: "filesystem"
     }
   ],
   [
@@ -26,7 +28,19 @@ const externalCompatibilityTargets = new Map([
       server: { package: "@modelcontextprotocol/server-filesystem", version: "2026.7.4" },
       manifest: "fixtures/compatibility/external-filesystem-python-stdio.manifest.json",
       summary: "fixtures/compatibility/external-filesystem-python-stdio.summary.json",
-      harness: "scripts/check-external-python-mcp-fixture.mjs"
+      harness: "scripts/check-external-python-mcp-fixture.mjs",
+      summaryProfile: "filesystem"
+    }
+  ],
+  [
+    externalFetchCompatibilityTarget,
+    {
+      client: { package: "@modelcontextprotocol/sdk", version: "1.29.0" },
+      server: { package: "mcp-server-fetch", version: "2026.7.10" },
+      manifest: "fixtures/compatibility/external-fetch-stdio.manifest.json",
+      summary: "fixtures/compatibility/external-fetch-stdio.summary.json",
+      harness: "scripts/check-external-fetch-mcp-fixture.mjs",
+      summaryProfile: "fetch"
     }
   ]
 ]);
@@ -458,11 +472,11 @@ function checkExternalCompatibilityManifest(path, registryTarget, spec) {
     failures.push(`${path}: scenarios must be strings`);
   }
   if (typeof externalManifest.summary === "string" && existsSync(join(root, externalManifest.summary))) {
-    checkExternalFixtureSummary(path, externalManifest.summary, externalManifest);
+    checkExternalFixtureSummary(path, externalManifest.summary, externalManifest, spec);
   }
 }
 
-function checkExternalFixtureSummary(manifestLabel, summaryPath, externalManifest) {
+function checkExternalFixtureSummary(manifestLabel, summaryPath, externalManifest, spec) {
   const summary = readJson(summaryPath);
   if (summary.schemaVersion !== "msp.external-fixture-summary.v1") {
     failures.push(`${summaryPath}: schemaVersion must be msp.external-fixture-summary.v1`);
@@ -504,6 +518,22 @@ function checkExternalFixtureSummary(manifestLabel, summaryPath, externalManifes
   if (scenarios.initialized?.accepted !== true) {
     failures.push(`${summaryPath}: initialized.accepted must be true`);
   }
+  if (spec.summaryProfile === "filesystem") {
+    checkExternalFilesystemFixtureSummary(summaryPath, scenarios);
+  } else if (spec.summaryProfile === "fetch") {
+    checkExternalFetchFixtureSummary(summaryPath, scenarios);
+  } else {
+    failures.push(`${summaryPath}: unsupported external summary profile ${spec.summaryProfile}`);
+  }
+  if (scenarios.shutdown?.clientClosed !== true) {
+    failures.push(`${summaryPath}: shutdown.clientClosed must be true`);
+  }
+  if (scenarios.audit?.containsRawFixtureRoot !== false) {
+    failures.push(`${summaryPath}: audit must not contain the raw external fixture root`);
+  }
+}
+
+function checkExternalFilesystemFixtureSummary(summaryPath, scenarios) {
   if (scenarios.toolsListFiltering?.includesReadTextFile !== true) {
     failures.push(`${summaryPath}: toolsListFiltering must include read_text_file`);
   }
@@ -519,17 +549,35 @@ function checkExternalFixtureSummary(manifestLabel, summaryPath, externalManifes
   if (!scenarioHasEvidenceCode(scenarios.hiddenToolDirectCall, "tool.not_visible")) {
     failures.push(`${summaryPath}: hiddenToolDirectCall must include tool.not_visible evidence`);
   }
-  if (scenarios.shutdown?.clientClosed !== true) {
-    failures.push(`${summaryPath}: shutdown.clientClosed must be true`);
-  }
   const auditCodes = Array.isArray(scenarios.audit?.evidenceCodes) ? scenarios.audit.evidenceCodes : [];
   for (const code of ["discovery.filtered", "policy.rule_allow", "policy.rule_deny", "tool.not_visible"]) {
     if (!auditCodes.includes(code)) {
       failures.push(`${summaryPath}: audit.evidenceCodes must include ${code}`);
     }
   }
-  if (scenarios.audit?.containsRawFixtureRoot !== false) {
-    failures.push(`${summaryPath}: audit must not contain the raw external fixture root`);
+}
+
+function checkExternalFetchFixtureSummary(summaryPath, scenarios) {
+  if (scenarios.toolsListFiltering?.includesFetch !== true || scenarios.toolsListFiltering?.visibleCount !== 1) {
+    failures.push(`${summaryPath}: toolsListFiltering must expose only fetch`);
+  }
+  if (
+    scenarios.allowedLocalFetch?.ok !== true ||
+    scenarios.allowedLocalFetch?.contentDigest !== "external-fetch-hello"
+  ) {
+    failures.push(`${summaryPath}: allowedLocalFetch must prove the synthetic localhost fetch`);
+  }
+  if (!scenarioHasEvidenceCode(scenarios.deniedExternalFetch, "policy.default_deny")) {
+    failures.push(`${summaryPath}: deniedExternalFetch must include policy.default_deny evidence`);
+  }
+  if (scenarios.upstreamHttpError?.ok !== true || scenarios.upstreamHttpError?.isError !== true) {
+    failures.push(`${summaryPath}: upstreamHttpError must prove a normalized upstream tool error`);
+  }
+  const auditCodes = Array.isArray(scenarios.audit?.evidenceCodes) ? scenarios.audit.evidenceCodes : [];
+  for (const code of ["policy.rule_allow", "policy.default_deny"]) {
+    if (!auditCodes.includes(code)) {
+      failures.push(`${summaryPath}: audit.evidenceCodes must include ${code}`);
+    }
   }
 }
 
@@ -2354,6 +2402,7 @@ function checkDecisionEvidenceCodes(label, value, path = "$") {
 async function checkCompatibilityEvidenceValidator() {
   const javascriptExternalSpec = externalCompatibilityTargets.get(externalCompatibilityTarget);
   const pythonExternalSpec = externalCompatibilityTargets.get(externalPythonCompatibilityTarget);
+  const fetchExternalSpec = externalCompatibilityTargets.get(externalFetchCompatibilityTarget);
   const invalidManifestScopeFailures = collectCompatibilityFailures(() => {
     checkManifestScope("<compatibility-self-test-invalid-manifest-scope>", {
       transport: "http",
@@ -2405,6 +2454,17 @@ async function checkCompatibilityEvidenceValidator() {
           summary: pythonExternalSpec.summary,
           harness: pythonExternalSpec.harness,
           validationCommand: ["node", pythonExternalSpec.harness]
+        },
+        {
+          id: externalFetchCompatibilityTarget,
+          transport: "stdio",
+          fixtureSource: "external-mcp",
+          client: fetchExternalSpec.client,
+          server: fetchExternalSpec.server,
+          manifest: fetchExternalSpec.manifest,
+          summary: fetchExternalSpec.summary,
+          harness: fetchExternalSpec.harness,
+          validationCommand: ["node", fetchExternalSpec.harness]
         }
       ]
     });

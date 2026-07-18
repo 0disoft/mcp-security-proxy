@@ -11,6 +11,7 @@ const publicationReceiptWorkflowPath = ".github/workflows/publication-receipt.ym
 const registrySmokeSourcePath = "scripts/check-registry-packages.mjs";
 const registryOnboardingSmokePath = "scripts/lib/registry-onboarding-smoke.mjs";
 const processTreeSmokePath = "scripts/check-process-tree-smoke.mjs";
+const externalFetchFixturePath = "scripts/check-external-fetch-mcp-fixture.mjs";
 const ciDocPath = "docs/ops/ci.md";
 const registryUrl = "https://registry.npmjs.org";
 const failures = [];
@@ -22,6 +23,7 @@ const publicationReceiptWorkflow = readText(publicationReceiptWorkflowPath);
 const registrySmokeSource = readText(registrySmokeSourcePath);
 const registryOnboardingSmoke = readText(registryOnboardingSmokePath);
 const processTreeSmoke = readText(processTreeSmokePath);
+const externalFetchFixture = readText(externalFetchFixturePath);
 const ciDoc = readText(ciDocPath);
 const normalizedCiDoc = ciDoc.replace(/\s+/g, " ");
 const workflowFiles = listWorkflowFiles();
@@ -77,6 +79,29 @@ for (const phrase of [
   "Windows Job Object kill-on-close"
 ]) {
   assertContains(processTreeSmoke, phrase, `${processTreeSmokePath}: missing abrupt termination phrase ${phrase}`);
+}
+assertContains(
+  manifest.scripts?.["external-compatibility"] ?? "",
+  "node scripts/check-external-fetch-mcp-fixture.mjs",
+  "package.json: external compatibility aggregate must include the fetch-server row"
+);
+for (const phrase of [
+  'const serverPackage = "mcp-server-fetch"',
+  'const serverVersion = "2026.7.10"',
+  '"--ignore-robots-txt"',
+  'ips: ["127.0.0.1"]',
+  'url: "http://192.0.2.1/blocked"',
+  "PIP_CONFIG_FILE: pipConfigPath",
+  'NODE_AUTH_TOKEN: ""',
+  '"PATHEXT"',
+  '"USERPROFILE"',
+  "containsRawFixtureRoot"
+]) {
+  assertContains(
+    externalFetchFixture,
+    phrase,
+    `${externalFetchFixturePath}: missing external fetch safety phrase ${phrase}`
+  );
 }
 checkWorkflowPublishSurfaces(workflowFiles);
 checkRegistrySmokeWorkflowContract(registrySmokeWorkflow);

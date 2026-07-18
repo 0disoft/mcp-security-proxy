@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "msp.external-fixture-summary.v1",
+  "target": "external-fetch-stdio",
+  "transport": "stdio",
+  "fixtureSource": "external-mcp",
+  "client": {
+    "package": "@modelcontextprotocol/sdk",
+    "version": "1.29.0"
+  },
+  "server": {
+    "package": "mcp-server-fetch",
+    "version": "2026.7.10"
+  },
+  "normalization": {
+    "fixtureRoot": "<external-fixture-root>",
+    "elapsedMs": 0,
+    "timestamps": "<timestamp>"
+  },
+  "scenarios": {
+    "initialize": {
+      "connected": true
+    },
+    "initialized": {
+      "accepted": true
+    },
+    "toolsListFiltering": {
+      "visibleToolNames": ["fetch"],
+      "visibleCount": 1,
+      "includesFetch": true
+    },
+    "allowedLocalFetch": {
+      "ok": true,
+      "contentDigest": "external-fetch-hello",
+      "contentTypes": ["text"]
+    },
+    "deniedExternalFetch": {
+      "ok": false,
+      "errorCode": -32001,
+      "decisionAction": "deny",
+      "evidenceCodes": ["policy.default_deny"]
+    },
+    "upstreamHttpError": {
+      "ok": true,
+      "isError": true,
+      "contentTypes": ["text"]
+    },
+    "shutdown": {
+      "clientClosed": true
+    },
+    "audit": {
+      "eventKinds": ["call-decision", "call-decision", "call-decision"],
+      "evidenceCodes": ["policy.default_deny", "policy.rule_allow", "policy.rule_allow"],
+      "redactionAppliedCount": 0,
+      "stderrLineCount": 0,
+      "containsRawFixtureRoot": false
+    }
+  }
+}

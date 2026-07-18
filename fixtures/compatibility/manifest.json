@@ -43,6 +43,23 @@
       "summary": "fixtures/compatibility/external-filesystem-python-stdio.summary.json",
       "harness": "scripts/check-external-python-mcp-fixture.mjs",
       "validationCommand": ["node", "scripts/check-external-python-mcp-fixture.mjs"]
+    },
+    {
+      "id": "external-fetch-stdio",
+      "transport": "stdio",
+      "fixtureSource": "external-mcp",
+      "client": {
+        "package": "@modelcontextprotocol/sdk",
+        "version": "1.29.0"
+      },
+      "server": {
+        "package": "mcp-server-fetch",
+        "version": "2026.7.10"
+      },
+      "manifest": "fixtures/compatibility/external-fetch-stdio.manifest.json",
+      "summary": "fixtures/compatibility/external-fetch-stdio.summary.json",
+      "harness": "scripts/check-external-fetch-mcp-fixture.mjs",
+      "validationCommand": ["node", "scripts/check-external-fetch-mcp-fixture.mjs"]
     }
   ],
   "evidence": [

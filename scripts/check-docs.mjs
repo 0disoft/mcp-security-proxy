@@ -24,6 +24,7 @@ const requiredFiles = [
   "docs/adr/0008-runtime-mcp-sdk-boundary.md",
   "docs/adr/0009-codex-config-adapter.md",
   "docs/adr/0010-gemini-config-adapter.md",
+  "docs/adr/0011-second-external-server-target.md",
   "docs/library/approval-hooks.md",
   "docs/library/decision-codes.md",
   "docs/cli/output-and-exit-codes.md",
@@ -282,7 +283,9 @@ function checkExternalMcpCompatibilityPlanDocs() {
     "compatibility fixtures are registered in `fixtures/compatibility/manifest.json`",
     "release record names external MCP compatibility fixtures as included or explicitly excluded",
     "external-filesystem-python-stdio",
-    "mcp==1.28.1"
+    "mcp==1.28.1",
+    "external-fetch-stdio",
+    "mcp-server-fetch==2026.7.10"
   ]) {
     if (!text.includes(phrase)) {
       failures.push(`${path}: missing external MCP compatibility plan phrase: ${phrase}`);

@@ -106,6 +106,12 @@ normalized summaries prove the JavaScript `@modelcontextprotocol/sdk@1.29.0` and
 not arbitrary MCP client/server compatibility. Target registration does not change release scope by
 itself.
 
+The independent `external-fetch-stdio` row drives `mcp-server-fetch==2026.7.10` with the pinned
+JavaScript SDK client. Its synthetic loopback endpoint proves an allowed fetch, pre-forward denial
+for an external IP target, normalized upstream HTTP error behavior, orderly shutdown, and audit
+privacy. The loopback content server does not implement MCP transport and does not change the
+HTTP-transport deferral.
+
 ADR 0008 keeps those SDKs outside product workspace manifests and published artifacts. They are
 independent compatibility witnesses only; passing a row does not turn its SDK into a supported
 embedding API or runtime dependency.
