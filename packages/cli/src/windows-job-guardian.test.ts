@@ -114,6 +114,50 @@ describe("Windows Job Object guardian", () => {
     await expect(pending).rejects.not.toThrow("PRIVATE_PATH_MARKER");
   });
 
+  it("allows a cold system PowerShell guardian to become ready after ten seconds", async () => {
+    vi.useFakeTimers();
+    try {
+      const guardian = new FakeGuardian();
+      const pending = establishWindowsKillOnCloseGuardian({
+        platform: "win32",
+        pid: 11,
+        environment: { SystemRoot: "C:\\Windows" },
+        fileExists: () => true,
+        spawnGuardian: (() => guardian) as unknown as typeof import("node:child_process").spawn
+      });
+
+      await vi.advanceTimersByTimeAsync(15_000);
+      guardian.stdout.write("MSP_JOB_GUARDIAN_READY\r\n");
+
+      await expect(pending).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps an explicitly short guardian readiness timeout fail-closed", async () => {
+    vi.useFakeTimers();
+    try {
+      const guardian = new FakeGuardian();
+      const pending = establishWindowsKillOnCloseGuardian({
+        platform: "win32",
+        pid: 12,
+        environment: { SystemRoot: "C:\\Windows" },
+        fileExists: () => true,
+        spawnGuardian: (() => guardian) as unknown as typeof import("node:child_process").spawn,
+        readyTimeoutMs: 5
+      });
+      const rejection = expect(pending).rejects.toThrow("guardian timed out");
+
+      await vi.advanceTimersByTimeAsync(5);
+
+      await rejection;
+      expect(guardian.kill).toHaveBeenCalledWith("SIGKILL");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("fails run with exit 4 before invoking the CLI when containment setup fails", async () => {
     const runMain = vi.fn(async () => 0);
     const stderr = vi.fn();

@@ -4,7 +4,7 @@ import { win32 } from "node:path";
 
 const READY_LINE = "MSP_JOB_GUARDIAN_READY";
 const MAX_DIAGNOSTIC_BYTES = 4_096;
-const DEFAULT_READY_TIMEOUT_MS = 10_000;
+const DEFAULT_READY_TIMEOUT_MS = 30_000;
 
 const guardianSource = String.raw`
 $ErrorActionPreference = 'Stop'
