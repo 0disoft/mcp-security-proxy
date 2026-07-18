@@ -26,6 +26,7 @@ Track durable architecture decisions for MCP Security Proxy.
 - 0009: Codex configuration adapter
 - 0010: Gemini CLI configuration adapter
 - 0011: second external MCP server target
+- 0012: atomic live policy reload
 
 ## Review Blockers
 

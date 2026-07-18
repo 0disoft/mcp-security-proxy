@@ -10,6 +10,21 @@ Status: Draft
 3. Proxy starts the upstream MCP server or connects to it.
 4. Proxy initializes MCP session negotiation through the supported method policy.
 5. Proxy prepares audit redaction and decision logging.
+6. When `--watch-policy` is present, the CLI watches the policy file's parent directory and
+   subscribes the stdio bridge to validated replacement candidates.
+
+## Policy Reload Flow
+
+1. A directory change for the configured policy filename schedules one debounced read.
+2. The CLI parses and validates the whole candidate without mutating the active session.
+3. Candidates missing the active profile or changing its audit contract are rejected.
+4. The runtime validates the candidate again and prepares an immutable snapshot. Preparation aborts
+   pending approval hooks so affected calls fail closed with `policy.reloaded`.
+5. A one-shot commit runs in the same serial order as audit-before-forward protocol writes, then
+   swaps the session policy and revision and clears remembered visible tools.
+6. Rejected replacements retain the previous policy. Calls already forwarded upstream remain
+   outside the reach of a later policy swap.
+7. The stdio bridge emits redacted `policy.reload_applied` or `policy.reload_rejected` ops evidence.
 
 ## Method Policy Flow
 
@@ -51,6 +66,7 @@ Current implemented responsibilities:
   messages
 - avoid raw tool arguments in audit events
 - include stable decision evidence codes in audit decisions
+- optionally replace the active policy atomically without exposing partially read or invalid state
 - start one upstream stdio process from the CLI command after `--`
 - keep stdout reserved for MCP protocol messages
 - append audit events to the selected profile audit file or the explicit `--audit-log` override
@@ -117,6 +133,10 @@ transports remain future runtime responsibilities.
 - Approval hook failure: call fails closed with a redacted denial instead of forwarding or storing
   hook error details.
 - Approval hook unavailable: approval-required call is denied and is not passed through.
+- Policy replacement while approval is pending: the hook receives an abort signal and the call is
+  denied with `policy.reloaded`.
+- Invalid watched policy, missing active profile, audit contract change, read failure, or watcher
+  failure: the active policy remains unchanged and a stable redacted ops rejection is recorded.
 - Unmatched upstream response: response is dropped with a redacted audit event.
 - Pending request state expiration or capacity exhaustion: stale responses are treated as
   unmatched, and new over-capacity requests are denied before forwarding.

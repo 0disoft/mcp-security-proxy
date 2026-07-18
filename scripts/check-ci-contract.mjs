@@ -12,6 +12,7 @@ const registrySmokeSourcePath = "scripts/check-registry-packages.mjs";
 const registryOnboardingSmokePath = "scripts/lib/registry-onboarding-smoke.mjs";
 const processTreeSmokePath = "scripts/check-process-tree-smoke.mjs";
 const externalFetchFixturePath = "scripts/check-external-fetch-mcp-fixture.mjs";
+const policyReloadSmokePath = "scripts/smoke-policy-reload.mjs";
 const ciDocPath = "docs/ops/ci.md";
 const registryUrl = "https://registry.npmjs.org";
 const failures = [];
@@ -24,6 +25,7 @@ const registrySmokeSource = readText(registrySmokeSourcePath);
 const registryOnboardingSmoke = readText(registryOnboardingSmokePath);
 const processTreeSmoke = readText(processTreeSmokePath);
 const externalFetchFixture = readText(externalFetchFixturePath);
+const policyReloadSmoke = readText(policyReloadSmokePath);
 const ciDoc = readText(ciDocPath);
 const normalizedCiDoc = ciDoc.replace(/\s+/g, " ");
 const workflowFiles = listWorkflowFiles();
@@ -71,6 +73,20 @@ assertContains(workflow, "git diff --check", `${workflowPath}: diff hygiene comm
 assertContains(workflow, "process-tree-smoke:", `${workflowPath}: process-tree smoke job`);
 assertContains(workflow, "- ubuntu-latest\n          - windows-latest", `${workflowPath}: process-tree OS matrix`);
 assertContains(workflow, "pnpm run process-tree-smoke", `${workflowPath}: process-tree smoke command`);
+assertContains(
+  manifest.scripts?.smoke ?? "",
+  "node scripts/smoke-policy-reload.mjs",
+  "package.json: smoke aggregate must include atomic policy reload"
+);
+for (const phrase of [
+  '"--watch-policy"',
+  'event.event === "policy.reload_applied"',
+  'event.reasonCode === "invalid_policy"',
+  "renameSync(stagingPath, targetPath)",
+  'evidence?.[0]?.code !== "tool.not_visible"'
+]) {
+  assertContains(policyReloadSmoke, phrase, `${policyReloadSmokePath}: missing reload proof phrase ${phrase}`);
+}
 assertContains(workflow, "fail-fast: false", `${workflowPath}: process-tree matrix completion`);
 for (const phrase of [
   'process.platform === "win32"',

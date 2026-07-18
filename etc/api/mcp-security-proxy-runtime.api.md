@@ -10,8 +10,9 @@ import type { JsonRpcId } from '@0disoft/mcp-security-proxy-mcp-adapter';
 import { NormalizedToolCall } from '@0disoft/mcp-security-proxy-contracts';
 import { PolicyDecision } from '@0disoft/mcp-security-proxy-contracts';
 import { PolicyDocument } from '@0disoft/mcp-security-proxy-contracts';
+import { PolicyReloadRejectionCode } from '@0disoft/mcp-security-proxy-contracts';
 import type { Readable } from 'node:stream';
-import type { StdioProxyOpsEvent } from '@0disoft/mcp-security-proxy-contracts';
+import { StdioProxyOpsEvent } from '@0disoft/mcp-security-proxy-contracts';
 import type { Writable } from 'node:stream';
 
 // @public (undocumented)
@@ -135,6 +136,21 @@ export interface PendingAuditCorrelation {
 }
 
 // @public (undocumented)
+export interface PolicyReloadSource {
+    // (undocumented)
+    readonly subscribe: (listener: (update: PolicyReloadUpdate) => void | Promise<void>) => () => void;
+}
+
+// @public (undocumented)
+export type PolicyReloadUpdate = {
+    readonly status: "accepted";
+    readonly policy: PolicyDocument;
+} | {
+    readonly status: "rejected";
+    readonly reasonCode: PolicyReloadRejectionCode;
+};
+
+// @public (undocumented)
 export interface ProxyFrameResult {
     // (undocumented)
     readonly auditEvents: readonly AuditEvent[];
@@ -153,6 +169,10 @@ export class ProxySession {
     handleClientLineWithApproval(line: string, approvalHook: ApprovalHook): Promise<ProxyFrameResult>;
     // (undocumented)
     handleServerLine(line: string): ProxyFrameResult;
+    // (undocumented)
+    preparePolicyReplacement(policy: PolicyDocument): () => number;
+    // (undocumented)
+    replacePolicy(policy: PolicyDocument): number;
 }
 
 // @public (undocumented)
@@ -227,6 +247,8 @@ export interface StdioProxyOptions {
     readonly maxJsonDepth?: number;
     // (undocumented)
     readonly policy: PolicyDocument;
+    // (undocumented)
+    readonly policyReloadSource?: PolicyReloadSource;
     // (undocumented)
     readonly profileId: string;
     // (undocumented)

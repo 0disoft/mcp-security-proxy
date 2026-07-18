@@ -7,7 +7,8 @@ import {
   type NormalizedToolCall,
   type PolicyDecision,
   type PolicyDocument,
-  type RedactionSummary
+  type RedactionSummary,
+  validatePolicyDocument
 } from "@0disoft/mcp-security-proxy-contracts";
 import {
   classifyToolDescriptor,
@@ -105,14 +106,40 @@ export class ProxySession {
   private readonly pendingRequestTtlMs: number;
   private readonly approvalTimeoutMs: number;
   private readonly auditCorrelator: AuditCorrelator;
+  private readonly activeApprovalControllers = new Set<AbortController>();
+  private policy: PolicyDocument;
+  private policyRevision = 0;
 
   constructor(private readonly options: ProxySessionOptions) {
+    this.policy = createPolicySnapshot(options.policy, options.profileId);
     this.maxFrameBytes = resolvePositiveInteger(options.maxFrameBytes, defaultMaxFrameBytes);
     this.maxJsonDepth = resolvePositiveInteger(options.maxJsonDepth, defaultMaxJsonDepth);
     this.maxPendingRequests = resolvePositiveInteger(options.maxPendingRequests, defaultMaxPendingRequests);
     this.pendingRequestTtlMs = resolvePositiveInteger(options.pendingRequestTtlMs, defaultPendingRequestTtlMs);
     this.approvalTimeoutMs = resolvePositiveInteger(options.approvalTimeoutMs, defaultApprovalTimeoutMs);
     this.auditCorrelator = options.auditCorrelator ?? new AuditCorrelator();
+  }
+
+  replacePolicy(policy: PolicyDocument): number {
+    return this.preparePolicyReplacement(policy)();
+  }
+
+  preparePolicyReplacement(policy: PolicyDocument): () => number {
+    const nextPolicy = createPolicySnapshot(policy, this.options.profileId);
+    for (const controller of this.activeApprovalControllers) {
+      controller.abort(new ApprovalPolicyReloaded());
+    }
+    let committed = false;
+    return () => {
+      if (committed) {
+        throw new TypeError("prepared policy replacement was already committed");
+      }
+      committed = true;
+      this.policy = nextPolicy;
+      this.policyRevision += 1;
+      this.visibleTools.clear();
+      return this.policyRevision;
+    };
   }
 
   handleClientLine(line: string): ProxyFrameResult {
@@ -211,7 +238,7 @@ export class ProxySession {
       "client",
       requestSanitized.redaction
     );
-    const methodDecision = evaluateEnvelopeMethod(requestSanitized.envelope, this.options.policy);
+    const methodDecision = evaluateEnvelopeMethod(requestSanitized.envelope, this.policy);
     if (methodDecision.action !== "allow") {
       return {
         kind: "result",
@@ -318,7 +345,7 @@ export class ProxySession {
 
     const normalized = normalizeToolCallEnvelope(envelope, visibleTool);
     const decision = evaluateToolCall({
-      policy: this.options.policy,
+      policy: this.policy,
       profileId: this.options.profileId,
       call: normalized,
       ...(this.options.approvalHookAvailable !== undefined
@@ -383,7 +410,7 @@ export class ProxySession {
 
     const normalized = normalizeToolCallEnvelope(envelope, visibleTool);
     const decision = evaluateToolCall({
-      policy: this.options.policy,
+      policy: this.policy,
       profileId: this.options.profileId,
       call: normalized,
       approvalHookAvailable: true
@@ -414,13 +441,18 @@ export class ProxySession {
       approval = await this.callApprovalHook(approvalHook, normalized, decision);
     } catch (error) {
       this.auditCorrelator.setDuration(approvalStartedAt);
-      const reason = error instanceof ApprovalHookTimeout ? "approval hook timed out" : "approval hook failed closed";
+      const reason =
+        error instanceof ApprovalHookTimeout
+          ? "approval hook timed out"
+          : error instanceof ApprovalPolicyReloaded
+            ? "policy changed while approval was pending"
+            : "approval hook failed closed";
       return this.withPrependedAuditEvents(
         preparedAuditEvents,
         this.denyEnvelope(
           envelope,
           denyDecision(reason, {
-            code: "policy.approval_hook_failed",
+            code: error instanceof ApprovalPolicyReloaded ? "policy.reloaded" : "policy.approval_hook_failed",
             ...approvalEvidence(decision)
           }),
           "MCP tool call denied by policy",
@@ -480,12 +512,17 @@ export class ProxySession {
       decision: deepFreeze(structuredClone(decision)),
       signal: controller.signal
     });
-    const approval = Promise.resolve().then(() => approvalHook(request));
-    const result = await withApprovalTimeout(approval, this.approvalTimeoutMs, controller);
-    if (!isApprovalResult(result)) {
-      throw new Error("approval hook returned an invalid result");
+    this.activeApprovalControllers.add(controller);
+    try {
+      const approval = Promise.resolve().then(() => approvalHook(request));
+      const result = await withApprovalTimeout(approval, this.approvalTimeoutMs, controller);
+      if (!isApprovalResult(result)) {
+        throw new Error("approval hook returned an invalid result");
+      }
+      return result;
+    } finally {
+      this.activeApprovalControllers.delete(controller);
     }
-    return result;
   }
 
   handleServerLine(line: string): ProxyFrameResult {
@@ -505,7 +542,7 @@ export class ProxySession {
     this.auditCorrelator.attachEnvelope(envelope);
     if (isJsonRpcRequest(envelope)) {
       this.auditCorrelator.setDirection("server_origin");
-      const methodDecision = evaluateServerOriginMethod(envelope, this.options.policy);
+      const methodDecision = evaluateServerOriginMethod(envelope, this.policy);
       if (methodDecision.action !== "allow") {
         return this.denyEnvelope(envelope, methodDecision, "MCP method denied by policy", "method-denied");
       }
@@ -544,7 +581,7 @@ export class ProxySession {
       };
     }
 
-    const errorSanitized = sanitizeUpstreamError(envelope, this.options.policy.redaction);
+    const errorSanitized = sanitizeUpstreamError(envelope, this.policy.redaction);
     const envelopeSanitized = sanitizeJsonRpcResponseEnvelope(errorSanitized.envelope);
     const sanitized = {
       envelope: envelopeSanitized.envelope,
@@ -588,7 +625,7 @@ export class ProxySession {
       };
     }
 
-    const result = filterToolListResult(sanitized.envelope, this.options.policy, this.options.profileId);
+    const result = filterToolListResult(sanitized.envelope, this.policy, this.options.profileId);
     if (!pendingRequest.continuesDiscovery) {
       this.visibleTools.clear();
     }
@@ -1583,25 +1620,43 @@ async function withApprovalTimeout(
   let timer: ReturnType<typeof setTimeout> | undefined;
   const approvalPromise = approval;
   approvalPromise.catch(() => undefined);
+  let rejectOnAbort: ((error: unknown) => void) | undefined;
+  const aborted = new Promise<ApprovalResult>((_resolve, reject) => {
+    rejectOnAbort = reject;
+  });
+  const onAbort = (): void => {
+    rejectOnAbort?.(
+      controller.signal.reason instanceof Error ? controller.signal.reason : new ApprovalPolicyReloaded()
+    );
+  };
+  controller.signal.addEventListener("abort", onAbort, { once: true });
   try {
-    return await Promise.race([
-      approvalPromise,
-      new Promise<ApprovalResult>((_resolve, reject) => {
-        timer = setTimeout(() => {
-          controller.abort();
-          reject(new ApprovalHookTimeout());
-        }, timeoutMs);
-      })
-    ]);
+    timer = setTimeout(() => controller.abort(new ApprovalHookTimeout()), timeoutMs);
+    return await Promise.race([approvalPromise, aborted]);
   } finally {
     if (timer) {
       clearTimeout(timer);
     }
-    controller.abort();
+    controller.signal.removeEventListener("abort", onAbort);
+    if (!controller.signal.aborted) {
+      controller.abort();
+    }
   }
 }
 
 class ApprovalHookTimeout extends Error {}
+class ApprovalPolicyReloaded extends Error {}
+
+function createPolicySnapshot(policy: PolicyDocument, profileId: string): PolicyDocument {
+  const validation = validatePolicyDocument(policy);
+  if (!validation.ok) {
+    throw new TypeError("replacement policy failed validation");
+  }
+  if (!validation.value.profiles.some((profile) => profile.id === profileId)) {
+    throw new TypeError("replacement policy does not contain the active profile");
+  }
+  return deepFreeze(structuredClone(validation.value));
+}
 
 function noRedaction(): RedactionSummary {
   return {

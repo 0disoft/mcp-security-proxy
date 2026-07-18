@@ -26,12 +26,28 @@ non-secret convenience defaults.
 - `--shutdown-grace-ms`: bounded upstream shutdown window.
 - `--max-frame-bytes`: newline-delimited JSON-RPC frame size limit.
 - `--max-json-depth`: parsed JSON depth limit.
+- `--watch-policy`: opt in to atomic replacement of the active policy when the policy file changes.
 - Upstream stdio server command after `--`.
 
 ## Defaults and Reload
 
 - Default policy posture is deny-by-default.
-- Live `run` reads policy at startup; hot reload is not implemented.
+- Live `run` reads policy at startup. With `--watch-policy`, it watches the policy file's parent
+  directory so editor save-by-rename and atomic file replacement are observed, then debounces
+  changes for 100 ms.
+- A replacement is applied only after the complete JSON document passes policy validation and still
+  contains the active profile. The session swaps one immutable snapshot, increments its policy
+  revision, and clears remembered tool visibility. Calls must discover tools again under the new
+  policy.
+- The active profile's audit destination, path, failure action, and capture flags cannot change
+  during a live run. Such a candidate is rejected because the audit writer is not part of the
+  atomic policy swap. `--audit-log` remains a startup-only override.
+- Read, parse, profile, audit, watcher, or runtime-validation failure leaves the previous policy
+  active. Rejected policy text, parser details, and local paths are not written to stderr or ops
+  events.
+- Applying a replacement aborts pending approval hooks. Those calls fail closed with
+  `policy.reloaded`. Calls already forwarded to the upstream server cannot be retroactively
+  canceled by the protocol-boundary proxy.
 - Audit output is append-oriented JSONL at the selected path.
 - CLI `run` rejects stdout audit destinations before spawning upstream because stdout carries MCP.
 - `includeRawArguments` and `includeFullPaths` are fixed to `false`; unsupported capture modes fail
@@ -52,13 +68,16 @@ non-secret convenience defaults.
 
 ## Drift Handling
 
-Configuration drift is handled by failing validation or startup rather than silently accepting
-unknown policy shape, unsupported methods, invalid frame limits, or malformed JSON-RPC messages.
+Configuration drift is handled by failing validation or startup, or by rejecting a watched
+replacement while retaining the active snapshot. Unknown policy shape, unsupported methods,
+invalid frame limits, and malformed JSON-RPC messages are never silently accepted.
 
 ## Validation
 
 - Required validation names: docs, smoke, check.
 - Release blocker status: public behavior changes are blocked when config defaults, help text, CLI
   docs, and smoke behavior diverge.
-- Remaining operational risk: no config reload, config migration command, or environment-default
-  registry exists yet.
+- Remaining operational risk: file watching is a local best-effort notification boundary rather
+  than a distributed config service. Audit sink changes, active-profile changes, upstream command
+  changes, config migration, and environment-default registration still require restart or future
+  contracts.

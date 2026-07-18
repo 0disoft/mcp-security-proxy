@@ -70,6 +70,9 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Hosted Windows process-tree evidence covering managed shutdown and abrupt proxy termination via
   Job Object kill-on-close; the Ubuntu row covers managed POSIX process-group shutdown only.
 - Runtime ops-log fixture evidence for structured lifecycle metrics emitted by live `run`.
+- Runtime atomic policy-reload smoke covering directory watch, atomic rename, accepted replacement,
+  discovery invalidation, direct-call denial, malformed replacement rejection, prior-policy
+  retention, shutdown metrics, and raw-detail absence.
 - Runtime session-result fixtures for approval rejection, approval hook error, approval timeout
   fail-closed behavior, client envelope sanitization, client ping error response denial, client ping
   payload response denial, discovery state replacement, duplicate pending client request id denial,
@@ -98,6 +101,9 @@ references, plus CLI evidence command `--policy` and `--input` paths, must be sa
 repository-relative tracked files so local-only fixtures cannot satisfy compatibility evidence.
 Approval-required library fixtures may explicitly record `approvalHookAvailable` in the manifest so
 hook-present and hook-missing decisions are both checked.
+The `smoke` aggregate also runs `scripts/smoke-policy-reload.mjs` against the built CLI and the local
+stdio fixture server. This is behavior evidence for one local process and filesystem watcher; it is
+not a distributed configuration, network filesystem, or cross-host consistency claim.
 
 The external MCP stdio client matrix is registered as `external-filesystem-stdio` and
 `external-filesystem-python-stdio` in `fixtures/compatibility/manifest.json`. Separate manifests and

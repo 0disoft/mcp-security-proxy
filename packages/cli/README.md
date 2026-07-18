@@ -106,6 +106,18 @@ starts the MCP server. If that fail-closed containment step is unavailable, the 
 upstream startup. Normal shutdown uses the configured grace period; abrupt proxy termination closes
 the Job and reclaims the upstream process tree.
 
+Policy watching is opt-in. Add `--watch-policy` before the upstream `--` when the host should pick
+up validated file replacements without restarting the MCP server:
+
+```sh
+mcp-security-proxy run --policy /absolute/path/to/mcp-security-policy.json --profile secured-filesystem --watch-policy -- mcp-server-filesystem /absolute/path/to/mcp-share
+```
+
+Save through an atomic file replacement when possible. A valid replacement keeps the same active
+profile and audit settings, clears remembered tool visibility, and requires fresh discovery.
+Invalid or audit-changing replacements leave the previous policy active. Pending approval hooks
+fail closed on replacement; already-forwarded upstream calls continue.
+
 Restart or reload the host, then confirm only `read_text_file` is visible and that reads outside the
 configured lexical path are denied. The proxy checks MCP messages and arguments; it is not an
 operating-system sandbox, does not resolve symlinks or Windows junctions, and does not bundle a host

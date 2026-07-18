@@ -32,6 +32,7 @@ export const DECISION_REASON_CODES = [
   "policy.approval_granted",
   "policy.approval_hook_failed",
   "policy.approval_hook_missing",
+  "policy.reloaded",
   "runtime.upstream_exit",
   "runtime.upstream_stderr"
 ] as const;

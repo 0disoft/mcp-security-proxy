@@ -38,6 +38,20 @@ profile ids, duplicate rule ids within a profile, duplicate method allowlist ent
 selector arrays, empty path/network matchers, unsupported rule method entries, invalid redaction
 detectors, and audit destinations whose `path` setting contradicts the selected destination.
 
+## Live Snapshot Replacement
+
+Policy reload is opt-in runtime behavior; it does not change the `msp.policy.v1` file shape. A live
+session owns one validated, immutable policy snapshot and a session-local revision. A candidate
+becomes visible only after complete parse, semantic validation, active-profile validation, and
+audit-contract comparison succeed. Runtime preparation produces a one-shot commit so pending
+approvals can be aborted before the commit waits behind an in-flight audit-before-forward write.
+There is no field-by-field mutation window and no old-policy forward after a newer revision commits.
+
+The audit destination, path, failure action, and capture flags are fixed for the lifetime of a CLI
+run because their writer is assembled at startup. Accepted replacements clear discovery-derived
+visibility and abort pending approvals, but they cannot undo a call already forwarded to the
+upstream process. Rejected candidates leave the prior snapshot and revision unchanged.
+
 ## Decision Order
 
 Decision order is:

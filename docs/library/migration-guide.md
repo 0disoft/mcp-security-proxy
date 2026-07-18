@@ -68,6 +68,13 @@ The latest published prerelease is `0.2.0-alpha.2`. It contains the additive cha
   fail-closed decisions now emit stable codes so consumers do not parse human-readable reason text.
 - Current draft runtime API note: proxy session and stdio bridge options may include an optional
   approval timeout. Existing embedders that omit it keep the previous no-runtime-timeout behavior.
+- Current draft policy reload note: CLI `run --watch-policy` is additive and opt-in. Existing runs
+  remain startup-only. Valid replacements must preserve the active profile and its audit settings;
+  accepted replacements clear discovery state and abort pending approvals with `policy.reloaded`.
+  Embedders may use additive `ProxySession.replacePolicy`, the one-shot
+  `preparePolicyReplacement` commit API, `PolicyReloadSource`, and `PolicyReloadUpdate`. Rollback is
+  to omit `--watch-policy` or restart with the last known-good policy. No `msp.policy.v1` file edit
+  is required.
 - Current draft approval hook note: `ApprovalRequest` now adds opaque `approvalId`, `profileId`, and
   `signal` fields. Existing hooks may ignore the additive fields, but hosts with pending UI or
   background work should stop it when `signal` aborts and key concurrent prompts by `approvalId`.

@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PassThrough } from "node:stream";
-import type { UpstreamProcess } from "@0disoft/mcp-security-proxy-runtime";
+import type { PolicyReloadSource, PolicyReloadUpdate, UpstreamProcess } from "@0disoft/mcp-security-proxy-runtime";
 import { runCli, runCliAsync, type CliIo, type CliRunIo } from "./commands.js";
+import type { PolicyFileReloadOptions } from "./policy-file-reloader.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
@@ -28,6 +29,7 @@ describe("dry-run CLI commands", () => {
     expect(output.stdout.join("\n")).toContain("--shutdown-grace-ms <0..2147483647>");
     expect(output.stdout.join("\n")).toContain("--max-frame-bytes <1..16777216>");
     expect(output.stdout.join("\n")).toContain("--max-json-depth <1..256>");
+    expect(output.stdout.join("\n")).toContain("--watch-policy");
     expect(output.stdout.join("\n")).not.toContain("--approval-hook");
     expect(output.stdout.join("\n")).not.toContain("not implemented");
     expect(output.stderr).toEqual([]);
@@ -762,6 +764,76 @@ describe("dry-run CLI commands", () => {
     expect(output.spawned).toBe(false);
   });
 
+  it("rejects values for the boolean policy watch flag", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--watch-policy",
+      "yes",
+      "--",
+      "fixture-server"
+    ]);
+
+    expect((await output.result).exitCode).toBe(2);
+    expect(output.stderr).toEqual(["--watch-policy does not accept a value"]);
+    expect(output.spawned).toBe(false);
+  });
+
+  it("requires an embedding reload source when policy watching is requested", async () => {
+    const output = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--watch-policy",
+      "--",
+      "fixture-server"
+    ]);
+
+    expect((await output.result).exitCode).toBe(2);
+    expect(output.stderr).toEqual(["--watch-policy is unavailable in this embedding runtime"]);
+    expect(output.spawned).toBe(false);
+  });
+
+  it("wires policy reload results to stable stderr diagnostics", async () => {
+    const source = new FakePolicyReloadSource();
+    let reloadOptions: PolicyFileReloadOptions | undefined;
+    const output = await invokeAsync(
+      [
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--watch-policy",
+        "--",
+        "fixture-server"
+      ],
+      {
+        policyReloadSource: source,
+        onPolicyReloadOptions: (options) => {
+          reloadOptions = options;
+        }
+      }
+    );
+
+    await nextTick();
+    await source.emit({ status: "rejected", reasonCode: "invalid_policy" });
+    output.clientInput.end();
+    output.upstream.stdout.end();
+
+    expect((await output.result).exitCode).toBe(0);
+    expect(reloadOptions).toMatchObject({
+      policyPath: "fixtures/policies/local-dev.json",
+      profileId: "local"
+    });
+    expect(output.stderr).toContain("policy reload rejected: invalid_policy");
+  });
+
   it("requires an explicit separator before the upstream command", async () => {
     const output = await invokeAsync([
       "run",
@@ -943,7 +1015,11 @@ function invoke(
 
 async function invokeAsync(
   argv: readonly string[],
-  options: { readonly upstreamNeverExits?: boolean } = {}
+  options: {
+    readonly upstreamNeverExits?: boolean;
+    readonly policyReloadSource?: PolicyReloadSource;
+    readonly onPolicyReloadOptions?: (options: PolicyFileReloadOptions) => void;
+  } = {}
 ): Promise<{
   readonly result: Promise<{ readonly exitCode: number }>;
   readonly clientInput: PassThrough;
@@ -1003,7 +1079,21 @@ async function invokeAsync(
     spawnUpstream: () => {
       spawned = true;
       return upstream;
-    }
+    },
+    ...(options.policyReloadSource
+      ? {
+          createPolicyReloadSource: (reloadOptions: PolicyFileReloadOptions) => {
+            options.onPolicyReloadOptions?.(reloadOptions);
+            return {
+              subscribe: (listener) =>
+                (options.policyReloadSource as PolicyReloadSource).subscribe(async (update) => {
+                  await listener(update);
+                  reloadOptions.onResult?.(update);
+                })
+            };
+          }
+        }
+      : {})
   };
 
   return {
@@ -1023,6 +1113,24 @@ async function invokeAsync(
     stdout,
     stderr
   };
+}
+
+class FakePolicyReloadSource implements PolicyReloadSource {
+  private listener: ((update: PolicyReloadUpdate) => void | Promise<void>) | undefined;
+
+  subscribe(listener: (update: PolicyReloadUpdate) => void | Promise<void>): () => void {
+    this.listener = listener;
+    return () => {
+      this.listener = undefined;
+    };
+  }
+
+  async emit(update: PolicyReloadUpdate): Promise<void> {
+    if (!this.listener) {
+      throw new Error("policy reload source is not subscribed");
+    }
+    await this.listener(update);
+  }
 }
 
 function readLines(chunks: readonly Buffer[]): readonly string[] {

@@ -8,6 +8,7 @@ import type { UpstreamCommand, UpstreamProcess } from "@0disoft/mcp-security-pro
 import { createUpstreamEnvironment } from "./upstream-environment.js";
 import { createProcessTreeTerminator, shouldCreateProcessGroup } from "./process-tree.js";
 import { establishWindowsKillOnCloseGuardian, WindowsProcessContainmentError } from "./windows-job-guardian.js";
+import { createPolicyFileReloadSource } from "./policy-file-reloader.js";
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   const result = await runCliAsync(argv, {
@@ -17,7 +18,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     clientInput: process.stdin,
     mcpOutput: process.stdout,
     appendTextFile: (path, text) => appendFile(path, text, "utf8"),
-    spawnUpstream
+    spawnUpstream,
+    createPolicyReloadSource: (options) => createPolicyFileReloadSource(options)
   });
   return result.exitCode;
 }

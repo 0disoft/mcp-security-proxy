@@ -18,6 +18,7 @@ import {
   type UpstreamProcess
 } from "@0disoft/mcp-security-proxy-runtime";
 import type { Readable, Writable } from "node:stream";
+import type { PolicyFileReloadOptions } from "./policy-file-reloader.js";
 
 export type CommandName = "run" | "config-snippet" | "check-policy" | "inspect-tools" | "eval-call";
 
@@ -38,6 +39,9 @@ export interface CliRunIo extends CliIo {
   readonly mcpOutput: Writable;
   readonly appendTextFile: (path: string, text: string) => void | Promise<void>;
   readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
+  readonly createPolicyReloadSource?: (
+    options: PolicyFileReloadOptions
+  ) => import("@0disoft/mcp-security-proxy-runtime").PolicyReloadSource;
 }
 
 export interface CliResult {
@@ -64,6 +68,7 @@ const allowedFlagsByCommand: Readonly<Record<CommandName, ReadonlySet<string>>> 
     "max-frame-bytes",
     "max-json-depth",
     "approval-hook",
+    "watch-policy",
     "json",
     "help"
   ]),
@@ -536,6 +541,7 @@ function commandHelp(command: CommandName): string {
       "  --profile <name>               policy profile to apply",
       "  --audit-log <path>             override the profile JSON Lines audit file",
       "  --ops-log <path>               optional JSON Lines ops metrics output file",
+      "  --watch-policy                 atomically reload valid policy file replacements",
       "  --shutdown-grace-ms <0..2147483647>",
       "                                 milliseconds to wait before killing upstream after client input closes",
       "  --max-frame-bytes <1..16777216>",
@@ -718,6 +724,10 @@ async function runProxy(
   const shutdownGraceMs = readOptionalShutdownGraceMsFlag(flags);
   const maxFrameBytes = readOptionalFrameBytesFlag(flags);
   const maxJsonDepth = readOptionalJsonDepthFlag(flags);
+  const watchPolicy = flags["watch-policy"] === true;
+  if (flags["watch-policy"] !== undefined && !watchPolicy) {
+    throw new CliError(2, "--watch-policy does not accept a value");
+  }
   if (flags["approval-hook"] === true) {
     throw new CliError(2, "run does not support --approval-hook; approval hooks must be provided by an embedding host");
   }
@@ -747,6 +757,21 @@ async function runProxy(
     );
   }
   const auditLogPath = auditLogOverride ?? profile.audit.path;
+  const policyReloadSource = watchPolicy
+    ? io.createPolicyReloadSource?.({
+        policyPath,
+        profileId,
+        initialPolicy: policy,
+        readTextFile: io.readTextFile,
+        onResult: (update) =>
+          io.stderr(
+            update.status === "accepted" ? "policy reload applied" : `policy reload rejected: ${update.reasonCode}`
+          )
+      })
+    : undefined;
+  if (watchPolicy && !policyReloadSource) {
+    throw new CliError(2, "--watch-policy is unavailable in this embedding runtime");
+  }
 
   return runStdioProxy({
     policy,
@@ -764,7 +789,8 @@ async function runProxy(
       : {}),
     ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {}),
     ...(maxFrameBytes !== undefined ? { maxFrameBytes } : {}),
-    ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {})
+    ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {}),
+    ...(policyReloadSource ? { policyReloadSource } : {})
   });
 }
 

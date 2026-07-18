@@ -4,6 +4,9 @@
 
 ```ts
 
+import { PolicyDocument } from '@0disoft/mcp-security-proxy-contracts';
+import { PolicyReloadSource } from '@0disoft/mcp-security-proxy-runtime';
+import type { PolicyReloadUpdate } from '@0disoft/mcp-security-proxy-runtime';
 import type { Readable } from 'node:stream';
 import { UpstreamCommand } from '@0disoft/mcp-security-proxy-runtime';
 import { UpstreamProcess } from '@0disoft/mcp-security-proxy-runtime';
@@ -32,6 +35,8 @@ export interface CliRunIo extends CliIo {
     // (undocumented)
     readonly clientInput: Readable;
     // (undocumented)
+    readonly createPolicyReloadSource?: (options: PolicyFileReloadOptions) => PolicyReloadSource;
+    // (undocumented)
     readonly mcpOutput: Writable;
     // (undocumented)
     readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
@@ -52,6 +57,20 @@ export type CommandName = "run" | "config-snippet" | "check-policy" | "inspect-t
 
 // @public (undocumented)
 export function createCommandRegistry(): readonly CommandContract[];
+
+// @public (undocumented)
+export interface PolicyFileReloadOptions {
+    // (undocumented)
+    readonly initialPolicy: PolicyDocument;
+    // (undocumented)
+    readonly onResult?: (update: PolicyReloadUpdate) => void;
+    // (undocumented)
+    readonly policyPath: string;
+    // (undocumented)
+    readonly profileId: string;
+    // (undocumented)
+    readonly readTextFile: (path: string) => string;
+}
 
 // @public (undocumented)
 export function runCli(argv: readonly string[], io: CliIo): CliResult;

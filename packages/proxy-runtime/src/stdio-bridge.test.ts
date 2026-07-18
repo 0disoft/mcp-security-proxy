@@ -3,7 +3,12 @@ import { resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import type { AuditEvent, PolicyDocument, StdioProxyOpsEvent } from "@0disoft/mcp-security-proxy-contracts";
-import { runStdioProxy, type UpstreamProcess } from "./stdio-bridge.js";
+import {
+  runStdioProxy,
+  type PolicyReloadSource,
+  type PolicyReloadUpdate,
+  type UpstreamProcess
+} from "./stdio-bridge.js";
 import type { ApprovalHook } from "./session.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
@@ -101,6 +106,241 @@ describe("stdio proxy bridge", () => {
       }
     });
     expect(JSON.stringify(harness.opsEvents)).not.toContain("workspace/private/secret.txt");
+  });
+
+  it("applies policy reloads atomically, clears discovery, and records ops evidence", async () => {
+    const harness = createHarness();
+    const policyReloadSource = new FakePolicyReloadSource();
+    const run = runHarness(harness, { policyReloadSource });
+    await waitForCondition(() => policyReloadSource.subscribed, 1_000);
+
+    harness.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: "reload-tools", method: "tools/list" })}\n`);
+    await nextTick();
+    harness.upstream.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "reload-tools",
+        result: JSON.parse(readFileSync(resolve(repoRoot, "fixtures/mcp/tools-list-basic.json"), "utf8")) as unknown
+      })}\n`
+    );
+    await nextTick();
+
+    await policyReloadSource.emit({ status: "accepted", policy: readPolicy() });
+    harness.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "reload-call",
+        method: "tools/call",
+        params: { name: "read_file", arguments: { path: "workspace/public/readme.md" } }
+      })}\n`
+    );
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    expect((await run).exitCode).toBe(0);
+    expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({
+        id: "reload-call",
+        error: expect.objectContaining({
+          data: expect.objectContaining({
+            decision: expect.objectContaining({ evidence: [expect.objectContaining({ code: "tool.not_visible" })] })
+          })
+        })
+      })
+    );
+    expect(harness.opsEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "policy",
+        event: "policy.reload_applied",
+        revision: 1,
+        metrics: expect.objectContaining({ policyReloadsApplied: 1, policyReloadsRejected: 0 })
+      })
+    );
+    expect(policyReloadSource.unsubscribed).toBe(true);
+  });
+
+  it("rejects invalid and audit-changing reload candidates without replacing policy", async () => {
+    const harness = createHarness();
+    const policyReloadSource = new FakePolicyReloadSource();
+    const run = runHarness(harness, { policyReloadSource });
+    await waitForCondition(() => policyReloadSource.subscribed, 1_000);
+
+    await policyReloadSource.emit({ status: "rejected", reasonCode: "invalid_policy" });
+    const changedAuditPolicy = readPolicy();
+    await policyReloadSource.emit({
+      status: "accepted",
+      policy: {
+        ...changedAuditPolicy,
+        profiles: changedAuditPolicy.profiles.map((profile) =>
+          profile.id === "local" ? { ...profile, audit: { ...profile.audit, onFailure: "warn_and_continue" } } : profile
+        )
+      }
+    });
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    expect((await run).exitCode).toBe(0);
+    expect(harness.opsEvents).toContainEqual(
+      expect.objectContaining({ event: "policy.reload_rejected", reasonCode: "invalid_policy" })
+    );
+    expect(harness.opsEvents).toContainEqual(
+      expect.objectContaining({ event: "policy.reload_rejected", reasonCode: "audit_changed" })
+    );
+    expect(harness.opsEvents.at(-1)).toMatchObject({
+      event: "proxy.stop",
+      metrics: { policyReloadsApplied: 0, policyReloadsRejected: 2 }
+    });
+  });
+
+  it("orders reload after an in-flight audited forward and before the next client frame", async () => {
+    const harness = createHarness();
+    const policyReloadSource = new FakePolicyReloadSource();
+    let blockAllowedAudit = false;
+    let releaseAudit: (() => void) | undefined;
+    const auditReleased = new Promise<void>((resolve) => {
+      releaseAudit = resolve;
+    });
+    let allowedAuditStarted: (() => void) | undefined;
+    const allowedAuditObserved = new Promise<void>((resolve) => {
+      allowedAuditStarted = resolve;
+    });
+    const run = runHarness(harness, {
+      policyReloadSource,
+      beforeAuditWrite: async (event) => {
+        if (blockAllowedAudit && event.kind === "call-decision" && event.decision.action === "allow") {
+          allowedAuditStarted?.();
+          await auditReleased;
+        }
+      }
+    });
+    await waitForCondition(() => policyReloadSource.subscribed, 1_000);
+
+    harness.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: "serial-tools", method: "tools/list" })}\n`);
+    await nextTick();
+    harness.upstream.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "serial-tools",
+        result: JSON.parse(readFileSync(resolve(repoRoot, "fixtures/mcp/tools-list-basic.json"), "utf8")) as unknown
+      })}\n`
+    );
+    await waitForCondition(
+      () => readLines(harness.clientOutputCapture).some((line) => JSON.parse(line).id === "serial-tools"),
+      1_000
+    );
+
+    blockAllowedAudit = true;
+    harness.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "serial-before-reload",
+        method: "tools/call",
+        params: { name: "read_file", arguments: { path: "workspace/public/readme.md" } }
+      })}\n`
+    );
+    await allowedAuditObserved;
+    const reload = policyReloadSource.emit({ status: "accepted", policy: readPolicy() });
+    await nextTick();
+    expect(harness.opsEvents.some((event) => event.event === "policy.reload_applied")).toBe(false);
+
+    releaseAudit?.();
+    await reload;
+    expect(readLines(harness.upstreamInputCapture).map((line) => JSON.parse(line).id)).toContain(
+      "serial-before-reload"
+    );
+
+    harness.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "serial-after-reload",
+        method: "tools/call",
+        params: { name: "read_file", arguments: { path: "workspace/public/readme.md" } }
+      })}\n`
+    );
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    expect((await run).exitCode).toBe(0);
+    expect(readLines(harness.upstreamInputCapture).map((line) => JSON.parse(line).id)).not.toContain(
+      "serial-after-reload"
+    );
+    expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({
+        id: "serial-after-reload",
+        error: expect.objectContaining({
+          data: expect.objectContaining({
+            decision: expect.objectContaining({ evidence: [expect.objectContaining({ code: "tool.not_visible" })] })
+          })
+        })
+      })
+    );
+    expect(harness.opsEvents.at(-1)?.event).toBe("proxy.stop");
+  });
+
+  it("aborts a pending approval before queuing the validated policy swap", async () => {
+    const harness = createHarness();
+    const policyReloadSource = new FakePolicyReloadSource();
+    let approvalStarted: (() => void) | undefined;
+    const approvalObserved = new Promise<void>((resolve) => {
+      approvalStarted = resolve;
+    });
+    const run = runHarness(harness, {
+      policy: readApprovalPolicy(),
+      policyReloadSource,
+      approveToolCall: (request) =>
+        new Promise((_resolve, reject) => {
+          approvalStarted?.();
+          request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+        })
+    });
+    await waitForCondition(() => policyReloadSource.subscribed, 1_000);
+
+    harness.clientInput.write(`${JSON.stringify({ jsonrpc: "2.0", id: "approval-tools", method: "tools/list" })}\n`);
+    await nextTick();
+    harness.upstream.stdout.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-tools",
+        result: JSON.parse(readFileSync(resolve(repoRoot, "fixtures/mcp/tools-list-basic.json"), "utf8")) as unknown
+      })}\n`
+    );
+    await waitForCondition(
+      () => readLines(harness.clientOutputCapture).some((line) => JSON.parse(line).id === "approval-tools"),
+      1_000
+    );
+
+    harness.clientInput.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-during-reload",
+        method: "tools/call",
+        params: { name: "run_command", arguments: { command: "git", args: ["status"] } }
+      })}\n`
+    );
+    await approvalObserved;
+    await policyReloadSource.emit({ status: "accepted", policy: readApprovalPolicy() });
+    harness.clientInput.end();
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    expect((await run).exitCode).toBe(0);
+    expect(readLines(harness.upstreamInputCapture).map((line) => JSON.parse(line).id)).not.toContain(
+      "approval-during-reload"
+    );
+    expect(readLines(harness.clientOutputCapture).map((line) => JSON.parse(line) as any)).toContainEqual(
+      expect.objectContaining({
+        id: "approval-during-reload",
+        error: expect.objectContaining({
+          data: expect.objectContaining({
+            decision: expect.objectContaining({ evidence: [expect.objectContaining({ code: "policy.reloaded" })] })
+          })
+        })
+      })
+    );
+    expect(harness.opsEvents).toContainEqual(expect.objectContaining({ event: "policy.reload_applied", revision: 1 }));
   });
 
   it("forwards allowed client calls and upstream responses line by line", async () => {
@@ -678,6 +918,8 @@ function runHarness(
     readonly approveToolCall?: ApprovalHook;
     readonly approvalTimeoutMs?: number;
     readonly maxFrameBytes?: number;
+    readonly policyReloadSource?: PolicyReloadSource;
+    readonly beforeAuditWrite?: (event: AuditEvent) => void | Promise<void>;
   } = {}
 ): Promise<{ readonly exitCode: number }> {
   return runStdioProxy({
@@ -693,8 +935,10 @@ function runHarness(
     ...(options.approveToolCall ? { approveToolCall: options.approveToolCall } : {}),
     ...(options.approvalTimeoutMs !== undefined ? { approvalTimeoutMs: options.approvalTimeoutMs } : {}),
     ...(options.maxFrameBytes !== undefined ? { maxFrameBytes: options.maxFrameBytes } : {}),
+    ...(options.policyReloadSource ? { policyReloadSource: options.policyReloadSource } : {}),
     ...(options.shutdownGraceMs !== undefined ? { shutdownGraceMs: options.shutdownGraceMs } : {}),
-    writeAuditEvent: (event) => {
+    writeAuditEvent: async (event) => {
+      await options.beforeAuditWrite?.(event);
       if (harness.failAuditWrites) {
         throw new Error("audit sink failed");
       }
@@ -767,6 +1011,28 @@ function createHarness(
     opsEvents: [],
     failAuditWrites: options.failAuditWrites ?? false
   };
+}
+
+class FakePolicyReloadSource implements PolicyReloadSource {
+  private listener: ((update: PolicyReloadUpdate) => void | Promise<void>) | undefined;
+  subscribed = false;
+  unsubscribed = false;
+
+  subscribe(listener: (update: PolicyReloadUpdate) => void | Promise<void>): () => void {
+    this.listener = listener;
+    this.subscribed = true;
+    return () => {
+      this.listener = undefined;
+      this.unsubscribed = true;
+    };
+  }
+
+  async emit(update: PolicyReloadUpdate): Promise<void> {
+    if (!this.listener) {
+      throw new Error("policy reload source is not subscribed");
+    }
+    await this.listener(update);
+  }
 }
 
 function readPolicy(auditOnFailure?: PolicyDocument["profiles"][number]["audit"]["onFailure"]): PolicyDocument {
