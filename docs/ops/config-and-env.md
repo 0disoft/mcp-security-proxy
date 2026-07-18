@@ -40,10 +40,15 @@ non-secret convenience defaults.
 - Live `run` does not inherit the full parent environment. It passes only `PATH` and `TMPDIR` on
   POSIX, and `PATH`, `PATHEXT`, `SystemRoot`, `WINDIR`, `ComSpec`, `TEMP`, and `TMP` on Windows.
   Arbitrary upstream environment values require a future explicit allowlist contract.
+- The Windows Job Object guardian is separate from the upstream environment. It receives only the
+  proxy PID plus `SystemRoot`, `WINDIR`, `TEMP`, and `TMP`, invokes the absolute system PowerShell
+  executable with a fixed encoded command, and does not receive policy data, upstream argv, or the
+  rest of the parent environment.
 - Secret values must not be stored in policy examples, audit events, CLI JSON output, or error
   messages.
-- Managed shutdown terminates POSIX process groups or Windows process trees. Operators must still
-  use an external supervisor when descendants must be reclaimed after abrupt proxy termination.
+- Managed shutdown terminates POSIX process groups or Windows process trees. Windows additionally
+  uses Job Object kill-on-close to reclaim descendants after abrupt proxy termination. POSIX
+  operators must still use an external supervisor for equivalent parent-death cleanup.
 
 ## Drift Handling
 

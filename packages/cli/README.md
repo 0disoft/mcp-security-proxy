@@ -101,6 +101,11 @@ $sharedRoot = (Resolve-Path 'C:\Users\you\mcp-share').Path
 codex mcp add secured-filesystem -- node $proxyEntry run --policy $policyPath --profile secured-filesystem -- node $serverEntry $sharedRoot
 ```
 
+Windows `run` uses the operating system's Windows PowerShell to establish a Job Object before it
+starts the MCP server. If that fail-closed containment step is unavailable, the CLI exits before
+upstream startup. Normal shutdown uses the configured grace period; abrupt proxy termination closes
+the Job and reclaims the upstream process tree.
+
 Restart or reload the host, then confirm only `read_text_file` is visible and that reads outside the
 configured lexical path are denied. The proxy checks MCP messages and arguments; it is not an
 operating-system sandbox, does not resolve symlinks or Windows junctions, and does not bundle a host

@@ -79,6 +79,12 @@ The latest published prerelease is `0.2.0-alpha.2`. It contains the additive cha
 - Current draft runtime lifecycle note: `UpstreamProcess.kill` may now return a promise so hosts can
   complete process-tree termination. Existing synchronous implementations remain valid. The stdio
   bridge bounds a hanging or rejected termination callback and continues shutdown escalation.
+- Current draft Windows containment note: installed CLI `run` now starts a fixed, non-interactive
+  system PowerShell guardian before the upstream server, assigns the proxy to a nested Job Object,
+  and reclaims descendants after abrupt proxy termination. No policy or host configuration edit is
+  required. A Windows host without system PowerShell or usable nested Job support now fails closed
+  with exit code 4 before upstream startup instead of running without crash containment. Rollback is
+  to use the previous CLI with an external process supervisor, accepting the older orphan risk.
 - Current draft path-policy clarification: existing `msp.policy.v1` path rules retain lexical
   behavior. They do not resolve symlinks or prove the target opened by an upstream server. No policy
   edit is required; integrations making stronger claims must narrow those claims or add a separate

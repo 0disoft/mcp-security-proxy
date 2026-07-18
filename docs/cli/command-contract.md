@@ -54,6 +54,15 @@ Optional inputs:
 - `--max-json-depth <1..256>` controls the maximum parsed JSON nesting depth. The default is 64.
 - `--ops-log <path>` writes optional lifecycle and bounded counter events as JSON Lines.
 
+On Windows, `run` resolves the operating system's absolute Windows PowerShell path instead of using
+`PATH`, starts a non-interactive guardian with a minimal environment, and establishes a nested Job
+Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` before spawning the upstream command. The guardian
+receives only the proxy PID, never the upstream argv or policy contents. If the guardian cannot
+start, compile its fixed Win32 binding, or assign the proxy to the Job, `run` fails with exit code 4
+before starting the upstream. Abrupt proxy termination then closes the last Job handle through the
+guardian and reclaims the upstream tree. POSIX process groups still require an external supervisor
+for equivalent parent-death cleanup.
+
 ### `mcp-security-proxy config-snippet`
 
 Implemented as a read-only host configuration generator. The command requires a supported

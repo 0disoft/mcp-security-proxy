@@ -61,6 +61,9 @@ Current implemented responsibilities:
 - after upstream stdout closes, terminate the upstream process tree if it does not exit within the
   same bounded grace window
 - create a dedicated POSIX process group and signal the group with `SIGTERM`, then `SIGKILL`
+- before starting an upstream process on Windows, start a system PowerShell guardian outside the
+  proxy's nested Job Object, configure `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, assign the proxy to the
+  Job, and wait for the guardian readiness handshake
 - on Windows, call `taskkill.exe` directly with `/PID` and `/T`, adding `/F` only during forced
   escalation; fall back to direct child termination when tree termination fails
 - allow the CLI `run` command to configure the shutdown grace window with
@@ -133,5 +136,9 @@ transports remain future runtime responsibilities.
   redacted upstream-failure audit event.
 - Upstream stdout close without process exit: proxy kills the process after the shutdown grace
   window and records a redacted upstream-failure audit event.
-- Abrupt proxy termination outside the managed shutdown path can still leave descendants behind.
-  Windows Job Object kill-on-close and an equivalent crash supervisor are not implemented.
+- Abrupt proxy termination on Windows signals the guardian's parent-process handle. The guardian
+  closes the last nested Job Object handle, and Windows terminates the upstream process tree. If the
+  system PowerShell guardian or Job assignment cannot be established, `run` fails before spawning
+  the upstream server.
+- Abrupt proxy termination on POSIX can still leave the dedicated upstream process group behind.
+  Operators need an external supervisor when parent-death reclamation is required there.

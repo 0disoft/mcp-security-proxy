@@ -32,6 +32,9 @@ This repository type owns public API surface, package compatibility, semantic ve
   baseline.
 - Node.js `>=24.0.0` is the current package manifest floor and must stay consistent across the
   workspace until a release readiness record changes it.
+- Windows CLI `run` requires the operating system's Windows PowerShell and nested Job Object
+  support. It fails before upstream startup when containment cannot be established; supported
+  Windows runners exercise abrupt proxy termination and descendant reclamation.
 - HTTP transport support is deferred until stdio behavior is proven and HTTP-specific compatibility
   fixtures exist.
 - Client compatibility must be fixture-backed, not claimed from schema reading alone.
@@ -62,6 +65,8 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Runtime audit correlation fixture covering matched request/response routing and raw-ID absence.
 - Library tool-call normalization fixture.
 - Runtime live stdio smoke command evidence for the implemented local proxy path.
+- Hosted Windows process-tree evidence covering managed shutdown and abrupt proxy termination via
+  Job Object kill-on-close; the Ubuntu row covers managed POSIX process-group shutdown only.
 - Runtime ops-log fixture evidence for structured lifecycle metrics emitted by live `run`.
 - Runtime session-result fixtures for approval rejection, approval hook error, approval timeout
   fail-closed behavior, client envelope sanitization, client ping error response denial, client ping

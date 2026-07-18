@@ -75,6 +75,7 @@ const cliContractFailures = [
   ...checkPathPolicyBoundaryDocs(),
   ...checkDecisionCodeDocs(),
   ...checkApprovalHookDocs(),
+  ...checkProcessContainmentDocs(),
   ...checkQuickStartDocs()
 ];
 
@@ -451,6 +452,76 @@ function checkApprovalHookDocs() {
     failures.push(`${publicApiPath}: public API docs must link the approval hook contract`);
   }
 
+  return failures;
+}
+
+function checkProcessContainmentDocs() {
+  const failures = [];
+  const sourcePath = "packages/cli/src/windows-job-guardian.ts";
+  const architecturePath = "docs/architecture/02-runtime-flow.md";
+  const commandPath = "docs/cli/command-contract.md";
+  const configPath = "docs/ops/config-and-env.md";
+  const compatibilityPath = "docs/library/compatibility.md";
+  const migrationPath = "docs/library/migration-guide.md";
+  const cliReadmePath = "packages/cli/README.md";
+  const source = readFileSync(join(root, sourcePath), "utf8");
+  const architecture = readFileSync(join(root, architecturePath), "utf8");
+  const command = readFileSync(join(root, commandPath), "utf8");
+  const config = readFileSync(join(root, configPath), "utf8");
+  const compatibility = readFileSync(join(root, compatibilityPath), "utf8");
+  const migration = readFileSync(join(root, migrationPath), "utf8");
+  const cliReadme = readFileSync(join(root, cliReadmePath), "utf8");
+  const normalizedArchitecture = architecture.replace(/\s+/gu, " ");
+  const normalizedCommand = command.replace(/\s+/gu, " ");
+  const normalizedConfig = config.replace(/\s+/gu, " ");
+
+  for (const phrase of [
+    "CreateJobObject",
+    "SetInformationJobObject",
+    "AssignProcessToJobObject",
+    "WaitForSingleObject",
+    "0x00002000",
+    '"SystemRoot", "WINDIR", "TEMP", "TMP"'
+  ]) {
+    if (!source.includes(phrase)) {
+      failures.push(`${sourcePath}: missing Windows containment source phrase: ${phrase}`);
+    }
+  }
+  for (const phrase of [
+    "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
+    "wait for the guardian readiness handshake",
+    "Abrupt proxy termination on POSIX can still leave"
+  ]) {
+    if (!normalizedArchitecture.includes(phrase)) {
+      failures.push(`${architecturePath}: missing Windows containment contract phrase: ${phrase}`);
+    }
+  }
+  for (const phrase of [
+    "resolves the operating system's absolute Windows PowerShell path",
+    "receives only the proxy PID",
+    "fails with exit code 4"
+  ]) {
+    if (!normalizedCommand.includes(phrase)) {
+      failures.push(`${commandPath}: missing Windows containment command phrase: ${phrase}`);
+    }
+  }
+  for (const phrase of [
+    "does not receive policy data, upstream argv",
+    "POSIX operators must still use an external supervisor"
+  ]) {
+    if (!normalizedConfig.includes(phrase)) {
+      failures.push(`${configPath}: missing Windows containment operations phrase: ${phrase}`);
+    }
+  }
+  for (const [path, text, phrase] of [
+    [compatibilityPath, compatibility, "supported Windows runners exercise abrupt proxy termination"],
+    [migrationPath, migration, "fails closed with exit code 4 before upstream startup"],
+    [cliReadmePath, cliReadme, "abrupt proxy termination closes the Job"]
+  ]) {
+    if (!text.replace(/\s+/gu, " ").includes(phrase)) {
+      failures.push(`${path}: missing Windows containment consumer phrase: ${phrase}`);
+    }
+  }
   return failures;
 }
 

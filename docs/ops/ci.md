@@ -139,7 +139,9 @@ silently rewrite the repository's release history.
   validation-registry, ci-contract, compatibility, license-report, release-readiness,
   performance-smoke, check.
 - Release blocker status: public behavior changes are blocked when local `check` or hosted CI fails.
-- Remaining operational risk: the focused matrix covers managed process-tree shutdown on hosted
-  Ubuntu and Windows runners, but abrupt runner or proxy termination still does not exercise a
-  Windows Job Object kill-on-close guarantee. Registry smoke detects a bad publication only after
-  immutable package versions exist, so recovery still uses the documented deprecation path.
+- Remaining operational risk: the focused matrix covers managed process-tree shutdown on Ubuntu
+  and Windows and abrupt proxy termination through Windows Job Object kill-on-close. The aggregate
+  unit contract separately proves that containment setup failure returns exit 4 before CLI/upstream
+  execution. POSIX abrupt parent-death reclamation still requires an external supervisor. Registry
+  smoke detects a bad publication only after immutable package versions exist, so recovery still
+  uses the documented deprecation path.

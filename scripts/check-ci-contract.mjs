@@ -10,6 +10,7 @@ const registrySmokeWorkflowPath = ".github/workflows/registry-smoke.yml";
 const publicationReceiptWorkflowPath = ".github/workflows/publication-receipt.yml";
 const registrySmokeSourcePath = "scripts/check-registry-packages.mjs";
 const registryOnboardingSmokePath = "scripts/lib/registry-onboarding-smoke.mjs";
+const processTreeSmokePath = "scripts/check-process-tree-smoke.mjs";
 const ciDocPath = "docs/ops/ci.md";
 const registryUrl = "https://registry.npmjs.org";
 const failures = [];
@@ -20,6 +21,7 @@ const registrySmokeWorkflow = readText(registrySmokeWorkflowPath);
 const publicationReceiptWorkflow = readText(publicationReceiptWorkflowPath);
 const registrySmokeSource = readText(registrySmokeSourcePath);
 const registryOnboardingSmoke = readText(registryOnboardingSmokePath);
+const processTreeSmoke = readText(processTreeSmokePath);
 const ciDoc = readText(ciDocPath);
 const normalizedCiDoc = ciDoc.replace(/\s+/g, " ");
 const workflowFiles = listWorkflowFiles();
@@ -68,6 +70,14 @@ assertContains(workflow, "process-tree-smoke:", `${workflowPath}: process-tree s
 assertContains(workflow, "- ubuntu-latest\n          - windows-latest", `${workflowPath}: process-tree OS matrix`);
 assertContains(workflow, "pnpm run process-tree-smoke", `${workflowPath}: process-tree smoke command`);
 assertContains(workflow, "fail-fast: false", `${workflowPath}: process-tree matrix completion`);
+for (const phrase of [
+  'process.platform === "win32"',
+  'runProcessTreeScenario("abrupt-proxy-termination")',
+  'proxyChild.kill("SIGKILL")',
+  "Windows Job Object kill-on-close"
+]) {
+  assertContains(processTreeSmoke, phrase, `${processTreeSmokePath}: missing abrupt termination phrase ${phrase}`);
+}
 checkWorkflowPublishSurfaces(workflowFiles);
 checkRegistrySmokeWorkflowContract(registrySmokeWorkflow);
 checkPublicationReceiptWorkflowContract(publicationReceiptWorkflow);
@@ -82,6 +92,11 @@ assertContains(
   ciDoc,
   "runs `pnpm run process-tree-smoke` on Ubuntu and Windows",
   `${ciDocPath}: documented process-tree matrix`
+);
+assertContains(
+  normalizedCiDoc,
+  "abrupt proxy termination through Windows Job Object kill-on-close",
+  `${ciDocPath}: documented Windows abrupt termination smoke`
 );
 assertContains(
   normalizedCiDoc,
