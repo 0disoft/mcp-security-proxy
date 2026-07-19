@@ -134,15 +134,25 @@ async function main() {
   let tools;
   let allowedRead;
   let deniedRead;
+  let operationFailed = false;
   try {
     await client.connect(transport);
     connected = true;
     tools = await client.listTools();
     allowedRead = await client.callTool({ name: "read_text_file", arguments: { path: publicFile } });
     deniedRead = await captureCall(client, "read_text_file", { path: privateFile });
+  } catch (error) {
+    operationFailed = true;
+    throw error;
   } finally {
-    await client.close();
-    closed = true;
+    try {
+      await client.close();
+      closed = true;
+    } catch {
+      if (!operationFailed) {
+        throw new Error("registry onboarding client cleanup failed");
+      }
+    }
   }
 
   const auditText = readFileSync(auditPath, "utf8");

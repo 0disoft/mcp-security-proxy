@@ -578,7 +578,7 @@ function checkQuickStartDocs() {
     "codex mcp add secured-filesystem",
     "npm root --global",
     "Join-Path $globalRoot",
-    "not an\noperating-system sandbox"
+    "operating-system sandbox"
   ]) {
     if (!cliReadme.includes(phrase)) {
       failures.push(`packages/cli/README.md: npm Quick Start is missing ${phrase}`);

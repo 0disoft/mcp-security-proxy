@@ -543,6 +543,8 @@ function checkRegistryOnboardingSmokeContract() {
     'schemaVersion: "msp.registry-onboarding-smoke.v1"',
     'visibleTools) !== JSON.stringify(["read_text_file"])',
     'evidenceCodes?.includes("policy.default_deny")',
+    "let operationFailed = false",
+    'throw new Error("registry onboarding client cleanup failed")',
     "registry onboarding smoke audit output exposed fixture paths or raw arguments"
   ]) {
     assertContains(
