@@ -15,6 +15,8 @@ import {
   OPS_EVENT_KINDS,
   OPS_EVENT_SCHEMA_VERSION,
   OPS_LIFECYCLE_EVENTS,
+  OPS_POLICY_EVENTS,
+  POLICY_RELOAD_REJECTION_CODES,
   POLICY_ACTIONS,
   POLICY_SCHEMA_VERSION,
   REDACTION_DETECTOR_KINDS
@@ -102,7 +104,15 @@ assertArrayEqual(
 
 assertEqual("ops.schemaVersion", opsSchema.$defs?.base?.properties?.schemaVersion?.const, OPS_EVENT_SCHEMA_VERSION);
 assertArrayEqual("ops.kind", opsSchema.$defs?.base?.properties?.kind?.enum, OPS_EVENT_KINDS);
-assertArrayEqual("ops.lifecycle.event", opsSchema.$defs?.base?.properties?.event?.enum, OPS_LIFECYCLE_EVENTS);
+assertArrayEqual("ops.event", opsSchema.$defs?.base?.properties?.event?.enum, [
+  ...OPS_LIFECYCLE_EVENTS,
+  ...OPS_POLICY_EVENTS
+]);
+assertArrayEqual(
+  "ops.policy.reload_rejected.reasonCode",
+  opsSchema.$defs?.policyReloadRejected?.allOf?.[1]?.properties?.reasonCode?.enum,
+  POLICY_RELOAD_REJECTION_CODES
+);
 
 if (failures.length > 0) {
   for (const failure of failures) {

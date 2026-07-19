@@ -1,7 +1,7 @@
 {
   "name": "@0disoft/mcp-security-proxy-cli",
   "description": "Deny-by-default local stdio proxy and policy inspection CLI for MCP servers.",
-  "version": "0.2.0-alpha.2",
+  "version": "0.2.0-alpha.3",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {

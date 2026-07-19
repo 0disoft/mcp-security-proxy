@@ -27,6 +27,8 @@ discovery and tool calls through explicit policy, redaction, and audit events.
 
 - Start an MCP server behind a stdio proxy.
 - Terminate the managed upstream process tree after the bounded shutdown grace period.
+- On Windows, reclaim the upstream process tree after abrupt proxy termination through a Job
+  Object kill-on-close guardian established before the upstream starts.
 - Read a local policy file.
 - Support a narrow method allowlist for `initialize`, `notifications/initialized`, `ping`,
   `tools/list`, and `tools/call`.

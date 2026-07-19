@@ -24,6 +24,7 @@ const requiredFiles = [
   "docs/adr/0008-runtime-mcp-sdk-boundary.md",
   "docs/adr/0009-codex-config-adapter.md",
   "docs/adr/0010-gemini-config-adapter.md",
+  "docs/adr/0011-second-external-server-target.md",
   "docs/library/approval-hooks.md",
   "docs/library/decision-codes.md",
   "docs/cli/output-and-exit-codes.md",
@@ -74,7 +75,9 @@ const cliContractFailures = [
   ...checkAuditCorrelationPlanDocs(),
   ...checkPathPolicyBoundaryDocs(),
   ...checkDecisionCodeDocs(),
-  ...checkApprovalHookDocs()
+  ...checkApprovalHookDocs(),
+  ...checkProcessContainmentDocs(),
+  ...checkQuickStartDocs()
 ];
 
 if (missing.length > 0 || forbiddenHits.length > 0 || cliContractFailures.length > 0) {
@@ -280,7 +283,9 @@ function checkExternalMcpCompatibilityPlanDocs() {
     "compatibility fixtures are registered in `fixtures/compatibility/manifest.json`",
     "release record names external MCP compatibility fixtures as included or explicitly excluded",
     "external-filesystem-python-stdio",
-    "mcp==1.28.1"
+    "mcp==1.28.1",
+    "external-fetch-stdio",
+    "mcp-server-fetch==2026.7.10"
   ]) {
     if (!text.includes(phrase)) {
       failures.push(`${path}: missing external MCP compatibility plan phrase: ${phrase}`);
@@ -400,21 +405,40 @@ function checkApprovalHookDocs() {
   const failures = [];
   const approvalDocsPath = "docs/library/approval-hooks.md";
   const publicApiPath = "docs/library/public-api.md";
+  const runtimeReadmePath = "packages/proxy-runtime/README.md";
   const sessionSource = readFileSync(join(root, "packages/proxy-runtime/src/session.ts"), "utf8");
   const stdioBridgeSource = readFileSync(join(root, "packages/proxy-runtime/src/stdio-bridge.ts"), "utf8");
+  const conformanceSource = readFileSync(join(root, "packages/proxy-runtime/src/approval-conformance.ts"), "utf8");
   const approvalDocs = readFileSync(join(root, approvalDocsPath), "utf8");
   const publicApiDoc = readFileSync(join(root, publicApiPath), "utf8");
+  const runtimeReadme = readFileSync(join(root, runtimeReadmePath), "utf8");
 
   for (const sourcePhrase of [
     "export interface ApprovalRequest",
+    "readonly approvalId: string;",
+    "readonly profileId: string;",
     "readonly call: NormalizedToolCall;",
     "readonly decision: PolicyDecision;",
+    "readonly signal: AbortSignal;",
     "export interface ApprovalResult",
     "readonly approved: boolean;",
     "export type ApprovalHook"
   ]) {
     if (!sessionSource.includes(sourcePhrase)) {
       failures.push(`packages/proxy-runtime/src/session.ts: missing approval hook source phrase: ${sourcePhrase}`);
+    }
+  }
+
+  for (const sourcePhrase of [
+    'schemaVersion: "msp.approval-hook-conformance.v1"',
+    '"approve" | "reject" | "error" | "abort" | "concurrent"',
+    "approval_hook.abort_not_settled",
+    "approval_hook.concurrent_isolated"
+  ]) {
+    if (!conformanceSource.includes(sourcePhrase)) {
+      failures.push(
+        `packages/proxy-runtime/src/approval-conformance.ts: missing conformance source phrase: ${sourcePhrase}`
+      );
     }
   }
 
@@ -439,7 +463,12 @@ function checkApprovalHookDocs() {
     "No persistent or remembered approval store",
     "policy.approval_denied",
     "policy.approval_hook_failed",
-    "policy.approval_hook_missing"
+    "policy.approval_hook_missing",
+    "runApprovalHookConformance",
+    "opaque per-call correlation value",
+    "hosts must close pending UI, listeners, and background work when it aborts",
+    "never includes hook rejection reasons or thrown error text",
+    "approval_hook.not_settled"
   ]) {
     if (!approvalDocs.includes(phrase)) {
       failures.push(`${approvalDocsPath}: missing approval hook contract phrase: ${phrase}`);
@@ -449,6 +478,111 @@ function checkApprovalHookDocs() {
   if (!publicApiDoc.includes("docs/library/approval-hooks.md")) {
     failures.push(`${publicApiPath}: public API docs must link the approval hook contract`);
   }
+  for (const phrase of ["runApprovalHookConformance", "opaque `approvalId`", "AbortSignal"]) {
+    if (!runtimeReadme.includes(phrase)) {
+      failures.push(`${runtimeReadmePath}: missing approval conformance consumer phrase: ${phrase}`);
+    }
+  }
 
+  return failures;
+}
+
+function checkProcessContainmentDocs() {
+  const failures = [];
+  const sourcePath = "packages/cli/src/windows-job-guardian.ts";
+  const architecturePath = "docs/architecture/02-runtime-flow.md";
+  const commandPath = "docs/cli/command-contract.md";
+  const configPath = "docs/ops/config-and-env.md";
+  const compatibilityPath = "docs/library/compatibility.md";
+  const migrationPath = "docs/library/migration-guide.md";
+  const cliReadmePath = "packages/cli/README.md";
+  const source = readFileSync(join(root, sourcePath), "utf8");
+  const architecture = readFileSync(join(root, architecturePath), "utf8");
+  const command = readFileSync(join(root, commandPath), "utf8");
+  const config = readFileSync(join(root, configPath), "utf8");
+  const compatibility = readFileSync(join(root, compatibilityPath), "utf8");
+  const migration = readFileSync(join(root, migrationPath), "utf8");
+  const cliReadme = readFileSync(join(root, cliReadmePath), "utf8");
+  const normalizedArchitecture = architecture.replace(/\s+/gu, " ");
+  const normalizedCommand = command.replace(/\s+/gu, " ");
+  const normalizedConfig = config.replace(/\s+/gu, " ");
+
+  for (const phrase of [
+    "CreateJobObject",
+    "SetInformationJobObject",
+    "AssignProcessToJobObject",
+    "WaitForSingleObject",
+    "0x00002000",
+    '"SystemRoot", "WINDIR", "TEMP", "TMP"'
+  ]) {
+    if (!source.includes(phrase)) {
+      failures.push(`${sourcePath}: missing Windows containment source phrase: ${phrase}`);
+    }
+  }
+  for (const phrase of [
+    "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
+    "wait for the guardian readiness handshake",
+    "Abrupt proxy termination on POSIX can still leave"
+  ]) {
+    if (!normalizedArchitecture.includes(phrase)) {
+      failures.push(`${architecturePath}: missing Windows containment contract phrase: ${phrase}`);
+    }
+  }
+  for (const phrase of [
+    "resolves the operating system's absolute Windows PowerShell path",
+    "receives only the proxy PID",
+    "fails with exit code 4"
+  ]) {
+    if (!normalizedCommand.includes(phrase)) {
+      failures.push(`${commandPath}: missing Windows containment command phrase: ${phrase}`);
+    }
+  }
+  for (const phrase of [
+    "does not receive policy data, upstream argv",
+    "POSIX operators must still use an external supervisor"
+  ]) {
+    if (!normalizedConfig.includes(phrase)) {
+      failures.push(`${configPath}: missing Windows containment operations phrase: ${phrase}`);
+    }
+  }
+  for (const [path, text, phrase] of [
+    [compatibilityPath, compatibility, "supported Windows runners exercise abrupt proxy termination"],
+    [migrationPath, migration, "fails closed with exit code 4 before upstream startup"],
+    [cliReadmePath, cliReadme, "abrupt proxy termination closes the Job"]
+  ]) {
+    if (!text.replace(/\s+/gu, " ").includes(phrase)) {
+      failures.push(`${path}: missing Windows containment consumer phrase: ${phrase}`);
+    }
+  }
+  return failures;
+}
+
+function checkQuickStartDocs() {
+  const failures = [];
+  const rootReadme = readFileSync(join(root, "README.md"), "utf8");
+  const cliReadme = readFileSync(join(root, "packages/cli/README.md"), "utf8");
+  const installCommand =
+    "npm install --global @0disoft/mcp-security-proxy-cli@0.2.0-alpha.3 " +
+    "@modelcontextprotocol/server-filesystem@2026.7.4";
+
+  if (!rootReadme.includes(installCommand) || !rootReadme.includes("packages/cli/README.md#quick-start")) {
+    failures.push("README.md: npm Quick Start must install exact versions and link the CLI onboarding contract");
+  }
+  for (const phrase of [
+    installCommand,
+    '"defaultAction": "deny"',
+    '"tools": ["read_text_file"]',
+    '"includeRawArguments": false',
+    "mcp-security-proxy check-policy",
+    "mcp-security-proxy config-snippet --target codex-cli-json",
+    "codex mcp add secured-filesystem",
+    "npm root --global",
+    "Join-Path $globalRoot",
+    "operating-system sandbox"
+  ]) {
+    if (!cliReadme.includes(phrase)) {
+      failures.push(`packages/cli/README.md: npm Quick Start is missing ${phrase}`);
+    }
+  }
   return failures;
 }

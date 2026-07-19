@@ -15,7 +15,9 @@
       "upstreamDenials": 0,
       "protocolResponsesWritten": 0,
       "auditEventsWritten": 0,
-      "auditWriteFailures": 0
+      "auditWriteFailures": 0,
+      "policyReloadsApplied": 0,
+      "policyReloadsRejected": 0
     }
   },
   {
@@ -35,7 +37,9 @@
       "upstreamDenials": 0,
       "protocolResponsesWritten": 1,
       "auditEventsWritten": 1,
-      "auditWriteFailures": 0
+      "auditWriteFailures": 0,
+      "policyReloadsApplied": 0,
+      "policyReloadsRejected": 0
     }
   }
 ]

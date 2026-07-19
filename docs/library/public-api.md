@@ -44,14 +44,21 @@ This repository type owns public API surface, package compatibility, semantic ve
   resolver or containment API is exported.
 - `runtime lifecycle`: `UpstreamProcess.kill(force?)` accepts synchronous or asynchronous
   process-tree termination implementations.
-- `ops`: structured local runtime lifecycle metrics types and the `msp.ops-event.v1` schema
-  contract.
+- `ops`: structured local runtime lifecycle and policy-reload metrics types, stable reload rejection
+  codes, and the `msp.ops-event.v1` schema contract.
 - `mcp`: protocol adapter types for MCP messages and `normalizeToolCallEnvelope` for deriving
   normalized tool-call facts without binding the package to one host.
 - `proxy-runtime`: evaluate newline-delimited JSON-RPC messages at the proxy boundary and return
-  forward, denial, and audit actions without owning subprocess IO.
+  forward, denial, and audit actions without owning subprocess IO. The package also exports
+  `runApprovalHookConformance` for synthetic approval, rejection, error, abort, and concurrent hook
+  validation. `ProxySession.preparePolicyReplacement` validates and freezes a candidate, aborts
+  pending approvals, and returns a one-shot commit; `replacePolicy` prepares and commits
+  immediately. `PolicyReloadSource` and `PolicyReloadUpdate` let embedding bridges supply accepted
+  or redacted rejected candidates.
 - `approval`: host-owned approval callback types used by the runtime before forwarding
-  approval-required calls. The approval hook API contract is docs/library/approval-hooks.md.
+  approval-required calls. Requests carry opaque approval identity, profile identity, immutable
+  normalized facts, and an abort signal. The approval hook API and conformance contract is
+  docs/library/approval-hooks.md.
 
 ## Public Type Principles
 
@@ -104,6 +111,11 @@ host-owned input and are not forwarded or stored verbatim by the proxy runtime. 
 an optional approval timeout on the runtime session or stdio bridge; timed-out hooks fail closed
 without forwarding the call. Host-specific approval UX acceptance criteria are documented in
 docs/architecture/08-host-approval-ux-plan.md.
+Policy replacement is additive and opt-in for the CLI. Embedders calling `replacePolicy`, or
+preparing then committing a replacement around an audit-before-forward critical section, must
+retain the active profile and should treat the returned revision as session-local. A prepared
+commit is single-use. Replacement clears tool visibility and aborts pending approvals; it does not
+cancel already-forwarded calls.
 
 ## Review Blockers
 

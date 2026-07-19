@@ -19,7 +19,8 @@ Cover logs, metrics, traces, dashboards, alerts, health checks, sampling, retent
 - CLI stdout is reserved for MCP protocol frames in live `run` mode.
 - The selected profile's file audit destination writes redacted JSONL audit events; `--audit-log`
   may override the profile path.
-- `--ops-log` optionally writes structured JSONL lifecycle events with bounded counters.
+- `--ops-log` optionally writes structured JSONL lifecycle and policy-reload events with bounded
+  counters.
 - Upstream stderr is summarized by line count and is not copied raw.
 - Upstream response `error.data` is stripped before forwarding.
 - Sensitive upstream `error.message` content is redacted before forwarding.
@@ -68,6 +69,13 @@ Operator responsibilities:
 Failure and recovery:
 
 - Live `run` must fail closed when audit writes fail.
+- `policy.reload_applied` records the active profile, monotonically increasing session-local policy
+  revision, and counters. `policy.reload_rejected` records only a stable rejection code:
+  `read_failed`, `invalid_policy`, `profile_missing`, `audit_changed`, `watch_failed`, or
+  `runtime_validation_failed`.
+- `policyReloadsApplied` and `policyReloadsRejected` are cumulative for the live process and appear
+  on policy events and the final `proxy.stop` event. Policy contents, parser exceptions, and local
+  paths are excluded.
 - Ops log write failures are diagnostic-only and do not change forwarding or audit fail-closed
   behavior.
 - Rotation or collector failures are local operator incidents, not repository-managed retry queues.
@@ -84,6 +92,7 @@ Before public release, validation evidence must include:
 - operator guidance for audit log path ownership and retention;
 - export guidance that names the audit field allowlist and forbidden raw data;
 - lifecycle metrics evidence for live `run` when `--ops-log` is configured;
+- applied and rejected atomic policy-reload metrics without raw policy details;
 - `auditWriteFailures` distinguishes an empty audit stream from failed writes under
   `warn_and_continue`;
 - incident evidence that does not require raw prompts, raw tool arguments, or raw secrets.

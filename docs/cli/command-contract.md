@@ -31,8 +31,8 @@ Implemented for newline-delimited stdio MCP servers. The command starts the upst
 after `--`, gates client and upstream JSON-RPC lines through policy, writes only MCP messages to
 stdout, and writes JSON Lines audit events to the selected profile's `audit.path`. An explicit
 `--audit-log` overrides that path.
-When `--ops-log` is supplied, the command also writes structured JSON Lines lifecycle metrics to
-that file. Ops events are diagnostic and do not replace audit events.
+When `--ops-log` is supplied, the command also writes structured JSON Lines lifecycle and policy
+reload metrics to that file. Ops events are diagnostic and do not replace audit events.
 Upstream stderr is not relayed to stdout or copied into audit logs; the runtime records only a
 redacted stderr line-count summary.
 
@@ -53,6 +53,18 @@ Optional inputs:
   The default is 1048576 bytes.
 - `--max-json-depth <1..256>` controls the maximum parsed JSON nesting depth. The default is 64.
 - `--ops-log <path>` writes optional lifecycle and bounded counter events as JSON Lines.
+- `--watch-policy` watches the policy file's parent directory and atomically replaces the active
+  policy only after full validation. The active profile and audit contract must remain available
+  and unchanged. Rejected candidates leave the previous policy active.
+
+On Windows, `run` resolves the operating system's absolute Windows PowerShell path instead of using
+`PATH`, starts a non-interactive guardian with a minimal environment, and establishes a nested Job
+Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` before spawning the upstream command. The guardian
+receives only the proxy PID, never the upstream argv or policy contents. If the guardian cannot
+start, compile its fixed Win32 binding, or assign the proxy to the Job, `run` fails with exit code 4
+before starting the upstream. Abrupt proxy termination then closes the last Job handle through the
+guardian and reclaims the upstream tree. POSIX process groups still require an external supervisor
+for equivalent parent-death cleanup.
 
 ### `mcp-security-proxy config-snippet`
 
@@ -112,6 +124,7 @@ prints the decision without forwarding it.
 - `--ops-log` selects optional JSON Lines operational metrics output for live proxy behavior.
 - `--shutdown-grace-ms` selects the live proxy shutdown grace window in milliseconds.
 - `--max-frame-bytes` and `--max-json-depth` select live proxy frame guards.
+- `--watch-policy` opts live `run` into atomic policy replacement and accepts no value.
 
 `run` does not support `--json` because stdout is reserved for MCP protocol messages after the live
 proxy starts. `run --help` exits before startup and may print usage text to stdout.
@@ -124,6 +137,11 @@ The CLI `run` command does not support `--approval-hook` because it does not bun
 UX. Approval hooks belong to embedding hosts that call the runtime library. The `eval-call`
 command may still use `--approval-hook` to dry-run how a call would classify when a hook is
 available.
+
+An accepted watched replacement clears remembered discovery state and aborts pending approval
+hooks with the stable `policy.reloaded` decision code. It does not cancel calls already forwarded
+upstream. Read, validation, active-profile, audit-change, watcher, and runtime-validation failures
+are reported with stable redacted ops codes and never echo policy contents.
 
 ## Review Blockers
 

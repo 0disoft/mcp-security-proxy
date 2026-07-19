@@ -4,8 +4,9 @@ Status: Draft
 
 ## Operational Contract
 
-This document records release-scope evidence for the pinned external MCP stdio client matrix. It is
-evidence for two client implementations against one server, not arbitrary MCP compatibility.
+This document records release-scope evidence for the pinned external MCP stdio rows. It is evidence
+for two client implementations against the filesystem server and one JavaScript client against the
+Python fetch server, not arbitrary MCP compatibility.
 
 The `0.2.0-alpha.1` release record predates the Python row and remains evidence for only the original
 JavaScript client pair at its recorded target commit. The two-client matrix applies to current HEAD
@@ -21,18 +22,21 @@ and future approval records; it does not retroactively broaden that historical r
 
 ## Target Scope
 
-The external targets are registered as `external-filesystem-stdio` and
-`external-filesystem-python-stdio` in `fixtures/compatibility/manifest.json`.
+The external targets are registered as `external-filesystem-stdio`,
+`external-filesystem-python-stdio`, and `external-fetch-stdio` in
+`fixtures/compatibility/manifest.json`.
 
 - Client implementations: `@modelcontextprotocol/sdk` version `1.29.0` and Python `mcp` version
   `1.28.1`
-- Server implementation: `@modelcontextprotocol/server-filesystem` version `2026.7.4`
+- Server implementations: `@modelcontextprotocol/server-filesystem` version `2026.7.4` and
+  `mcp-server-fetch` version `2026.7.10`
 - Transport: stdio only
 - Installation source: npm and PyPI packages resolved by exact direct version during ephemeral
   harness runs
 - Fixture workspace: temporary synthetic public-safe files created by
   `scripts/check-external-mcp-fixture.mjs` and
-  `scripts/check-external-python-mcp-fixture.mjs`
+  `scripts/check-external-python-mcp-fixture.mjs`, plus a harness-owned loopback endpoint created by
+  `scripts/check-external-fetch-mcp-fixture.mjs`
 
 The harness may use the external SDK client APIs to drive the session, but the product packages do
 not add an MCP SDK runtime dependency.
@@ -48,8 +52,12 @@ The release-scope evidence is bounded to tracked, normalized files:
 - Python target manifest: `fixtures/compatibility/external-filesystem-python-stdio.manifest.json`
 - Python normalized summary: `fixtures/compatibility/external-filesystem-python-stdio.summary.json`
 - Python harness command: `node scripts/check-external-python-mcp-fixture.mjs`
+- Fetch target manifest: `fixtures/compatibility/external-fetch-stdio.manifest.json`
+- Fetch normalized summary: `fixtures/compatibility/external-fetch-stdio.summary.json`
+- Fetch harness command: `node scripts/check-external-fetch-mcp-fixture.mjs`
 - Target selection ADR: `docs/adr/0005-external-mcp-compatibility-target.md`
 - Matrix ADR: `docs/adr/0007-external-client-compatibility-matrix.md`
+- Second server ADR: `docs/adr/0011-second-external-server-target.md`
 - Harness boundary: `docs/architecture/11-external-fixture-harness.md`
 
 The normalized summary uses `<external-fixture-root>`, `<timestamp>`, and `0` elapsed durations so
@@ -72,6 +80,14 @@ Both tracked summaries prove these scenarios for the pinned external filesystem 
   `policy.rule_deny`, and `tool.not_visible`.
 - The tracked audit summary does not contain the raw external fixture root.
 
+The fetch-server summary additionally proves:
+
+- `fetch` remains visible under explicit loopback network policy.
+- A fetch from the harness-owned `127.0.0.1` endpoint returns the synthetic content digest.
+- A documentation-only external IP target is denied with `policy.default_deny` before forwarding.
+- A loopback HTTP 503 becomes a normalized MCP tool error without retaining its raw URL or error.
+- Orderly shutdown completes and audit evidence contains no temporary root.
+
 ## Validation Evidence Required
 
 A release record may use this document as non-exclusion evidence only when it separately records
@@ -80,7 +96,7 @@ approval-grade validation output for the target commit. At minimum, record exit 
 - `pnpm run compatibility`
 - `pnpm run artifact-safety`
 - `pnpm run release-readiness`
-- `pnpm build` followed by both external harness commands
+- `pnpm build` followed by all three external harness commands
 - Release workflow gate: `pnpm run external-compatibility`
 - `pnpm check`
 
@@ -93,7 +109,7 @@ This evidence does not claim:
 
 - HTTP transport compatibility;
 - host-specific approval UX;
-- a product runtime dependency on either external client SDK or Python;
+- a product runtime dependency on any external client SDK, server package, or Python;
 - compatibility with arbitrary MCP clients or servers;
 - a general OS sandbox, filesystem sandbox, malware scanner, or hosted control plane;
 - malformed response, unmatched response, or server-origin request coverage from the external
@@ -102,9 +118,11 @@ This evidence does not claim:
 Synthetic local fixtures remain the regression source for malformed envelopes, unmatched responses,
 server-origin request direction checks, upstream error redaction edge cases, frame guards, and
 JSON-RPC id correlation edge cases that the external filesystem target cannot safely produce.
-The exact upstream stderr line count is diagnostic only because package-manager, Python runtime,
-and upstream startup notices are not part of the MCP behavior contract. Exact top-level client
-versions are pinned, but transitive npm/PyPI dependency resolution remains a fixture-drift risk.
+The loopback HTTP endpoint is synthetic tool content, not MCP-over-HTTP transport evidence. The
+exact upstream stderr line count is diagnostic only because package-manager, Python runtime, and
+upstream startup notices are not part of the MCP behavior contract. Exact top-level client and
+server versions are pinned, but transitive npm/PyPI dependency resolution remains a fixture-drift
+risk.
 
 ## Release Use
 

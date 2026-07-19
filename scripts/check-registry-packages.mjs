@@ -9,6 +9,7 @@ import {
   writeJson
 } from "./lib/package-consumer-smoke.mjs";
 import { resolveExpectedVersion, validatePublishedMetadata } from "./lib/registry-smoke-contract.mjs";
+import { registryOnboardingPackages, runRegistryOnboardingSmoke } from "./lib/registry-onboarding-smoke.mjs";
 
 const root = process.cwd();
 let expectedVersion;
@@ -56,15 +57,18 @@ try {
         "--no-fund",
         "--package-lock=false",
         `--registry=${registryUrl}`,
-        ...publishablePackages.map((spec) => `${spec.name}@${expectedVersion}`)
+        ...publishablePackages.map((spec) => `${spec.name}@${expectedVersion}`),
+        ...registryOnboardingPackages.map((spec) => `${spec.name}@${spec.version}`)
       ],
       consumerRoot
     );
   });
   runInstalledPackageConsumerSmoke({ consumerRoot, root, expectedVersion });
+  runRegistryOnboardingSmoke({ consumerRoot, expectedVersion });
 
   console.log(
-    `registry consumer smoke passed for ${metadata.length} packages at ${expectedVersion} with npm provenance`
+    `registry consumer and onboarding smoke passed for ${metadata.length} packages ` +
+      `at ${expectedVersion} with npm provenance`
   );
 } catch (error) {
   console.error(error instanceof Error ? error.message : "registry consumer smoke failed");

@@ -21,10 +21,10 @@ Status: Draft
   SECURITY.md, and vulnerability process are stable enough for external users.
 
 Implementation direction is TypeScript with pnpm. The current implementation floor is Node.js
-`>=24.0.0`. The published `0.2.0-alpha.1` record remains historical evidence, while the published
-`0.2.0-alpha.2` record names npmjs.org, five public packages, their artifact names, and npm Trusted
-Publisher ownership. The package names were initialized with the bootstrap marker before the first
-OIDC product release.
+`>=24.0.0`. The published `0.2.0-alpha.2` record remains historical evidence, while the approved
+`0.2.0-alpha.3` candidate record names npmjs.org, five public packages, their artifact names, and
+npm Trusted Publisher ownership. The package names were initialized with the bootstrap marker
+before the first OIDC product release.
 
 ## Public Release Readiness
 
@@ -78,9 +78,12 @@ exists.
 After all five immutable versions are published, the release workflow runs `pnpm run
 registry-smoke`. This post-publication check requires the exact tag version, verifies npm registry
 integrity and SLSA provenance metadata, installs all five packages without lifecycle scripts or npm
-credentials, and repeats the shared ESM, TypeScript, and CLI consumer checks. It cannot be used as
-pre-publication approval evidence. Failure after publication triggers the rollback and deprecation
-procedure; it never retries `npm publish` for the same immutable version.
+credentials, repeats the shared ESM, TypeScript, and CLI consumer checks, and runs a complete MCP
+stdio onboarding session with the registry-installed CLI and pinned filesystem server. That session
+proves filtered discovery, one allowed read, one default-denied read, orderly shutdown, and redacted
+audit evidence without using checkout build output. It cannot be used as pre-publication approval
+evidence. Failure after publication triggers the rollback and deprecation procedure; it never
+retries `npm publish` for the same immutable version.
 
 Completed publication evidence lives under `docs/ops/publications/*.publication.json`. A
 publication receipt records the immutable release tag and commit, successful Release and Registry
@@ -88,6 +91,14 @@ Smoke workflow runs, observed npm dist-tags, package integrity values, and SLSA 
 `pnpm run release-readiness` validates these receipts against their approved release records and
 exact package sets. Receipt validation is offline consistency checking; only `registry-smoke`
 re-verifies the current public registry state.
+
+The manually dispatched Registry Smoke requires the successful Release run ID in addition to the
+exact version. Its structured run name triggers the read-only Publication Receipt workflow only
+after Registry Smoke completes successfully. That follow-up resolves the release tag through the
+GitHub API, revalidates both workflow runs and all public npm metadata, and uploads the generated
+receipt as a temporary workflow artifact. It cannot commit or rewrite publication records; an owner
+must review the artifact, place it under `docs/ops/publications/`, run release readiness, and commit
+the immutable evidence.
 
 The one-time package-name initialization path is owned by `docs/ops/npm-bootstrap.md` and
 `docs/ops/npm-bootstrap-plan.json`. It stages `0.0.0-bootstrap.0` tarballs without changing source

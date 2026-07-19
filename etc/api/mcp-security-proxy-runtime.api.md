@@ -10,19 +10,69 @@ import type { JsonRpcId } from '@0disoft/mcp-security-proxy-mcp-adapter';
 import { NormalizedToolCall } from '@0disoft/mcp-security-proxy-contracts';
 import { PolicyDecision } from '@0disoft/mcp-security-proxy-contracts';
 import { PolicyDocument } from '@0disoft/mcp-security-proxy-contracts';
+import { PolicyReloadRejectionCode } from '@0disoft/mcp-security-proxy-contracts';
 import type { Readable } from 'node:stream';
-import type { StdioProxyOpsEvent } from '@0disoft/mcp-security-proxy-contracts';
+import { StdioProxyOpsEvent } from '@0disoft/mcp-security-proxy-contracts';
 import type { Writable } from 'node:stream';
 
 // @public (undocumented)
 export type ApprovalHook = (request: ApprovalRequest) => ApprovalResult | Promise<ApprovalResult>;
 
 // @public (undocumented)
+export interface ApprovalHookConformanceAdapter {
+    // (undocumented)
+    readonly createHook: (scenario: ApprovalHookConformanceScenario) => ApprovalHook | Promise<ApprovalHook>;
+}
+
+// @public (undocumented)
+export type ApprovalHookConformanceCaseId = "explicit-approval" | "explicit-rejection" | "hook-error" | "abort-signal" | "concurrent-isolation";
+
+// @public (undocumented)
+export interface ApprovalHookConformanceCaseResult {
+    // (undocumented)
+    readonly code: ApprovalHookConformanceCode;
+    // (undocumented)
+    readonly id: ApprovalHookConformanceCaseId;
+    // (undocumented)
+    readonly passed: boolean;
+}
+
+// @public (undocumented)
+export type ApprovalHookConformanceCode = "approval_hook.approve_valid" | "approval_hook.reject_valid" | "approval_hook.error_rejected" | "approval_hook.abort_settled" | "approval_hook.concurrent_isolated" | "approval_hook.adapter_setup_failed" | "approval_hook.not_settled" | "approval_hook.unexpected_result" | "approval_hook.unexpected_error" | "approval_hook.abort_settled_early" | "approval_hook.abort_not_settled" | "approval_hook.abort_approved" | "approval_hook.concurrent_mismatch";
+
+// @public (undocumented)
+export interface ApprovalHookConformanceOptions {
+    // (undocumented)
+    readonly abortAfterMs?: number;
+    // (undocumented)
+    readonly settleTimeoutMs?: number;
+}
+
+// @public (undocumented)
+export interface ApprovalHookConformanceReport {
+    // (undocumented)
+    readonly cases: readonly ApprovalHookConformanceCaseResult[];
+    // (undocumented)
+    readonly passed: boolean;
+    // (undocumented)
+    readonly schemaVersion: "msp.approval-hook-conformance.v1";
+}
+
+// @public (undocumented)
+export type ApprovalHookConformanceScenario = "approve" | "reject" | "error" | "abort" | "concurrent";
+
+// @public (undocumented)
 export interface ApprovalRequest {
+    // (undocumented)
+    readonly approvalId: string;
     // (undocumented)
     readonly call: NormalizedToolCall;
     // (undocumented)
     readonly decision: PolicyDecision;
+    // (undocumented)
+    readonly profileId: string;
+    // (undocumented)
+    readonly signal: AbortSignal;
 }
 
 // @public (undocumented)
@@ -86,6 +136,21 @@ export interface PendingAuditCorrelation {
 }
 
 // @public (undocumented)
+export interface PolicyReloadSource {
+    // (undocumented)
+    readonly subscribe: (listener: (update: PolicyReloadUpdate) => void | Promise<void>) => () => void;
+}
+
+// @public (undocumented)
+export type PolicyReloadUpdate = {
+    readonly status: "accepted";
+    readonly policy: PolicyDocument;
+} | {
+    readonly status: "rejected";
+    readonly reasonCode: PolicyReloadRejectionCode;
+};
+
+// @public (undocumented)
 export interface ProxyFrameResult {
     // (undocumented)
     readonly auditEvents: readonly AuditEvent[];
@@ -104,6 +169,10 @@ export class ProxySession {
     handleClientLineWithApproval(line: string, approvalHook: ApprovalHook): Promise<ProxyFrameResult>;
     // (undocumented)
     handleServerLine(line: string): ProxyFrameResult;
+    // (undocumented)
+    preparePolicyReplacement(policy: PolicyDocument): () => number;
+    // (undocumented)
+    replacePolicy(policy: PolicyDocument): number;
 }
 
 // @public (undocumented)
@@ -155,6 +224,9 @@ export interface ProxyStartupPlanInput {
 }
 
 // @public (undocumented)
+export function runApprovalHookConformance(adapter: ApprovalHookConformanceAdapter, options?: ApprovalHookConformanceOptions): Promise<ApprovalHookConformanceReport>;
+
+// @public (undocumented)
 export function runStdioProxy(options: StdioProxyOptions): Promise<StdioProxyResult>;
 
 // @public (undocumented)
@@ -175,6 +247,8 @@ export interface StdioProxyOptions {
     readonly maxJsonDepth?: number;
     // (undocumented)
     readonly policy: PolicyDocument;
+    // (undocumented)
+    readonly policyReloadSource?: PolicyReloadSource;
     // (undocumented)
     readonly profileId: string;
     // (undocumented)

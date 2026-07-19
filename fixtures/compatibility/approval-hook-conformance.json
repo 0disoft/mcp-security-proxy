@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "msp.approval-hook-conformance.v1",
+  "passed": true,
+  "cases": [
+    {
+      "id": "explicit-approval",
+      "passed": true,
+      "code": "approval_hook.approve_valid"
+    },
+    {
+      "id": "explicit-rejection",
+      "passed": true,
+      "code": "approval_hook.reject_valid"
+    },
+    {
+      "id": "hook-error",
+      "passed": true,
+      "code": "approval_hook.error_rejected"
+    },
+    {
+      "id": "abort-signal",
+      "passed": true,
+      "code": "approval_hook.abort_settled"
+    },
+    {
+      "id": "concurrent-isolation",
+      "passed": true,
+      "code": "approval_hook.concurrent_isolated"
+    }
+  ]
+}

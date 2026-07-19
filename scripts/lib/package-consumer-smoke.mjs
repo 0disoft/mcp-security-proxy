@@ -225,16 +225,33 @@ function createJavascriptConsumerSource() {
   return `import { knownSchemaVersions } from "@0disoft/mcp-security-proxy-contracts";
 import { classifyToolDescriptor } from "@0disoft/mcp-security-proxy-core";
 import { normalizeToolCallEnvelope } from "@0disoft/mcp-security-proxy-mcp-adapter";
-import { createProxySession } from "@0disoft/mcp-security-proxy-runtime";
+import { createProxySession, runApprovalHookConformance } from "@0disoft/mcp-security-proxy-runtime";
 import { createCommandRegistry } from "@0disoft/mcp-security-proxy-cli";
 
-for (const value of [knownSchemaVersions, classifyToolDescriptor, normalizeToolCallEnvelope, createProxySession, createCommandRegistry]) {
+for (const value of [knownSchemaVersions, classifyToolDescriptor, normalizeToolCallEnvelope, createProxySession, runApprovalHookConformance, createCommandRegistry]) {
   if (typeof value !== "function") {
     throw new Error("installed package export is not callable");
   }
 }
 if (createCommandRegistry().length !== 5) {
   throw new Error("installed CLI command registry drifted");
+}
+
+const conformance = await runApprovalHookConformance({
+  createHook: (scenario) => {
+    if (scenario === "approve") return () => ({ approved: true });
+    if (scenario === "reject") return () => ({ approved: false });
+    if (scenario === "error") return () => { throw new Error("synthetic hook failure"); };
+    if (scenario === "abort") {
+      return (request) => new Promise((resolve) => {
+        request.signal.addEventListener("abort", () => resolve({ approved: false }), { once: true });
+      });
+    }
+    return (request) => ({ approved: request.approvalId.endsWith("-approve") });
+  }
+}, { abortAfterMs: 1, settleTimeoutMs: 25 });
+if (!conformance.passed) {
+  throw new Error("installed approval hook conformance export failed");
 }
 `;
 }
@@ -243,7 +260,7 @@ function createTypescriptConsumerSource() {
   return `import { knownSchemaVersions, type PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
 import { classifyToolDescriptor } from "@0disoft/mcp-security-proxy-core";
 import { normalizeToolCallEnvelope } from "@0disoft/mcp-security-proxy-mcp-adapter";
-import { createProxySession } from "@0disoft/mcp-security-proxy-runtime";
+import { createProxySession, runApprovalHookConformance, type ApprovalHookConformanceAdapter } from "@0disoft/mcp-security-proxy-runtime";
 import { createCommandRegistry } from "@0disoft/mcp-security-proxy-cli";
 
 declare const policy: PolicyDocument;
@@ -252,6 +269,9 @@ void knownSchemaVersions;
 void classifyToolDescriptor;
 void normalizeToolCallEnvelope;
 void createProxySession;
+void runApprovalHookConformance;
+declare const approvalAdapter: ApprovalHookConformanceAdapter;
+void approvalAdapter;
 void createCommandRegistry;
 `;
 }

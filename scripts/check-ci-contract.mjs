@@ -7,6 +7,12 @@ const root = process.cwd();
 const workflowPath = ".github/workflows/ci.yml";
 const releaseWorkflowPath = ".github/workflows/release.yml";
 const registrySmokeWorkflowPath = ".github/workflows/registry-smoke.yml";
+const publicationReceiptWorkflowPath = ".github/workflows/publication-receipt.yml";
+const registrySmokeSourcePath = "scripts/check-registry-packages.mjs";
+const registryOnboardingSmokePath = "scripts/lib/registry-onboarding-smoke.mjs";
+const processTreeSmokePath = "scripts/check-process-tree-smoke.mjs";
+const externalFetchFixturePath = "scripts/check-external-fetch-mcp-fixture.mjs";
+const policyReloadSmokePath = "scripts/smoke-policy-reload.mjs";
 const ciDocPath = "docs/ops/ci.md";
 const registryUrl = "https://registry.npmjs.org";
 const failures = [];
@@ -14,6 +20,12 @@ const failures = [];
 const manifest = readJson("package.json");
 const workflow = readText(workflowPath);
 const registrySmokeWorkflow = readText(registrySmokeWorkflowPath);
+const publicationReceiptWorkflow = readText(publicationReceiptWorkflowPath);
+const registrySmokeSource = readText(registrySmokeSourcePath);
+const registryOnboardingSmoke = readText(registryOnboardingSmokePath);
+const processTreeSmoke = readText(processTreeSmokePath);
+const externalFetchFixture = readText(externalFetchFixturePath);
+const policyReloadSmoke = readText(policyReloadSmokePath);
 const ciDoc = readText(ciDocPath);
 const normalizedCiDoc = ciDoc.replace(/\s+/g, " ");
 const workflowFiles = listWorkflowFiles();
@@ -61,9 +73,57 @@ assertContains(workflow, "git diff --check", `${workflowPath}: diff hygiene comm
 assertContains(workflow, "process-tree-smoke:", `${workflowPath}: process-tree smoke job`);
 assertContains(workflow, "- ubuntu-latest\n          - windows-latest", `${workflowPath}: process-tree OS matrix`);
 assertContains(workflow, "pnpm run process-tree-smoke", `${workflowPath}: process-tree smoke command`);
+assertContains(
+  manifest.scripts?.smoke ?? "",
+  "node scripts/smoke-policy-reload.mjs",
+  "package.json: smoke aggregate must include atomic policy reload"
+);
+for (const phrase of [
+  '"--watch-policy"',
+  'event.event === "policy.reload_applied"',
+  'event.reasonCode === "invalid_policy"',
+  "renameSync(stagingPath, targetPath)",
+  'evidence?.[0]?.code !== "tool.not_visible"'
+]) {
+  assertContains(policyReloadSmoke, phrase, `${policyReloadSmokePath}: missing reload proof phrase ${phrase}`);
+}
 assertContains(workflow, "fail-fast: false", `${workflowPath}: process-tree matrix completion`);
+for (const phrase of [
+  'process.platform === "win32"',
+  'runProcessTreeScenario("abrupt-proxy-termination")',
+  'proxyChild.kill("SIGKILL")',
+  "extractSafeContainmentDiagnostic",
+  "Windows Job Object kill-on-close"
+]) {
+  assertContains(processTreeSmoke, phrase, `${processTreeSmokePath}: missing abrupt termination phrase ${phrase}`);
+}
+assertContains(
+  manifest.scripts?.["external-compatibility"] ?? "",
+  "node scripts/check-external-fetch-mcp-fixture.mjs",
+  "package.json: external compatibility aggregate must include the fetch-server row"
+);
+for (const phrase of [
+  'const serverPackage = "mcp-server-fetch"',
+  'const serverVersion = "2026.7.10"',
+  '"--ignore-robots-txt"',
+  'ips: ["127.0.0.1"]',
+  'url: "http://192.0.2.1/blocked"',
+  "PIP_CONFIG_FILE: pipConfigPath",
+  'NODE_AUTH_TOKEN: ""',
+  '"PATHEXT"',
+  '"USERPROFILE"',
+  "containsRawFixtureRoot"
+]) {
+  assertContains(
+    externalFetchFixture,
+    phrase,
+    `${externalFetchFixturePath}: missing external fetch safety phrase ${phrase}`
+  );
+}
 checkWorkflowPublishSurfaces(workflowFiles);
 checkRegistrySmokeWorkflowContract(registrySmokeWorkflow);
+checkPublicationReceiptWorkflowContract(publicationReceiptWorkflow);
+checkRegistryOnboardingSmokeContract();
 
 assertContains(ciDoc, `installs Node.js ${workflowNodeVersion}`, `${ciDocPath}: documented Node.js version`);
 assertContains(ciDoc, `installs Python ${workflowPythonVersion}`, `${ciDocPath}: documented Python version`);
@@ -74,6 +134,11 @@ assertContains(
   ciDoc,
   "runs `pnpm run process-tree-smoke` on Ubuntu and Windows",
   `${ciDocPath}: documented process-tree matrix`
+);
+assertContains(
+  normalizedCiDoc,
+  "abrupt proxy termination through Windows Job Object kill-on-close",
+  `${ciDocPath}: documented Windows abrupt termination smoke`
 );
 assertContains(
   normalizedCiDoc,
@@ -348,11 +413,21 @@ function checkReleaseWorkflowContract(releaseWorkflow) {
 
 function checkRegistrySmokeWorkflowContract(registrySmokeWorkflow) {
   assertContains(registrySmokeWorkflow, "name: Registry Smoke", `${registrySmokeWorkflowPath}: workflow name`);
+  assertContains(
+    registrySmokeWorkflow,
+    'run-name: "Registry Smoke receipt: version=${{ inputs.version }}; release-run=${{ inputs.release_run_id }}"',
+    `${registrySmokeWorkflowPath}: structured publication receipt request`
+  );
   assertContains(registrySmokeWorkflow, "workflow_dispatch:", `${registrySmokeWorkflowPath}: manual trigger`);
   assertContains(
     registrySmokeWorkflow,
     "version:\n        description: Exact published semver to verify\n        required: true\n        type: string",
     `${registrySmokeWorkflowPath}: exact version input`
+  );
+  assertContains(
+    registrySmokeWorkflow,
+    "release_run_id:\n        description: Successful Release workflow run id for this version\n        required: true\n        type: string",
+    `${registrySmokeWorkflowPath}: release run input`
   );
   assertContains(
     registrySmokeWorkflow,
@@ -392,6 +467,96 @@ function checkRegistrySmokeWorkflowContract(registrySmokeWorkflow) {
     registrySmokeWorkflow,
     "pnpm run registry-smoke",
     `${registrySmokeWorkflowPath}: registry smoke command`
+  );
+}
+
+function checkPublicationReceiptWorkflowContract(publicationReceiptWorkflow) {
+  assertContains(
+    publicationReceiptWorkflow,
+    "name: Publication Receipt",
+    `${publicationReceiptWorkflowPath}: workflow name`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "workflow_run:\n    workflows:\n      - Registry Smoke\n    types:\n      - completed",
+    `${publicationReceiptWorkflowPath}: completed Registry Smoke trigger`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "permissions:\n  actions: read\n  contents: read",
+    `${publicationReceiptWorkflowPath}: read-only actions and contents permissions`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "cancel-in-progress: false",
+    `${publicationReceiptWorkflowPath}: receipt jobs must not cancel in progress`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "if: ${{ github.event.workflow_run.conclusion == 'success' }}",
+    `${publicationReceiptWorkflowPath}: successful smoke conclusion gate`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "runs-on: ubuntu-latest",
+    `${publicationReceiptWorkflowPath}: Ubuntu runner`
+  );
+  assertContains(
+    publicationReceiptWorkflow,
+    "timeout-minutes: 5",
+    `${publicationReceiptWorkflowPath}: bounded timeout`
+  );
+  assertPinnedAction(publicationReceiptWorkflowPath, publicationReceiptWorkflow, "actions/checkout");
+  assertPinnedAction(publicationReceiptWorkflowPath, publicationReceiptWorkflow, "actions/setup-node");
+  assertPinnedAction(publicationReceiptWorkflowPath, publicationReceiptWorkflow, "actions/upload-artifact");
+  assertContains(
+    publicationReceiptWorkflow,
+    `node-version: ${workflowNodeVersion}`,
+    `${publicationReceiptWorkflowPath}: Node.js version`
+  );
+  for (const phrase of [
+    "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}",
+    "MSP_PUBLICATION_RECEIPT_REQUEST: ${{ github.event.workflow_run.display_title }}",
+    "MSP_REGISTRY_SMOKE_RUN_ID: ${{ github.event.workflow_run.id }}",
+    "MSP_PUBLICATION_RECEIPT_OUTPUT_DIR: publication-receipt",
+    "node scripts/generate-publication-receipt.mjs",
+    "path: publication-receipt/*.publication.json",
+    "if-no-files-found: error"
+  ]) {
+    assertContains(
+      publicationReceiptWorkflow,
+      phrase,
+      `${publicationReceiptWorkflowPath}: missing receipt contract phrase ${phrase}`
+    );
+  }
+}
+
+function checkRegistryOnboardingSmokeContract() {
+  assertContains(
+    registrySmokeSource,
+    "runRegistryOnboardingSmoke({ consumerRoot, expectedVersion })",
+    `${registrySmokeSourcePath}: registry onboarding invocation`
+  );
+  for (const phrase of [
+    '@modelcontextprotocol/sdk", version: "1.29.0"',
+    '@modelcontextprotocol/server-filesystem", version: "2026.7.4"',
+    'schemaVersion: "msp.registry-onboarding-smoke.v1"',
+    'visibleTools) !== JSON.stringify(["read_text_file"])',
+    'evidenceCodes?.includes("policy.default_deny")',
+    "let operationFailed = false",
+    'throw new Error("registry onboarding client cleanup failed")',
+    "registry onboarding smoke audit output exposed fixture paths or raw arguments"
+  ]) {
+    assertContains(
+      registryOnboardingSmoke,
+      phrase,
+      `${registryOnboardingSmokePath}: missing registry onboarding contract phrase`
+    );
+  }
+  assertContains(
+    normalizedCiDoc,
+    "starts the registry-installed CLI as a real stdio proxy",
+    `${ciDocPath}: documented registry onboarding session`
   );
 }
 

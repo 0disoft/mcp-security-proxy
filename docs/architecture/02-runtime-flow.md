@@ -10,6 +10,21 @@ Status: Draft
 3. Proxy starts the upstream MCP server or connects to it.
 4. Proxy initializes MCP session negotiation through the supported method policy.
 5. Proxy prepares audit redaction and decision logging.
+6. When `--watch-policy` is present, the CLI watches the policy file's parent directory and
+   subscribes the stdio bridge to validated replacement candidates.
+
+## Policy Reload Flow
+
+1. A directory change for the configured policy filename schedules one debounced read.
+2. The CLI parses and validates the whole candidate without mutating the active session.
+3. Candidates missing the active profile or changing its audit contract are rejected.
+4. The runtime validates the candidate again and prepares an immutable snapshot. Preparation aborts
+   pending approval hooks so affected calls fail closed with `policy.reloaded`.
+5. A one-shot commit runs in the same serial order as audit-before-forward protocol writes, then
+   swaps the session policy and revision and clears remembered visible tools.
+6. Rejected replacements retain the previous policy. Calls already forwarded upstream remain
+   outside the reach of a later policy swap.
+7. The stdio bridge emits redacted `policy.reload_applied` or `policy.reload_rejected` ops evidence.
 
 ## Method Policy Flow
 
@@ -51,6 +66,7 @@ Current implemented responsibilities:
   messages
 - avoid raw tool arguments in audit events
 - include stable decision evidence codes in audit decisions
+- optionally replace the active policy atomically without exposing partially read or invalid state
 - start one upstream stdio process from the CLI command after `--`
 - keep stdout reserved for MCP protocol messages
 - append audit events to the selected profile audit file or the explicit `--audit-log` override
@@ -61,6 +77,9 @@ Current implemented responsibilities:
 - after upstream stdout closes, terminate the upstream process tree if it does not exit within the
   same bounded grace window
 - create a dedicated POSIX process group and signal the group with `SIGTERM`, then `SIGKILL`
+- before starting an upstream process on Windows, start a system PowerShell guardian outside the
+  proxy's nested Job Object, configure `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, assign the proxy to the
+  Job, and wait for the guardian readiness handshake
 - on Windows, call `taskkill.exe` directly with `/PID` and `/T`, adding `/F` only during forced
   escalation; fall back to direct child termination when tree termination fails
 - allow the CLI `run` command to configure the shutdown grace window with
@@ -114,6 +133,10 @@ transports remain future runtime responsibilities.
 - Approval hook failure: call fails closed with a redacted denial instead of forwarding or storing
   hook error details.
 - Approval hook unavailable: approval-required call is denied and is not passed through.
+- Policy replacement while approval is pending: the hook receives an abort signal and the call is
+  denied with `policy.reloaded`.
+- Invalid watched policy, missing active profile, audit contract change, read failure, or watcher
+  failure: the active policy remains unchanged and a stable redacted ops rejection is recorded.
 - Unmatched upstream response: response is dropped with a redacted audit event.
 - Pending request state expiration or capacity exhaustion: stale responses are treated as
   unmatched, and new over-capacity requests are denied before forwarding.
@@ -133,5 +156,9 @@ transports remain future runtime responsibilities.
   redacted upstream-failure audit event.
 - Upstream stdout close without process exit: proxy kills the process after the shutdown grace
   window and records a redacted upstream-failure audit event.
-- Abrupt proxy termination outside the managed shutdown path can still leave descendants behind.
-  Windows Job Object kill-on-close and an equivalent crash supervisor are not implemented.
+- Abrupt proxy termination on Windows signals the guardian's parent-process handle. The guardian
+  closes the last nested Job Object handle, and Windows terminates the upstream process tree. If the
+  system PowerShell guardian or Job assignment cannot be established, `run` fails before spawning
+  the upstream server.
+- Abrupt proxy termination on POSIX can still leave the dedicated upstream process group behind.
+  Operators need an external supervisor when parent-death reclamation is required there.

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
-import { createProxySession } from "./session.js";
+import { createProxySession, type ApprovalRequest } from "./session.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
@@ -3654,6 +3654,213 @@ describe("proxy runtime session", () => {
         durationMs: expect.any(Number)
       }
     });
+  });
+
+  it("provides an immutable, cancellation-aware approval request with opaque identity", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+    let captured: ApprovalRequest | undefined;
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-request-contract",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      (request) => {
+        captured = request;
+        expect(request.profileId).toBe("local");
+        expect(request.approvalId).toMatch(/^[a-f0-9-]{36}$/u);
+        expect(request.signal.aborted).toBe(false);
+        expect(Object.isFrozen(request)).toBe(true);
+        expect(Object.isFrozen(request.call)).toBe(true);
+        expect(Object.isFrozen(request.call.capabilities)).toBe(true);
+        expect(Object.isFrozen(request.decision)).toBe(true);
+        expect(Object.isFrozen(request.decision.evidence)).toBe(true);
+        expect(() => (request.call.capabilities as string[]).push("shell")).toThrow(TypeError);
+        return { approved: true };
+      }
+    );
+
+    expect(result.forwardLine).toBeDefined();
+    expect(captured?.signal.aborted).toBe(true);
+  });
+
+  it("aborts a timed-out hook so the host can release pending approval work", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local",
+      approvalTimeoutMs: 1
+    });
+    primeShellDiscovery(session);
+    let observedAbort = false;
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-hook-abort",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      (request) =>
+        new Promise((resolve) => {
+          request.signal.addEventListener(
+            "abort",
+            () => {
+              observedAbort = true;
+              resolve({ approved: false });
+            },
+            { once: true }
+          );
+        })
+    );
+
+    expect(observedAbort).toBe(true);
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      error: {
+        data: {
+          decision: {
+            evidence: [{ code: "policy.approval_hook_failed", reason: "approval hook timed out" }]
+          }
+        }
+      }
+    });
+  });
+
+  it("fails closed when a JavaScript hook returns a non-boolean approval result", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+
+    const result = await session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-invalid-result",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      (() => ({ approved: "yes" })) as unknown as import("./session.js").ApprovalHook
+    );
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      error: {
+        data: {
+          decision: {
+            evidence: [{ code: "policy.approval_hook_failed", reason: "approval hook failed closed" }]
+          }
+        }
+      }
+    });
+  });
+
+  it("atomically replaces policy and clears discovery state", () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+
+    expect(session.replacePolicy(readApprovalPolicy())).toBe(1);
+
+    const result = session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-after-policy-reload",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      })
+    );
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      error: {
+        data: {
+          decision: {
+            evidence: [{ code: "tool.not_visible" }]
+          }
+        }
+      }
+    });
+  });
+
+  it("keeps the previous policy when a replacement omits the active profile", () => {
+    const initialPolicy = readApprovalPolicy();
+    const session = createProxySession({
+      policy: initialPolicy,
+      profileId: "local"
+    });
+    const replacement: PolicyDocument = {
+      ...initialPolicy,
+      profiles: initialPolicy.profiles.map((profile) => ({ ...profile, id: "other" }))
+    };
+
+    expect(() => session.replacePolicy(replacement)).toThrow("active profile");
+    expect(session.replacePolicy(initialPolicy)).toBe(1);
+  });
+
+  it("aborts a pending approval before a prepared policy replacement is committed once", async () => {
+    const session = createProxySession({
+      policy: readApprovalPolicy(),
+      profileId: "local"
+    });
+    primeShellDiscovery(session);
+    let hookStartedResolve: (() => void) | undefined;
+    const hookStarted = new Promise<void>((resolve) => {
+      hookStartedResolve = resolve;
+    });
+
+    const pending = session.handleClientLineWithApproval(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "approval-during-policy-reload",
+        method: "tools/call",
+        params: {
+          name: "run_command",
+          arguments: {}
+        }
+      }),
+      (request) =>
+        new Promise((resolve) => {
+          hookStartedResolve?.();
+          request.signal.addEventListener("abort", () => resolve({ approved: true }), { once: true });
+        })
+    );
+    await hookStarted;
+
+    const commitReplacement = session.preparePolicyReplacement(readPolicy());
+    const result = await pending;
+
+    expect(result.forwardLine).toBeUndefined();
+    expect(JSON.parse(result.responseLine ?? "{}")).toMatchObject({
+      error: {
+        data: {
+          decision: {
+            evidence: [{ code: "policy.reloaded" }]
+          }
+        }
+      }
+    });
+    expect(commitReplacement()).toBe(1);
+    expect(() => commitReplacement()).toThrow("already committed");
   });
 
   it("handles approval hook rejection that arrives after timeout", async () => {

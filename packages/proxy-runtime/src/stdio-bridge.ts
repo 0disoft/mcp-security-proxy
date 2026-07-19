@@ -1,10 +1,12 @@
 import type { Readable, Writable } from "node:stream";
 import { StringDecoder } from "node:string_decoder";
-import type {
-  AuditEvent,
-  PolicyDocument,
-  StdioProxyMetrics,
-  StdioProxyOpsEvent
+import {
+  type AuditPolicy,
+  type AuditEvent,
+  type PolicyDocument,
+  type PolicyReloadRejectionCode,
+  type StdioProxyMetrics,
+  type StdioProxyOpsEvent
 } from "@0disoft/mcp-security-proxy-contracts";
 import { createAuditEvent } from "@0disoft/mcp-security-proxy-core";
 import { createProxySession, type ApprovalHook } from "./session.js";
@@ -38,6 +40,21 @@ export interface StdioProxyOptions {
   readonly shutdownGraceMs?: number;
   readonly maxFrameBytes?: number;
   readonly maxJsonDepth?: number;
+  readonly policyReloadSource?: PolicyReloadSource;
+}
+
+export type PolicyReloadUpdate =
+  | {
+      readonly status: "accepted";
+      readonly policy: PolicyDocument;
+    }
+  | {
+      readonly status: "rejected";
+      readonly reasonCode: PolicyReloadRejectionCode;
+    };
+
+export interface PolicyReloadSource {
+  readonly subscribe: (listener: (update: PolicyReloadUpdate) => void | Promise<void>) => () => void;
 }
 
 export interface StdioProxyResult {
@@ -48,6 +65,8 @@ class AuditFailure extends Error {}
 
 const defaultShutdownGraceMs = 1_000;
 const defaultMaxFrameBytes = 1_048_576;
+
+function noop(): void {}
 
 type MutableStdioProxyMetrics = {
   -readonly [Key in keyof StdioProxyMetrics]: StdioProxyMetrics[Key];
@@ -89,7 +108,9 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     upstreamDenials: 0,
     protocolResponsesWritten: 0,
     auditEventsWritten: 0,
-    auditWriteFailures: 0
+    auditWriteFailures: 0,
+    policyReloadsApplied: 0,
+    policyReloadsRejected: 0
   };
 
   const recordAudit = async (events: readonly AuditEvent[]): Promise<void> => {
@@ -112,11 +133,80 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
       // Ops telemetry is diagnostic only. Audit failure policy remains the security gate.
     }
   };
+  let sessionOperationQueue = Promise.resolve();
+  const runSessionOperation = <Result>(operation: () => Result | Promise<Result>): Promise<Result> => {
+    const result = sessionOperationQueue.then(operation);
+    sessionOperationQueue = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
+  };
+  let policyOpsQueue = Promise.resolve();
+  let unsubscribePolicyReload = noop;
+  let policyReloadClosed = false;
+  const closePolicyReload = (): void => {
+    if (policyReloadClosed) {
+      return;
+    }
+    policyReloadClosed = true;
+    unsubscribePolicyReload();
+  };
   const finish = async (exitCode: number): Promise<StdioProxyResult> => {
+    closePolicyReload();
+    await sessionOperationQueue;
+    await policyOpsQueue;
     await recordOps(createStopOpsEvent(options.profileId, exitCode, startedAt, metrics));
     return { exitCode };
   };
   await recordOps(createStartOpsEvent(options.profileId, maxFrameBytes, options.maxJsonDepth, metrics));
+  const recordPolicyUpdate = async (update: PolicyReloadUpdate): Promise<void> => {
+    let rejectionCode: PolicyReloadRejectionCode | undefined;
+    let commitPolicyReplacement: (() => number) | undefined;
+    if (update.status === "accepted") {
+      const nextProfile = update.policy.profiles.find((item) => item.id === options.profileId);
+      if (!nextProfile) {
+        rejectionCode = "profile_missing";
+      } else if (!auditPoliciesEqual(profile.audit, nextProfile.audit)) {
+        rejectionCode = "audit_changed";
+      } else {
+        try {
+          commitPolicyReplacement = session.preparePolicyReplacement(update.policy);
+        } catch {
+          rejectionCode = "runtime_validation_failed";
+        }
+      }
+    }
+    await runSessionOperation(() => {
+      let event: StdioProxyOpsEvent;
+      if (update.status === "rejected") {
+        metrics.policyReloadsRejected += 1;
+        event = createPolicyReloadRejectedOpsEvent(options.profileId, update.reasonCode, metrics);
+      } else if (rejectionCode) {
+        metrics.policyReloadsRejected += 1;
+        event = createPolicyReloadRejectedOpsEvent(options.profileId, rejectionCode, metrics);
+      } else {
+        try {
+          if (!commitPolicyReplacement) {
+            throw new TypeError("validated policy replacement was not prepared");
+          }
+          const revision = commitPolicyReplacement();
+          metrics.policyReloadsApplied += 1;
+          event = createPolicyReloadAppliedOpsEvent(options.profileId, revision, metrics);
+        } catch {
+          metrics.policyReloadsRejected += 1;
+          event = createPolicyReloadRejectedOpsEvent(options.profileId, "runtime_validation_failed", metrics);
+        }
+      }
+      policyOpsQueue = policyOpsQueue.then(() => recordOps(event));
+    });
+  };
+  try {
+    unsubscribePolicyReload = options.policyReloadSource?.subscribe(recordPolicyUpdate) ?? unsubscribePolicyReload;
+  } catch {
+    await requestUpstreamTermination(upstream, true);
+    return await finish(1);
+  }
   const stderrDone = observeUpstreamStderr(
     upstream.stderr,
     options.profileId,
@@ -126,39 +216,43 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
   );
 
   const clientDone = consumeFrames(options.clientInput, maxFrameBytes, async (line) => {
-    metrics.clientFrames += 1;
-    const result = options.approveToolCall
-      ? await session.handleClientLineWithApproval(line, options.approveToolCall)
-      : session.handleClientLine(line);
-    await recordAudit(result.auditEvents);
-    if (result.responseLine) {
-      metrics.protocolResponsesWritten += 1;
-      if (!result.forwardLine) {
-        metrics.clientDenials += 1;
+    await runSessionOperation(async () => {
+      metrics.clientFrames += 1;
+      const result = options.approveToolCall
+        ? await session.handleClientLineWithApproval(line, options.approveToolCall)
+        : session.handleClientLine(line);
+      await recordAudit(result.auditEvents);
+      if (result.responseLine) {
+        metrics.protocolResponsesWritten += 1;
+        if (!result.forwardLine) {
+          metrics.clientDenials += 1;
+        }
+        await writeLine(options.clientOutput, result.responseLine);
       }
-      await writeLine(options.clientOutput, result.responseLine);
-    }
-    if (result.forwardLine) {
-      metrics.clientFramesForwarded += 1;
-      await writeLine(upstream.stdin, result.forwardLine);
-    }
+      if (result.forwardLine) {
+        metrics.clientFramesForwarded += 1;
+        await writeLine(upstream.stdin, result.forwardLine);
+      }
+    });
   });
 
   const upstreamDone = consumeFrames(upstream.stdout, maxFrameBytes, async (line) => {
-    metrics.upstreamFrames += 1;
-    const result = session.handleServerLine(line);
-    await recordAudit(result.auditEvents);
-    if (result.responseLine) {
-      metrics.protocolResponsesWritten += 1;
-      if (!result.forwardLine) {
-        metrics.upstreamDenials += 1;
+    await runSessionOperation(async () => {
+      metrics.upstreamFrames += 1;
+      const result = session.handleServerLine(line);
+      await recordAudit(result.auditEvents);
+      if (result.responseLine) {
+        metrics.protocolResponsesWritten += 1;
+        if (!result.forwardLine) {
+          metrics.upstreamDenials += 1;
+        }
+        await writeLineIfOpen(upstream.stdin, result.responseLine);
       }
-      await writeLineIfOpen(upstream.stdin, result.responseLine);
-    }
-    if (result.forwardLine) {
-      metrics.upstreamFramesForwarded += 1;
-      await writeLine(options.clientOutput, result.forwardLine);
-    }
+      if (result.forwardLine) {
+        metrics.upstreamFramesForwarded += 1;
+        await writeLine(options.clientOutput, result.forwardLine);
+      }
+    });
   });
 
   try {
@@ -205,6 +299,9 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     await requestUpstreamTermination(upstream, true);
     return await finish(fatalExitCode);
   } finally {
+    closePolicyReload();
+    await sessionOperationQueue;
+    await policyOpsQueue;
     options.clientInput.destroy();
     upstream.stdout.destroy();
   }
@@ -260,8 +357,52 @@ function snapshotMetrics(metrics: StdioProxyMetrics): StdioProxyMetrics {
     upstreamDenials: metrics.upstreamDenials,
     protocolResponsesWritten: metrics.protocolResponsesWritten,
     auditEventsWritten: metrics.auditEventsWritten,
-    auditWriteFailures: metrics.auditWriteFailures
+    auditWriteFailures: metrics.auditWriteFailures,
+    policyReloadsApplied: metrics.policyReloadsApplied,
+    policyReloadsRejected: metrics.policyReloadsRejected
   };
+}
+
+function createPolicyReloadAppliedOpsEvent(
+  profileId: string,
+  revision: number,
+  metrics: StdioProxyMetrics
+): StdioProxyOpsEvent {
+  return {
+    schemaVersion: "msp.ops-event.v1",
+    timestamp: new Date().toISOString(),
+    kind: "policy",
+    event: "policy.reload_applied",
+    profileId,
+    revision,
+    metrics: snapshotMetrics(metrics)
+  };
+}
+
+function createPolicyReloadRejectedOpsEvent(
+  profileId: string,
+  reasonCode: PolicyReloadRejectionCode,
+  metrics: StdioProxyMetrics
+): StdioProxyOpsEvent {
+  return {
+    schemaVersion: "msp.ops-event.v1",
+    timestamp: new Date().toISOString(),
+    kind: "policy",
+    event: "policy.reload_rejected",
+    profileId,
+    reasonCode,
+    metrics: snapshotMetrics(metrics)
+  };
+}
+
+function auditPoliciesEqual(left: AuditPolicy, right: AuditPolicy): boolean {
+  return (
+    left.destination === right.destination &&
+    left.path === right.path &&
+    left.onFailure === right.onFailure &&
+    left.includeRawArguments === right.includeRawArguments &&
+    left.includeFullPaths === right.includeFullPaths
+  );
 }
 
 async function consumeFrames(

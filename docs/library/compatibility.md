@@ -32,12 +32,19 @@ This repository type owns public API surface, package compatibility, semantic ve
   baseline.
 - Node.js `>=24.0.0` is the current package manifest floor and must stay consistent across the
   workspace until a release readiness record changes it.
+- Windows CLI `run` requires the operating system's Windows PowerShell and nested Job Object
+  support. It fails before upstream startup when containment cannot be established; supported
+  Windows runners exercise abrupt proxy termination and descendant reclamation.
 - HTTP transport support is deferred until stdio behavior is proven and HTTP-specific compatibility
   fixtures exist.
 - Client compatibility must be fixture-backed, not claimed from schema reading alone.
 - Policy and audit schemas must remain deterministic across supported runtimes.
 - Public registry compatibility evidence comes from exact-version registry smoke; local package
   compatibility evidence remains the offline packed-artifact consumer test.
+- Registry onboarding compatibility additionally requires a real stdio session using only the
+  registry-installed CLI, exact pinned MCP SDK, and exact pinned filesystem server in a temporary
+  consumer project. It must cover filtered discovery, an allowed read, a default-denied read,
+  orderly shutdown, and audit redaction without workspace build output or repository fixture files.
 
 ## Compatibility Evidence Required
 
@@ -56,9 +63,16 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Library decision-result fixture.
 - Library audit JSONL formatter fixture.
 - Runtime audit correlation fixture covering matched request/response routing and raw-ID absence.
+- Approval hook conformance fixture covering explicit approval, rejection, hook error, abort-signal
+  cleanup, concurrent opaque-ID isolation, and raw hook detail omission.
 - Library tool-call normalization fixture.
 - Runtime live stdio smoke command evidence for the implemented local proxy path.
+- Hosted Windows process-tree evidence covering managed shutdown and abrupt proxy termination via
+  Job Object kill-on-close; the Ubuntu row covers managed POSIX process-group shutdown only.
 - Runtime ops-log fixture evidence for structured lifecycle metrics emitted by live `run`.
+- Runtime atomic policy-reload smoke covering directory watch, atomic rename, accepted replacement,
+  discovery invalidation, direct-call denial, malformed replacement rejection, prior-policy
+  retention, shutdown metrics, and raw-detail absence.
 - Runtime session-result fixtures for approval rejection, approval hook error, approval timeout
   fail-closed behavior, client envelope sanitization, client ping error response denial, client ping
   payload response denial, discovery state replacement, duplicate pending client request id denial,
@@ -87,6 +101,9 @@ references, plus CLI evidence command `--policy` and `--input` paths, must be sa
 repository-relative tracked files so local-only fixtures cannot satisfy compatibility evidence.
 Approval-required library fixtures may explicitly record `approvalHookAvailable` in the manifest so
 hook-present and hook-missing decisions are both checked.
+The `smoke` aggregate also runs `scripts/smoke-policy-reload.mjs` against the built CLI and the local
+stdio fixture server. This is behavior evidence for one local process and filesystem watcher; it is
+not a distributed configuration, network filesystem, or cross-host consistency claim.
 
 The external MCP stdio client matrix is registered as `external-filesystem-stdio` and
 `external-filesystem-python-stdio` in `fixtures/compatibility/manifest.json`. Separate manifests and
@@ -94,6 +111,12 @@ normalized summaries prove the JavaScript `@modelcontextprotocol/sdk@1.29.0` and
 `mcp==1.28.1` clients against the pinned filesystem server. This is evidence for those two rows,
 not arbitrary MCP client/server compatibility. Target registration does not change release scope by
 itself.
+
+The independent `external-fetch-stdio` row drives `mcp-server-fetch==2026.7.10` with the pinned
+JavaScript SDK client. Its synthetic loopback endpoint proves an allowed fetch, pre-forward denial
+for an external IP target, normalized upstream HTTP error behavior, orderly shutdown, and audit
+privacy. The loopback content server does not implement MCP transport and does not change the
+HTTP-transport deferral.
 
 ADR 0008 keeps those SDKs outside product workspace manifests and published artifacts. They are
 independent compatibility witnesses only; passing a row does not turn its SDK into a supported

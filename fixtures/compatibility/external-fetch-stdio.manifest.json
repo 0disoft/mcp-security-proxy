@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "msp.external-compatibility-evidence.v1",
+  "target": "external-fetch-stdio",
+  "transport": "stdio",
+  "fixtureSource": "external-mcp",
+  "client": {
+    "package": "@modelcontextprotocol/sdk",
+    "version": "1.29.0"
+  },
+  "server": {
+    "package": "mcp-server-fetch",
+    "version": "2026.7.10"
+  },
+  "harness": "scripts/check-external-fetch-mcp-fixture.mjs",
+  "summary": "fixtures/compatibility/external-fetch-stdio.summary.json",
+  "scenarios": [
+    "initialize",
+    "notifications/initialized",
+    "tools/list-filtering",
+    "tools/call-allowed-local-fetch",
+    "tools/call-denied-external-fetch",
+    "tools/call-upstream-http-error",
+    "shutdown-orderly",
+    "audit-redacted-evidence"
+  ]
+}

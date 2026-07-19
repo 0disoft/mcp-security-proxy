@@ -59,6 +59,7 @@ must move together. After public release, semantic versioning and migration guid
 | `policy.approval_granted` | A host approval hook approved an approval-required call and the final enforcement action is allow. |
 | `policy.approval_hook_failed` | A host approval hook errored or timed out and the call failed closed. |
 | `policy.approval_hook_missing` | No approval hook was available for an approval-required call. |
+| `policy.reloaded` | A pending approval was canceled because a valid replacement policy became active. |
 | `runtime.upstream_exit` | The upstream process exited non-zero or terminated unexpectedly. |
 | `runtime.upstream_stderr` | Upstream stderr was summarized without storing raw stderr lines. |
 

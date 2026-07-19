@@ -4,7 +4,9 @@
   "title": "MCP Security Proxy Ops Event v1",
   "oneOf": [
     { "$ref": "#/$defs/proxyStart" },
-    { "$ref": "#/$defs/proxyStop" }
+    { "$ref": "#/$defs/proxyStop" },
+    { "$ref": "#/$defs/policyReloadApplied" },
+    { "$ref": "#/$defs/policyReloadRejected" }
   ],
   "$defs": {
     "base": {
@@ -13,8 +15,10 @@
       "properties": {
         "schemaVersion": { "const": "msp.ops-event.v1" },
         "timestamp": { "type": "string", "format": "date-time" },
-        "kind": { "enum": ["lifecycle"] },
-        "event": { "enum": ["proxy.start", "proxy.stop"] },
+        "kind": { "enum": ["lifecycle", "policy"] },
+        "event": {
+          "enum": ["proxy.start", "proxy.stop", "policy.reload_applied", "policy.reload_rejected"]
+        },
         "profileId": { "type": "string" },
         "metrics": { "$ref": "#/$defs/metrics" }
       }
@@ -49,6 +53,45 @@
         }
       ]
     },
+    "policyReloadApplied": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["revision"],
+          "properties": {
+            "kind": { "const": "policy" },
+            "event": { "const": "policy.reload_applied" },
+            "revision": { "type": "integer", "minimum": 1 }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "policyReloadRejected": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["reasonCode"],
+          "properties": {
+            "kind": { "const": "policy" },
+            "event": { "const": "policy.reload_rejected" },
+            "reasonCode": {
+              "enum": [
+                "read_failed",
+                "invalid_policy",
+                "profile_missing",
+                "audit_changed",
+                "watch_failed",
+                "runtime_validation_failed"
+              ]
+            }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
     "metrics": {
       "type": "object",
       "required": [
@@ -60,7 +103,9 @@
         "upstreamDenials",
         "protocolResponsesWritten",
         "auditEventsWritten",
-        "auditWriteFailures"
+        "auditWriteFailures",
+        "policyReloadsApplied",
+        "policyReloadsRejected"
       ],
       "properties": {
         "clientFrames": { "type": "integer", "minimum": 0 },
@@ -71,7 +116,9 @@
         "upstreamDenials": { "type": "integer", "minimum": 0 },
         "protocolResponsesWritten": { "type": "integer", "minimum": 0 },
         "auditEventsWritten": { "type": "integer", "minimum": 0 },
-        "auditWriteFailures": { "type": "integer", "minimum": 0 }
+        "auditWriteFailures": { "type": "integer", "minimum": 0 },
+        "policyReloadsApplied": { "type": "integer", "minimum": 0 },
+        "policyReloadsRejected": { "type": "integer", "minimum": 0 }
       },
       "additionalProperties": false
     }

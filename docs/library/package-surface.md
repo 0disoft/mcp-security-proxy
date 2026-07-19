@@ -18,14 +18,14 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Public API ownership: docs/library/public-api.md
 - Semantic versioning policy: docs/library/semver.md
 - Runtime and platform compatibility: docs/library/compatibility.md
-- Package artifact and export surface: the published `0.2.0-alpha.2` record names five
+- Package artifact and export surface: the approved `0.2.0-alpha.3` candidate record names five
   public npm packages.
 - Deprecation and migration policy: docs/library/migration-guide.md
 
 ## Current Package Posture
 
-The root workspace and testkit remain private. The five release-recorded packages are published at
-`0.2.0-alpha.2` while preserving workspace ownership and internal imports.
+The root workspace and testkit remain private. The five release-recorded packages use the approved
+`0.2.0-alpha.3` candidate posture while preserving workspace ownership and internal imports.
 
 Until release readiness approves the recorded public package names and artifacts:
 
@@ -70,8 +70,11 @@ This validates package shape without publishing it.
 
 `pnpm run registry-smoke -- --version <exact-semver>` is the separate post-publication check. It
 downloads the five exact versions from public npm, verifies registry integrity and provenance
-metadata, and applies the same ESM, TypeScript, and CLI consumer contract. It is intentionally not
-part of the offline `check` aggregate and does not accept `latest`, ranges, or unpublished versions.
+metadata, and applies the same ESM, TypeScript, and CLI consumer contract. It then uses the
+registry-installed CLI, exact pinned MCP SDK, and exact pinned filesystem server for an actual
+stdio onboarding session with filtered discovery, allowed and denied reads, orderly shutdown, and
+redacted audit evidence. It is intentionally not part of the offline `check` aggregate and does
+not accept `latest`, ranges, or unpublished versions.
 
 ## Expected Package Surfaces
 

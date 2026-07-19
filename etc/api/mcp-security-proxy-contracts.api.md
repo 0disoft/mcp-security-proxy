@@ -126,7 +126,7 @@ export interface CommandRule {
 export function createDenyByDefaultPolicy(profileId?: string): PolicyDocument;
 
 // @public (undocumented)
-export const DECISION_REASON_CODES: readonly ["jsonrpc.invalid", "jsonrpc.frame_too_large", "jsonrpc.too_deep", "jsonrpc.unmatched_response", "jsonrpc.request_extra_fields_redacted", "jsonrpc.response_extra_fields_redacted", "jsonrpc.upstream_error_data_redacted", "jsonrpc.upstream_error_message_redacted", "jsonrpc.upstream_error_redacted", "method.supported", "method.unsupported", "method.server_origin_disallowed", "method.server_origin_ping_params", "tool.not_visible", "discovery.filtered", "policy.profile_not_found", "policy.default_deny", "policy.rule_allow", "policy.rule_deny", "policy.rule_approval_required", "policy.ambiguous_path", "policy.free_form_shell", "policy.ambiguous_network", "policy.secret_capability_required", "policy.unknown_capability", "policy.approval_denied", "policy.approval_granted", "policy.approval_hook_failed", "policy.approval_hook_missing", "runtime.upstream_exit", "runtime.upstream_stderr"];
+export const DECISION_REASON_CODES: readonly ["jsonrpc.invalid", "jsonrpc.frame_too_large", "jsonrpc.too_deep", "jsonrpc.unmatched_response", "jsonrpc.request_extra_fields_redacted", "jsonrpc.response_extra_fields_redacted", "jsonrpc.upstream_error_data_redacted", "jsonrpc.upstream_error_message_redacted", "jsonrpc.upstream_error_redacted", "method.supported", "method.unsupported", "method.server_origin_disallowed", "method.server_origin_ping_params", "tool.not_visible", "discovery.filtered", "policy.profile_not_found", "policy.default_deny", "policy.rule_allow", "policy.rule_deny", "policy.rule_approval_required", "policy.ambiguous_path", "policy.free_form_shell", "policy.ambiguous_network", "policy.secret_capability_required", "policy.unknown_capability", "policy.approval_denied", "policy.approval_granted", "policy.approval_hook_failed", "policy.approval_hook_missing", "policy.reloaded", "runtime.upstream_exit", "runtime.upstream_stderr"];
 
 // @public (undocumented)
 export const DECISION_SCHEMA_VERSION: "msp.decision.v1";
@@ -216,13 +216,16 @@ export interface NormalizedToolDescriptor {
 }
 
 // @public (undocumented)
-export const OPS_EVENT_KINDS: readonly ["lifecycle"];
+export const OPS_EVENT_KINDS: readonly ["lifecycle", "policy"];
 
 // @public (undocumented)
 export const OPS_EVENT_SCHEMA_VERSION: "msp.ops-event.v1";
 
 // @public (undocumented)
 export const OPS_LIFECYCLE_EVENTS: readonly ["proxy.start", "proxy.stop"];
+
+// @public (undocumented)
+export const OPS_POLICY_EVENTS: readonly ["policy.reload_applied", "policy.reload_rejected"];
 
 // @public (undocumented)
 export type OpsEventKind = (typeof OPS_EVENT_KINDS)[number];
@@ -232,6 +235,9 @@ export type OpsEventSchemaVersion = typeof OPS_EVENT_SCHEMA_VERSION;
 
 // @public (undocumented)
 export type OpsLifecycleEvent = (typeof OPS_LIFECYCLE_EVENTS)[number];
+
+// @public (undocumented)
+export type OpsPolicyEvent = (typeof OPS_POLICY_EVENTS)[number];
 
 // @public (undocumented)
 export function parsePolicyDocumentJson(text: string): ValidationResult<PolicyDocument>;
@@ -246,6 +252,9 @@ export interface PathRule {
 
 // @public (undocumented)
 export const POLICY_ACTIONS: readonly ["allow", "deny", "approval_required"];
+
+// @public (undocumented)
+export const POLICY_RELOAD_REJECTION_CODES: readonly ["read_failed", "invalid_policy", "profile_missing", "audit_changed", "watch_failed", "runtime_validation_failed"];
 
 // @public (undocumented)
 export const POLICY_SCHEMA_VERSION: "msp.policy.v1";
@@ -276,6 +285,9 @@ export interface PolicyDocument {
     // (undocumented)
     readonly schemaVersion: PolicySchemaVersion;
 }
+
+// @public (undocumented)
+export type PolicyReloadRejectionCode = (typeof POLICY_RELOAD_REJECTION_CODES)[number];
 
 // @public (undocumented)
 export interface PolicyRule {
@@ -360,6 +372,10 @@ export interface StdioProxyMetrics {
     // (undocumented)
     readonly clientFramesForwarded: number;
     // (undocumented)
+    readonly policyReloadsApplied: number;
+    // (undocumented)
+    readonly policyReloadsRejected: number;
+    // (undocumented)
     readonly protocolResponsesWritten: number;
     // (undocumented)
     readonly upstreamDenials: number;
@@ -387,6 +403,22 @@ export type StdioProxyOpsEvent = {
     readonly profileId: string;
     readonly exitCode: number;
     readonly elapsedMs: number;
+    readonly metrics: StdioProxyMetrics;
+} | {
+    readonly schemaVersion: OpsEventSchemaVersion;
+    readonly timestamp: string;
+    readonly kind: "policy";
+    readonly event: "policy.reload_applied";
+    readonly profileId: string;
+    readonly revision: number;
+    readonly metrics: StdioProxyMetrics;
+} | {
+    readonly schemaVersion: OpsEventSchemaVersion;
+    readonly timestamp: string;
+    readonly kind: "policy";
+    readonly event: "policy.reload_rejected";
+    readonly profileId: string;
+    readonly reasonCode: PolicyReloadRejectionCode;
     readonly metrics: StdioProxyMetrics;
 };
 

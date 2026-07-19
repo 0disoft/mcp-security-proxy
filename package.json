@@ -17,7 +17,7 @@
     "compatibility": "pnpm build && node scripts/check-compatibility-evidence.mjs",
     "contract": "pnpm build && pnpm --filter @0disoft/mcp-security-proxy-contracts typecheck && pnpm --filter @0disoft/mcp-security-proxy-core test",
     "docs": "node scripts/check-docs.mjs",
-    "external-compatibility": "node scripts/check-external-mcp-fixture.mjs && node scripts/check-external-python-mcp-fixture.mjs && node scripts/check-codex-config-fixture.mjs && node scripts/check-gemini-config-fixture.mjs",
+    "external-compatibility": "node scripts/check-external-mcp-fixture.mjs && node scripts/check-external-python-mcp-fixture.mjs && node scripts/check-external-fetch-mcp-fixture.mjs && node scripts/check-codex-config-fixture.mjs && node scripts/check-gemini-config-fixture.mjs",
     "format": "prettier --check \"packages/**/*.ts\" \"scripts/**/*.mjs\" \"*.json\" \"packages/*/package.json\" \".github/workflows/*.yml\"",
     "license-report": "node scripts/check-dependency-licenses.mjs",
     "lint": "oxlint packages scripts --deny-warnings --report-unused-disable-directives",
@@ -30,7 +30,7 @@
     "repository-hygiene": "node scripts/check-repository-hygiene.mjs",
     "schema-contract": "pnpm build && node scripts/check-schema-contracts.mjs",
     "secret-scan": "node scripts/check-secrets.mjs",
-    "smoke": "pnpm build && node packages/cli/dist/main.js check-policy --policy fixtures/policies/local-dev.json --json && node packages/cli/dist/main.js eval-call --policy fixtures/policies/local-dev.json --profile local --input fixtures/mcp/call-file-read-denied.json --json && node scripts/smoke-live-run.mjs",
+    "smoke": "pnpm build && node packages/cli/dist/main.js check-policy --policy fixtures/policies/local-dev.json --json && node packages/cli/dist/main.js eval-call --policy fixtures/policies/local-dev.json --profile local --input fixtures/mcp/call-file-read-denied.json --json && node scripts/smoke-live-run.mjs && node scripts/smoke-policy-reload.mjs",
     "test": "pnpm build && pnpm -r test",
     "validation-registry": "node scripts/check-validation-registry.mjs",
     "typecheck": "pnpm build && pnpm -r typecheck"
