@@ -22,7 +22,7 @@ before a tool call leaves the host.
 Node.js 24 or newer is required. Install the published CLI and the pinned filesystem MCP server:
 
 ```sh
-npm install --global @0disoft/mcp-security-proxy-cli@0.2.0-alpha.2 @modelcontextprotocol/server-filesystem@2026.7.4
+npm install --global @0disoft/mcp-security-proxy-cli@0.2.0-alpha.3 @modelcontextprotocol/server-filesystem@2026.7.4
 ```
 
 Then follow the [npm CLI Quick Start](packages/cli/README.md#quick-start) to create a deny-by-default
@@ -66,8 +66,8 @@ Still intentionally narrow:
 - only stdio transport is implemented
 - network policy is argument-level intent policy, not OS socket enforcement
 - CLI `run` does not bundle an approval UI; approval hooks are for embedding hosts
-- the five `0.2.0-alpha.2` packages are published to npm with provenance; the exact publication
-  receipt and post-publication registry evidence are tracked under `docs/ops/publications/`
+- the five `0.2.0-alpha.2` packages are published to npm with provenance; `0.2.0-alpha.3` is the
+  approved candidate and remains unpublished until its release workflow succeeds
 - product packages intentionally remain MCP SDK-free; pinned SDKs are used only as isolated
   external compatibility clients
 
@@ -94,9 +94,9 @@ are documented in SECURITY.md.
 
 Implementation direction is TypeScript with pnpm, recorded in
 docs/adr/0004-implementation-stack-direction.md. The current scaffold targets Node.js `>=24.0.0`
-and keeps the root workspace and testkit private. The published `0.2.0-alpha.2` release record names
-the five public npm packages and artifact boundaries, and the matching publication receipt records
-the completed npm release and provenance checks. ADR 0008 keeps product packages independent from
+and keeps the root workspace and testkit private. The approved `0.2.0-alpha.3` candidate record
+names the five public npm packages and artifact boundaries; the latest completed publication
+receipt remains `0.2.0-alpha.2`. ADR 0008 keeps product packages independent from
 MCP SDK runtime dependencies. The pinned external stdio client matrix is recorded in
 docs/adr/0007-external-client-compatibility-matrix.md and backed by tracked JavaScript and Python
 client fixture evidence. It is not a claim of compatibility with arbitrary MCP clients or servers.

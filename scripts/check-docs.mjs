@@ -562,7 +562,7 @@ function checkQuickStartDocs() {
   const rootReadme = readFileSync(join(root, "README.md"), "utf8");
   const cliReadme = readFileSync(join(root, "packages/cli/README.md"), "utf8");
   const installCommand =
-    "npm install --global @0disoft/mcp-security-proxy-cli@0.2.0-alpha.2 " +
+    "npm install --global @0disoft/mcp-security-proxy-cli@0.2.0-alpha.3 " +
     "@modelcontextprotocol/server-filesystem@2026.7.4";
 
   if (!rootReadme.includes(installCommand) || !rootReadme.includes("packages/cli/README.md#quick-start")) {

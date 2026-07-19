@@ -21,10 +21,10 @@ Status: Draft
   SECURITY.md, and vulnerability process are stable enough for external users.
 
 Implementation direction is TypeScript with pnpm. The current implementation floor is Node.js
-`>=24.0.0`. The published `0.2.0-alpha.1` record remains historical evidence, while the published
-`0.2.0-alpha.2` record names npmjs.org, five public packages, their artifact names, and npm Trusted
-Publisher ownership. The package names were initialized with the bootstrap marker before the first
-OIDC product release.
+`>=24.0.0`. The published `0.2.0-alpha.2` record remains historical evidence, while the approved
+`0.2.0-alpha.3` candidate record names npmjs.org, five public packages, their artifact names, and
+npm Trusted Publisher ownership. The package names were initialized with the bootstrap marker
+before the first OIDC product release.
 
 ## Public Release Readiness
 
