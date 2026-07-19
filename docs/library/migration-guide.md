@@ -43,9 +43,8 @@ Migration notes must include:
 
 ## Current Migration Notes
 
-The latest published prerelease is `0.2.0-alpha.2`. The approved `0.2.0-alpha.3` candidate contains
-the additive and security-hardening changes below and remains unpublished until its release workflow
-succeeds.
+The latest published prerelease is `0.2.0-alpha.3`. It contains the additive and
+security-hardening changes below.
 
 - `0.2.0-alpha.2` CLI addition: `config-snippet --target stdio-json` adds a read-only command and
   extends the public `CommandName` union. Existing commands and exit codes are unchanged. Users
