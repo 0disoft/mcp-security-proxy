@@ -34,6 +34,8 @@ The live `run` command keeps stdout reserved for newline-delimited MCP JSON-RPC 
 errors and usage errors go to stderr, and audit events go to the selected profile's audit file or
 the explicit `--audit-log` override.
 Optional structured lifecycle metrics go to the JSON Lines file selected by `--ops-log`.
+An optional `--ops-feature-flags` snapshot can hot-reload `mcp.ops.metrics.enabled` for that ops
+file only. It cannot enable tools, change policy, suppress audit writes, or change approval results.
 Help requests exit before the live proxy starts, so `--help`, `<command> --help`, and
 `help <command>` may print usage text to stdout without starting an upstream process.
 

@@ -9,6 +9,7 @@ import { createUpstreamEnvironment } from "./upstream-environment.js";
 import { createProcessTreeTerminator, shouldCreateProcessGroup } from "./process-tree.js";
 import { establishWindowsKillOnCloseGuardian, WindowsProcessContainmentError } from "./windows-job-guardian.js";
 import { createPolicyFileReloadSource } from "./policy-file-reloader.js";
+import { createOpsFeatureFlagController } from "./ops-feature-flags.js";
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   const result = await runCliAsync(argv, {
@@ -19,7 +20,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     mcpOutput: process.stdout,
     appendTextFile: (path, text) => appendFile(path, text, "utf8"),
     spawnUpstream,
-    createPolicyReloadSource: (options) => createPolicyFileReloadSource(options)
+    createPolicyReloadSource: (options) => createPolicyFileReloadSource(options),
+    createOpsFeatureFlagController: (options) => createOpsFeatureFlagController(options)
   });
   return result.exitCode;
 }

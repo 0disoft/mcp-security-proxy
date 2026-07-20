@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -21,6 +22,7 @@ const tempRoot = mkdtempSync(join(tmpdir(), "mcp-security-proxy-consumer-"));
 
 try {
   const archives = packages.map(packAndInspectPackage);
+  const externalArchives = packInstalledExternalDependencyGraph();
   const consumerRoot = join(tempRoot, "consumer");
   mkdirSync(consumerRoot, { recursive: true });
   writeJson(join(consumerRoot, "package.json"), {
@@ -40,7 +42,8 @@ try {
       "--no-audit",
       "--no-fund",
       "--package-lock=false",
-      ...archives
+      ...archives,
+      ...externalArchives
     ],
     consumerRoot,
     {
@@ -52,7 +55,9 @@ try {
 
   runInstalledPackageConsumerSmoke({ consumerRoot, root });
 
-  console.log(`package consumer smoke passed for ${packages.length} publishable packages`);
+  console.log(
+    `package consumer smoke passed for ${packages.length} publishable packages and ${externalArchives.length} external dependency packages`
+  );
 } catch (error) {
   console.error(error instanceof Error ? error.message : "package consumer smoke failed");
   process.exitCode = 1;
@@ -119,6 +124,98 @@ function packAndInspectPackage(spec) {
       );
     }
   }
+  return archivePath;
+}
+
+function packInstalledExternalDependencyGraph() {
+  const decisionRecord = JSON.parse(
+    readFileSync(join(root, "docs", "ops", "external-runtime-dependencies.json"), "utf8")
+  );
+  const queue = decisionRecord.dependencies.map((decision) => ({
+    name: decision.packageName,
+    requireFrom: createRequire(join(root, decision.workspacePath, "package.json"))
+  }));
+  const visited = new Set();
+  const archives = [];
+
+  while (queue.length > 0) {
+    const item = queue.shift();
+    const packageRoot = resolveInstalledPackageRoot(item.name, item.requireFrom);
+    const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
+    const packageKey = `${manifest.name}@${manifest.version}`;
+    if (visited.has(packageKey)) {
+      continue;
+    }
+    visited.add(packageKey);
+    archives.push(packInstalledExternalPackage(packageRoot, manifest));
+
+    const requireFromPackage = createRequire(join(packageRoot, "package.json"));
+    for (const dependencyName of Object.keys(manifest.dependencies ?? {})) {
+      queue.push({ name: dependencyName, requireFrom: requireFromPackage });
+    }
+    for (const dependencyName of Object.keys(manifest.peerDependencies ?? {})) {
+      try {
+        requireFromPackage.resolve(dependencyName);
+        queue.push({ name: dependencyName, requireFrom: requireFromPackage });
+      } catch {
+        if (manifest.peerDependenciesMeta?.[dependencyName]?.optional !== true) {
+          throw new Error(`${packageKey}: required peer dependency ${dependencyName} is not installed`);
+        }
+      }
+    }
+  }
+  return archives;
+}
+
+function resolveInstalledPackageRoot(name, requireFrom) {
+  let current = dirname(requireFrom.resolve(name));
+  while (true) {
+    const manifestPath = join(current, "package.json");
+    if (existsSync(manifestPath)) {
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+      if (manifest.name === name) {
+        return current;
+      }
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      throw new Error(`could not locate installed package root for ${name}`);
+    }
+    current = parent;
+  }
+}
+
+function packInstalledExternalPackage(packageRoot, manifest) {
+  const safeName = manifest.name.replaceAll("@", "").replaceAll("/", "-");
+  const packDirectory = join(tempRoot, "packs", "external", `${safeName}-${manifest.version}`);
+  mkdirSync(packDirectory, { recursive: true });
+  const packResult = runCommand(
+    npmCommand,
+    [
+      ...npmCommandPrefix,
+      "pack",
+      "--json",
+      "--offline",
+      "--ignore-scripts",
+      "--pack-destination",
+      packDirectory,
+      packageRoot
+    ],
+    root,
+    { NPM_CONFIG_OFFLINE: "true" }
+  );
+  const packed = JSON.parse(packResult.stdout);
+  if (!Array.isArray(packed) || packed.length !== 1) {
+    throw new Error(`${manifest.name}: expected one external npm pack result`);
+  }
+  const packedManifest = packed[0];
+  assertEqual(packedManifest.name === manifest.name, `${manifest.name}: external packed name drifted`);
+  assertEqual(
+    packedManifest.version === manifest.version,
+    `${manifest.name}: external packed version drifted from ${manifest.version}`
+  );
+  const archivePath = join(packDirectory, packedManifest.filename);
+  assertEqual(existsSync(archivePath), `${manifest.name}: external package archive is missing`);
   return archivePath;
 }
 

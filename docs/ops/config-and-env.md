@@ -23,6 +23,8 @@ non-secret convenience defaults.
   path by default.
 - `--audit-log`: optional local JSONL path override for live `run`.
 - `--ops-log`: optional local JSONL lifecycle metrics output path for live `run`.
+- `--ops-feature-flags`: optional stable OpenFeature local-provider snapshot used only to gate
+  `--ops-log` writes through `mcp.ops.metrics.enabled`.
 - `--shutdown-grace-ms`: bounded upstream shutdown window.
 - `--max-frame-bytes`: newline-delimited JSON-RPC frame size limit.
 - `--max-json-depth`: parsed JSON depth limit.
@@ -53,6 +55,12 @@ non-secret convenience defaults.
 - `includeRawArguments` and `includeFullPaths` are fixed to `false`; unsupported capture modes fail
   policy validation instead of being silently ignored.
 - Ops output is append-oriented JSONL at the selected path when configured.
+- Ops feature snapshots load before upstream startup and then watch atomic replacements. Valid
+  configuration-change events update the cached boolean without adding file I/O to MCP evaluation.
+  Invalid or unreadable replacements retain the last valid snapshot and emit a stable redacted
+  stderr reason code. The provider and watcher close when the proxy run ends.
+- Ops feature flags never participate in policy, discovery, call evaluation, approval, audit, frame
+  limits, shutdown, or process-containment decisions.
 - Live `run` does not inherit the full parent environment. It passes only `PATH` and `TMPDIR` on
   POSIX, and `PATH`, `PATHEXT`, `SystemRoot`, `WINDIR`, `ComSpec`, `TEMP`, and `TMP` on Windows.
   Arbitrary upstream environment values require a future explicit allowlist contract.

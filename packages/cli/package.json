@@ -37,9 +37,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@0disoft/openfeature-local-provider": "1.0.0",
     "@0disoft/mcp-security-proxy-contracts": "workspace:*",
     "@0disoft/mcp-security-proxy-core": "workspace:*",
-    "@0disoft/mcp-security-proxy-runtime": "workspace:*"
+    "@0disoft/mcp-security-proxy-runtime": "workspace:*",
+    "@openfeature/server-sdk": "1.22.0"
   },
   "engines": {
     "node": ">=24.0.0"

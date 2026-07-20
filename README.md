@@ -50,6 +50,7 @@ Implemented foundation:
 - path, command, and argument-level network policy matching
 - upstream error data and sensitive error-message redaction
 - JSON Lines audit events
+- hot-reloadable OpenFeature gating for optional ops metrics, isolated from every security decision
 - dry-run policy evaluation through `check-policy`, `inspect-tools`, and `eval-call`
 - read-only `config-snippet --target stdio-json` output with policy/profile validation and exact
   upstream argv preservation

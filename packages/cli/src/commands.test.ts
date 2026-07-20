@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import type { PolicyReloadSource, PolicyReloadUpdate, UpstreamProcess } from "@0disoft/mcp-security-proxy-runtime";
 import { runCli, runCliAsync, type CliIo, type CliRunIo } from "./commands.js";
 import type { PolicyFileReloadOptions } from "./policy-file-reloader.js";
+import type { OpsFeatureFlagController, OpsFeatureFlagControllerOptions } from "./ops-feature-flags.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
@@ -30,6 +31,7 @@ describe("dry-run CLI commands", () => {
     expect(output.stdout.join("\n")).toContain("--max-frame-bytes <1..16777216>");
     expect(output.stdout.join("\n")).toContain("--max-json-depth <1..256>");
     expect(output.stdout.join("\n")).toContain("--watch-policy");
+    expect(output.stdout.join("\n")).toContain("--ops-feature-flags <path>");
     expect(output.stdout.join("\n")).not.toContain("--approval-hook");
     expect(output.stdout.join("\n")).not.toContain("not implemented");
     expect(output.stderr).toEqual([]);
@@ -592,6 +594,86 @@ describe("dry-run CLI commands", () => {
     expect(output.auditLines()).toHaveLength(1);
   });
 
+  it("uses an ops-only feature controller without changing audit or policy decisions", async () => {
+    const controller: OpsFeatureFlagController = {
+      isOpsMetricsEnabled: () => false,
+      close: vi.fn(async () => undefined)
+    };
+    let controllerOptions: OpsFeatureFlagControllerOptions | undefined;
+    const output = await invokeAsync(
+      [
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--audit-log",
+        "audit.jsonl",
+        "--ops-log",
+        "ops.jsonl",
+        "--ops-feature-flags",
+        "flags.json",
+        "--",
+        "fixture-server"
+      ],
+      {
+        opsFeatureFlagController: controller,
+        onOpsFeatureFlagControllerOptions: (options) => {
+          controllerOptions = options;
+        }
+      }
+    );
+
+    output.clientInput.write(
+      `${JSON.stringify({ jsonrpc: "2.0", id: "ops-gated-denial", method: "resources/list" })}\n`
+    );
+    output.clientInput.end();
+    output.upstream.stdout.end();
+
+    expect((await output.result).exitCode).toBe(0);
+    expect(controllerOptions?.path).toBe("flags.json");
+    expect(output.opsLines()).toEqual([]);
+    expect(output.auditLines()).toHaveLength(1);
+    expect(JSON.parse(output.auditLines()[0] ?? "{}")).toMatchObject({
+      decision: { action: "deny" }
+    });
+    expect(controller.close).toHaveBeenCalledOnce();
+  });
+
+  it("keeps ops feature snapshots explicitly scoped to configured ops output", async () => {
+    const missingOpsLog = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--ops-feature-flags",
+      "flags.json",
+      "--",
+      "fixture-server"
+    ]);
+    expect((await missingOpsLog.result).exitCode).toBe(2);
+    expect(missingOpsLog.stderr).toEqual([
+      "--ops-feature-flags requires --ops-log and never controls policy decisions"
+    ]);
+
+    const unavailable = await invokeAsync([
+      "run",
+      "--policy",
+      "fixtures/policies/local-dev.json",
+      "--profile",
+      "local",
+      "--ops-log",
+      "ops.jsonl",
+      "--ops-feature-flags",
+      "flags.json",
+      "--",
+      "fixture-server"
+    ]);
+    expect((await unavailable.result).exitCode).toBe(2);
+    expect(unavailable.stderr).toEqual(["--ops-feature-flags is unavailable in this embedding runtime"]);
+  });
+
   it("redacts upstream JSON-RPC error fields on the async stdio proxy path", async () => {
     const output = await invokeAsync([
       "run",
@@ -1019,6 +1101,8 @@ async function invokeAsync(
     readonly upstreamNeverExits?: boolean;
     readonly policyReloadSource?: PolicyReloadSource;
     readonly onPolicyReloadOptions?: (options: PolicyFileReloadOptions) => void;
+    readonly opsFeatureFlagController?: OpsFeatureFlagController;
+    readonly onOpsFeatureFlagControllerOptions?: (options: OpsFeatureFlagControllerOptions) => void;
   } = {}
 ): Promise<{
   readonly result: Promise<{ readonly exitCode: number }>;
@@ -1091,6 +1175,14 @@ async function invokeAsync(
                   reloadOptions.onResult?.(update);
                 })
             };
+          }
+        }
+      : {}),
+    ...(options.opsFeatureFlagController
+      ? {
+          createOpsFeatureFlagController: async (controllerOptions: OpsFeatureFlagControllerOptions) => {
+            options.onOpsFeatureFlagControllerOptions?.(controllerOptions);
+            return options.opsFeatureFlagController as OpsFeatureFlagController;
           }
         }
       : {})

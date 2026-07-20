@@ -75,6 +75,12 @@ ESM and TypeScript imports against the supported Node 24 type baseline, and runs
 help command. This evidence does not prove that npm ownership or Trusted Publisher configuration
 exists.
 
+External runtime dependencies are fail-closed through
+`docs/ops/external-runtime-dependencies.json`: each entry pins the owning workspace package,
+dependency group, exact version, purpose, and accepted ADR. This decision ledger does not rewrite
+historical release records or authorize publication; the next release still needs its own approved
+record and complete package evidence.
+
 After all five immutable versions are published, the release workflow runs `pnpm run
 registry-smoke`. This post-publication check requires the exact tag version, verifies npm registry
 integrity and SLSA provenance metadata, installs all five packages without lifecycle scripts or npm

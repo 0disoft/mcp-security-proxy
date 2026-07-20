@@ -35,6 +35,8 @@ export interface CliRunIo extends CliIo {
     // (undocumented)
     readonly clientInput: Readable;
     // (undocumented)
+    readonly createOpsFeatureFlagController?: (options: OpsFeatureFlagControllerOptions) => Promise<OpsFeatureFlagController>;
+    // (undocumented)
     readonly createPolicyReloadSource?: (options: PolicyFileReloadOptions) => PolicyReloadSource;
     // (undocumented)
     readonly mcpOutput: Writable;
@@ -57,6 +59,27 @@ export type CommandName = "run" | "config-snippet" | "check-policy" | "inspect-t
 
 // @public (undocumented)
 export function createCommandRegistry(): readonly CommandContract[];
+
+// @public (undocumented)
+export interface OpsFeatureFlagController {
+    // (undocumented)
+    close(): Promise<void>;
+    // (undocumented)
+    isOpsMetricsEnabled(): boolean;
+}
+
+// @public (undocumented)
+export interface OpsFeatureFlagControllerOptions {
+    // (undocumented)
+    readonly onConfigurationChanged?: (enabled: boolean) => void;
+    // (undocumented)
+    readonly onReloadFailure?: (reason: OpsFeatureFlagReloadFailure) => void;
+    // (undocumented)
+    readonly path: string;
+}
+
+// @public (undocumented)
+export type OpsFeatureFlagReloadFailure = "evaluation_failed" | "snapshot_reload_failed";
 
 // @public (undocumented)
 export interface PolicyFileReloadOptions {

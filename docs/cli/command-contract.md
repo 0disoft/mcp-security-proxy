@@ -33,6 +33,9 @@ stdout, and writes JSON Lines audit events to the selected profile's `audit.path
 `--audit-log` overrides that path.
 When `--ops-log` is supplied, the command also writes structured JSON Lines lifecycle and policy
 reload metrics to that file. Ops events are diagnostic and do not replace audit events.
+`--ops-feature-flags <path>` may accompany `--ops-log` to hot-reload only the
+`mcp.ops.metrics.enabled` boolean. The provider default is enabled, preserving existing
+`--ops-log` behavior when the key is absent. The flag cannot affect policy or audit behavior.
 Upstream stderr is not relayed to stdout or copied into audit logs; the runtime records only a
 redacted stderr line-count summary.
 
@@ -53,6 +56,9 @@ Optional inputs:
   The default is 1048576 bytes.
 - `--max-json-depth <1..256>` controls the maximum parsed JSON nesting depth. The default is 64.
 - `--ops-log <path>` writes optional lifecycle and bounded counter events as JSON Lines.
+- `--ops-feature-flags <path>` watches a stable OpenFeature local-provider snapshot and gates only
+  `--ops-log` event writes. It requires `--ops-log`; invalid replacements retain the last valid
+  snapshot.
 - `--watch-policy` watches the policy file's parent directory and atomically replaces the active
   policy only after full validation. The active profile and audit contract must remain available
   and unchanged. Rejected candidates leave the previous policy active.
@@ -122,6 +128,8 @@ prints the decision without forwarding it.
 - `--audit-log` optionally overrides the selected profile's JSON Lines audit file for live proxy
   behavior. CLI `run` rejects profiles configured with `audit.destination: stdout`.
 - `--ops-log` selects optional JSON Lines operational metrics output for live proxy behavior.
+- `--ops-feature-flags` selects an optional local OpenFeature snapshot whose
+  `mcp.ops.metrics.enabled` boolean controls only operational metric emission.
 - `--shutdown-grace-ms` selects the live proxy shutdown grace window in milliseconds.
 - `--max-frame-bytes` and `--max-json-depth` select live proxy frame guards.
 - `--watch-policy` opts live `run` into atomic policy replacement and accepts no value.
@@ -142,6 +150,11 @@ An accepted watched replacement clears remembered discovery state and aborts pen
 hooks with the stable `policy.reloaded` decision code. It does not cancel calls already forwarded
 upstream. Read, validation, active-profile, audit-change, watcher, and runtime-validation failures
 are reported with stable redacted ops codes and never echo policy contents.
+
+Ops feature snapshot updates are applied through OpenFeature
+`PROVIDER_CONFIGURATION_CHANGED`. Read, parse, watch, or evaluation failures emit only stable
+stderr reason codes and keep the last valid snapshot. Security decisions, audit events, and
+upstream lifecycle are deliberately outside this flag boundary.
 
 ## Review Blockers
 

@@ -30,7 +30,7 @@
     "repository-hygiene": "node scripts/check-repository-hygiene.mjs",
     "schema-contract": "pnpm build && node scripts/check-schema-contracts.mjs",
     "secret-scan": "node scripts/check-secrets.mjs",
-    "smoke": "pnpm build && node packages/cli/dist/main.js check-policy --policy fixtures/policies/local-dev.json --json && node packages/cli/dist/main.js eval-call --policy fixtures/policies/local-dev.json --profile local --input fixtures/mcp/call-file-read-denied.json --json && node scripts/smoke-live-run.mjs && node scripts/smoke-policy-reload.mjs",
+    "smoke": "pnpm build && node packages/cli/dist/main.js check-policy --policy fixtures/policies/local-dev.json --json && node packages/cli/dist/main.js eval-call --policy fixtures/policies/local-dev.json --profile local --input fixtures/mcp/call-file-read-denied.json --json && node scripts/smoke-live-run.mjs && node scripts/smoke-policy-reload.mjs && node scripts/smoke-ops-feature-flags.mjs",
     "test": "pnpm build && pnpm -r test",
     "validation-registry": "node scripts/check-validation-registry.mjs",
     "typecheck": "pnpm build && pnpm -r typecheck"
@@ -41,6 +41,7 @@
     "oxlint": "1.74.0",
     "prettier": "3.9.5",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.16",
+    "yaml": "2.9.0"
   }
 }

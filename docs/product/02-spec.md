@@ -126,6 +126,10 @@ stderr, audit events go to the selected profile's file destination unless `--aud
 that path, and optional lifecycle metrics go to the file selected by `--ops-log`. Profiles using
 an audit stdout destination are rejected by CLI `run` because stdout is reserved for MCP protocol
 messages.
+When `--ops-feature-flags <path>` accompanies `--ops-log`, the stable
+`mcp.ops.metrics.enabled` boolean flag may hot-reload operational metric emission. It never changes
+policy, discovery filtering, tool-call decisions, approval hooks, audit writes, or process
+containment. Invalid replacements retain the last valid flag snapshot.
 The CLI does not bundle approval UX. Approval hooks are a runtime-library integration point for
 embedding hosts; `eval-call --approval-hook` only simulates hook availability for dry-run review.
 

@@ -20,6 +20,7 @@ This repository type owns command behavior, arguments, flags, config loading, ex
 - Upstream stdio server command after `--`
 - Audit output file path
 - Optional ops metrics output file path
+- Optional ops-only OpenFeature snapshot path
 - Optional shutdown grace window in milliseconds
 - Optional frame byte and JSON depth limits for live MCP stdio messages
 - Optional dry-run input file
@@ -51,6 +52,8 @@ Proposed precedence:
 - CLI `run` audit output: JSON Lines file from the selected profile's `audit.path`, optionally
   overridden by `--audit-log`. CLI `run` rejects `audit.destination: stdout`.
 - CLI `run` ops output: optional JSON Lines file selected by `--ops-log`
+- CLI `run` ops feature snapshot: optional file selected by `--ops-feature-flags`; the
+  `mcp.ops.metrics.enabled` key defaults to enabled and controls only ops event writes
 - CLI `run` shutdown grace: 1000 ms unless `--shutdown-grace-ms` supplies an integer between
   0 and 2147483647
 - CLI `run` managed shutdown targets the upstream process tree, not only the immediate child.

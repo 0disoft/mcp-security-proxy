@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { parseDocument } from "yaml";
 
 const root = process.cwd();
 const releaseRecordsDir = join(root, "docs", "ops", "release-records");
@@ -10,6 +11,7 @@ const expectedRepositoryUrl = "https://github.com/0disoft/mcp-security-proxy.git
 const expectedHomepage = "https://github.com/0disoft/mcp-security-proxy#readme";
 const expectedBugsUrl = "https://github.com/0disoft/mcp-security-proxy/issues";
 const expectedRegistry = "https://registry.npmjs.org";
+const externalRuntimeDependencyRecordPath = join(root, "docs", "ops", "external-runtime-dependencies.json");
 const expectedWorkspacePackages = ["cli", "contracts", "core", "mcp-adapter", "proxy-runtime", "testkit"];
 const expectedPublishablePackages = new Set(["cli", "contracts", "core", "mcp-adapter", "proxy-runtime"]);
 const expectedPackageFiles = new Map([
@@ -62,6 +64,9 @@ const assertEqual = (condition, message) => {
     failures.push(message);
   }
 };
+
+const externalRuntimeDependencyDecisions = readExternalRuntimeDependencyDecisions();
+const observedExternalRuntimeDependencyDecisions = new Set();
 
 const checkCommonManifest = (manifest, manifestPath, options = {}) => {
   const file = formatPath(manifestPath);
@@ -180,9 +185,17 @@ const checkDependencies = (manifest, manifestPath, workspacePackageNames) => {
         continue;
       }
       if (!workspacePackageNames.has(name)) {
-        failures.push(
-          `${file}: ${group}.${name} must not introduce external runtime dependencies before release readiness records them`
+        const decisionKey = createExternalRuntimeDependencyDecisionKey(file, group, name);
+        const decision = externalRuntimeDependencyDecisions.get(decisionKey);
+        if (!decision) {
+          failures.push(`${file}: ${group}.${name} must be recorded in docs/ops/external-runtime-dependencies.json`);
+          continue;
+        }
+        assertEqual(
+          version === decision.version,
+          `${file}: ${group}.${name} must use recorded exact version ${decision.version}`
         );
+        observedExternalRuntimeDependencyDecisions.add(decisionKey);
         continue;
       }
       assertEqual(version === "workspace:*", `${file}: ${group}.${name} must use workspace:*`);
@@ -425,6 +438,27 @@ const checkPackageSurfaceValidator = () => {
     );
   }
 
+  const unrecordedExternalDependencyFailures = collectPackageSurfaceFailures(() => {
+    checkDependencies(
+      {
+        dependencies: {
+          "left-pad": "1.3.0"
+        }
+      },
+      join(root, "packages", "core", "package.json"),
+      new Set()
+    );
+  });
+  if (
+    !unrecordedExternalDependencyFailures.some((item) =>
+      item.includes("must be recorded in docs/ops/external-runtime-dependencies.json")
+    )
+  ) {
+    failures.push(
+      `package-surface self-test unrecorded external dependency was not rejected: ${unrecordedExternalDependencyFailures.join("; ")}`
+    );
+  }
+
   const documentedPackageFailures = collectPackageSurfaceFailures(() => {
     checkDocumentedPackageSurfaceNames("<package-surface-self-test-documented-packages>", ["core"], ["core", "cli"]);
   });
@@ -648,6 +682,13 @@ if (existsSync(packagesDir)) {
     checkWorkspacePackageDistArtifacts(manifestPath);
   }
 
+  for (const decisionKey of externalRuntimeDependencyDecisions.keys()) {
+    assertEqual(
+      observedExternalRuntimeDependencyDecisions.has(decisionKey),
+      `docs/ops/external-runtime-dependencies.json: unused decision ${decisionKey}`
+    );
+  }
+
   const cliManifestPath = join(packagesDir, "cli", "package.json");
   if (existsSync(cliManifestPath)) {
     const cliManifest = readJson(cliManifestPath);
@@ -673,6 +714,64 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
+function readExternalRuntimeDependencyDecisions() {
+  if (!existsSync(externalRuntimeDependencyRecordPath)) {
+    failures.push("docs/ops/external-runtime-dependencies.json: decision record is missing");
+    return new Map();
+  }
+
+  const record = readJson(externalRuntimeDependencyRecordPath);
+  assertEqual(
+    record?.schemaVersion === "msp.external-runtime-dependencies.v1",
+    "docs/ops/external-runtime-dependencies.json: schemaVersion must be msp.external-runtime-dependencies.v1"
+  );
+  assertEqual(
+    Array.isArray(record?.dependencies),
+    "docs/ops/external-runtime-dependencies.json: dependencies must be an array"
+  );
+
+  const decisions = new Map();
+  for (const [index, decision] of (record?.dependencies ?? []).entries()) {
+    const prefix = `docs/ops/external-runtime-dependencies.json: dependencies[${index}]`;
+    const manifestPath = `${decision?.workspacePath}/package.json`;
+    const group = decision?.dependencyGroup;
+    const name = decision?.packageName;
+    const version = decision?.version;
+    const evidence = decision?.evidence;
+
+    assertEqual(
+      typeof decision?.workspacePath === "string" && /^packages\/[a-z0-9-]+$/u.test(decision.workspacePath),
+      `${prefix}.workspacePath must identify one packages/* directory`
+    );
+    assertEqual(group === "dependencies", `${prefix}.dependencyGroup must be dependencies`);
+    assertEqual(typeof name === "string" && name.length > 0, `${prefix}.packageName must be a non-empty package name`);
+    assertEqual(
+      typeof version === "string" && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(version),
+      `${prefix}.version must be an exact semver without a range`
+    );
+    assertEqual(
+      typeof decision?.purpose === "string" && decision.purpose.length > 0,
+      `${prefix}.purpose must explain the runtime need`
+    );
+    assertEqual(
+      typeof evidence === "string" && /^docs\/adr\/\d{4}-[a-z0-9-]+\.md$/u.test(evidence),
+      `${prefix}.evidence must be a safe ADR path`
+    );
+    if (typeof evidence === "string") {
+      assertEqual(existsSync(join(root, evidence)), `${prefix}.evidence must exist`);
+    }
+
+    const key = createExternalRuntimeDependencyDecisionKey(manifestPath, group, name);
+    assertEqual(!decisions.has(key), `${prefix} duplicates ${key}`);
+    decisions.set(key, { version });
+  }
+  return decisions;
+}
+
+function createExternalRuntimeDependencyDecisionKey(file, group, name) {
+  return `${file}|${group}|${name}`;
+}
+
 function checkDocumentedPackageSurfaces(path, expectedPackages) {
   const text = readFileSync(join(root, path), "utf8");
   const documentedPackages = [...text.matchAll(/^- `packages\/([^`/]+)`:/gm)]
@@ -690,7 +789,17 @@ function checkDocumentedPackageSurfaceNames(label, documentedPackages, expectedP
 
 function checkWorkspacePackageGlobs(path, expectedGlobs) {
   const text = readFileSync(join(root, path), "utf8");
-  const workspaceGlobs = [...text.matchAll(/^\s*-\s+([^\r\n#]+?)\s*$/gm)].map((match) => match[1]);
+  const document = parseDocument(text, { merge: false, uniqueKeys: true });
+  if (document.errors.length > 0) {
+    failures.push(`${path}: workspace YAML parse failed`);
+    return;
+  }
+  const value = document.toJS();
+  const workspaceGlobs = value?.packages;
+  if (!Array.isArray(workspaceGlobs) || workspaceGlobs.some((item) => typeof item !== "string")) {
+    failures.push(`${path}: packages must be an array of string workspace globs`);
+    return;
+  }
   checkWorkspacePackageGlobNames(path, workspaceGlobs, expectedGlobs);
 }
 

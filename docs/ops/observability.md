@@ -92,6 +92,8 @@ Before public release, validation evidence must include:
 - operator guidance for audit log path ownership and retention;
 - export guidance that names the audit field allowlist and forbidden raw data;
 - lifecycle metrics evidence for live `run` when `--ops-log` is configured;
+- stable OpenFeature `mcp.ops.metrics.enabled` reload evidence when `--ops-feature-flags` is
+  configured, including last-known-good retention after an invalid replacement;
 - applied and rejected atomic policy-reload metrics without raw policy details;
 - `auditWriteFailures` distinguishes an empty audit stream from failed writes under
   `warn_and_continue`;

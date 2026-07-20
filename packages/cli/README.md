@@ -118,6 +118,18 @@ profile and audit settings, clears remembered tool visibility, and requires fres
 Invalid or audit-changing replacements leave the previous policy active. Pending approval hooks
 fail closed on replacement; already-forwarded upstream calls continue.
 
+Operational metrics can be toggled without restarting the proxy by combining `--ops-log` with an
+OpenFeature snapshot:
+
+```sh
+mcp-security-proxy run --policy /absolute/path/to/mcp-security-policy.json --profile secured-filesystem --ops-log /absolute/path/to/mcp-security-proxy.ops.jsonl --ops-feature-flags /absolute/path/to/ops-flags.json -- mcp-server-filesystem /absolute/path/to/mcp-share
+```
+
+The snapshot boolean key is `mcp.ops.metrics.enabled`. Valid replacements apply through provider
+configuration-change events; invalid replacements keep the last valid value. This switch controls
+only the optional ops JSONL stream. It never changes visible tools, allow/deny decisions, approval
+hooks, audit writes, or process containment.
+
 Restart or reload the host, then confirm only `read_text_file` is visible and that reads outside the
 configured lexical path are denied. The proxy checks MCP messages and arguments; it is not an
 operating-system sandbox, does not resolve symlinks or Windows junctions, and does not bundle a host

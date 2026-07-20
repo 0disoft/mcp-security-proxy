@@ -48,8 +48,9 @@ Until release readiness approves the recorded public package names and artifacts
   matching `src/main.ts` source entrypoint;
 - the root workspace must not declare runtime, peer, or optional dependencies until release
   readiness records external runtime dependencies;
-- runtime package dependencies must stay within this pnpm workspace and use `workspace:*` until
-  release readiness records external runtime dependencies.
+- runtime package dependencies must stay within this pnpm workspace and use `workspace:*` unless
+  an exact external dependency is recorded in `docs/ops/external-runtime-dependencies.json` with
+  accepted ADR evidence;
 - every workspace dependency group must remain free of MCP SDK packages under ADR 0008; isolated
   external compatibility fixture installs are not workspace dependencies.
 
@@ -94,6 +95,15 @@ review baselines under `etc/api/`. `pnpm run api-report` verifies that built dec
 those baselines. Testkit is excluded because it is private and is not part of the registry contract.
 The reports are generated review inputs, not package contents or source-of-truth declarations.
 
+## External Runtime Dependencies
+
+Published workspace packages default to workspace-only runtime dependencies. The CLI's exact
+OpenFeature dependencies are the first accepted exception and are recorded in
+`docs/ops/external-runtime-dependencies.json` with ADR 0013 evidence. `package-surface` requires an
+exact version match and rejects missing, duplicate, ranged, or unused decisions. Historical release
+records remain immutable evidence of the dependencies that were actually published in those
+versions.
+
 ## Expected Entrypoint Re-exports
 
 - `packages/contracts/src/index.ts`: `./policy.js`, `./decision.js`, `./audit.js`,
@@ -115,6 +125,8 @@ The reports are generated review inputs, not package contents or source-of-truth
 - Keep packages private until release readiness approves the recorded public package names and
   artifacts.
 - Keep MCP SDKs out of all workspace package manifests and published artifacts.
+- Keep every non-workspace runtime dependency pinned to its machine-readable decision and accepted
+  ADR.
 
 ## Review Blockers
 

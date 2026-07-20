@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "msp.external-runtime-dependencies.v1",
+  "reviewedAt": "2026-07-20",
+  "dependencies": [
+    {
+      "workspacePath": "packages/cli",
+      "dependencyGroup": "dependencies",
+      "packageName": "@0disoft/openfeature-local-provider",
+      "version": "1.0.0",
+      "purpose": "Load and hot-reload a bounded local snapshot that gates only optional ops metric writes.",
+      "evidence": "docs/adr/0013-openfeature-ops-metrics-boundary.md"
+    },
+    {
+      "workspacePath": "packages/cli",
+      "dependencyGroup": "dependencies",
+      "packageName": "@openfeature/server-sdk",
+      "version": "1.22.0",
+      "purpose": "Provide the OpenFeature provider configuration-change event contract used by the ops-only controller.",
+      "evidence": "docs/adr/0013-openfeature-ops-metrics-boundary.md"
+    }
+  ]
+}

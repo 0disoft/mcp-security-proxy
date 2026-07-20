@@ -48,6 +48,12 @@ security-hardening changes below.
 
 Unreleased fixes and clarifications after `0.2.0-alpha.3`:
 
+- Ops-only feature reload: CLI `run` adds optional `--ops-feature-flags <path>`, which requires
+  `--ops-log` and evaluates only `mcp.ops.metrics.enabled`. Existing invocations are unchanged.
+  Valid provider configuration-change events update future ops writes; invalid replacements retain
+  the last valid snapshot. Policy, discovery, calls, approvals, audit, and containment are
+  unaffected. Rollback is to omit `--ops-feature-flags` and keep the existing always-on
+  `--ops-log` behavior.
 - Runtime correlation fix: pending client requests now expire at `pendingRequestTtlMs`, matching the
   documented server-origin behavior. Before this fix, client requests remained correlated without
   a TTL; after it, late upstream responses are dropped as `jsonrpc.unmatched_response`, and the

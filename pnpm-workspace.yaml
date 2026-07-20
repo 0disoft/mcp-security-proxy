@@ -1,2 +1,4 @@
 packages:
   - packages/*
+minimumReleaseAgeExclude:
+  - '@0disoft/openfeature-local-provider@1.0.0'

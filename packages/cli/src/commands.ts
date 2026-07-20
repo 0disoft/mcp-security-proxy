@@ -18,6 +18,7 @@ import {
   type UpstreamProcess
 } from "@0disoft/mcp-security-proxy-runtime";
 import type { Readable, Writable } from "node:stream";
+import type { OpsFeatureFlagController, OpsFeatureFlagControllerOptions } from "./ops-feature-flags.js";
 import type { PolicyFileReloadOptions } from "./policy-file-reloader.js";
 
 export type CommandName = "run" | "config-snippet" | "check-policy" | "inspect-tools" | "eval-call";
@@ -42,6 +43,9 @@ export interface CliRunIo extends CliIo {
   readonly createPolicyReloadSource?: (
     options: PolicyFileReloadOptions
   ) => import("@0disoft/mcp-security-proxy-runtime").PolicyReloadSource;
+  readonly createOpsFeatureFlagController?: (
+    options: OpsFeatureFlagControllerOptions
+  ) => Promise<OpsFeatureFlagController>;
 }
 
 export interface CliResult {
@@ -64,6 +68,7 @@ const allowedFlagsByCommand: Readonly<Record<CommandName, ReadonlySet<string>>> 
     "profile",
     "audit-log",
     "ops-log",
+    "ops-feature-flags",
     "shutdown-grace-ms",
     "max-frame-bytes",
     "max-json-depth",
@@ -541,6 +546,7 @@ function commandHelp(command: CommandName): string {
       "  --profile <name>               policy profile to apply",
       "  --audit-log <path>             override the profile JSON Lines audit file",
       "  --ops-log <path>               optional JSON Lines ops metrics output file",
+      "  --ops-feature-flags <path>     hot-reload mcp.ops.metrics.enabled for --ops-log only",
       "  --watch-policy                 atomically reload valid policy file replacements",
       "  --shutdown-grace-ms <0..2147483647>",
       "                                 milliseconds to wait before killing upstream after client input closes",
@@ -721,6 +727,7 @@ async function runProxy(
   const profileId = readRequiredStringFlag(flags, "profile");
   const auditLogOverride = readOptionalStringFlag(flags, "audit-log");
   const opsLogPath = readOptionalStringFlag(flags, "ops-log");
+  const opsFeatureFlagsPath = readOptionalStringFlag(flags, "ops-feature-flags");
   const shutdownGraceMs = readOptionalShutdownGraceMsFlag(flags);
   const maxFrameBytes = readOptionalFrameBytesFlag(flags);
   const maxJsonDepth = readOptionalJsonDepthFlag(flags);
@@ -736,6 +743,12 @@ async function runProxy(
   }
   if (opsLogPath === "-") {
     throw new CliError(2, "run requires --ops-log to be a file path; stdout is reserved for MCP messages");
+  }
+  if (opsFeatureFlagsPath === "-") {
+    throw new CliError(2, "run requires --ops-feature-flags to be a file path");
+  }
+  if (opsFeatureFlagsPath && !opsLogPath) {
+    throw new CliError(2, "--ops-feature-flags requires --ops-log and never controls policy decisions");
   }
   if (!separatorSeen) {
     throw new CliError(2, "run requires -- before the upstream command");
@@ -773,25 +786,53 @@ async function runProxy(
     throw new CliError(2, "--watch-policy is unavailable in this embedding runtime");
   }
 
-  return runStdioProxy({
-    policy,
-    profileId,
-    upstreamCommand: {
-      executable,
-      argv
-    },
-    clientInput: io.clientInput,
-    clientOutput: io.mcpOutput,
-    spawnUpstream: io.spawnUpstream,
-    writeAuditEvent: (event) => io.appendTextFile(auditLogPath, formatAuditEventJsonLine(event)),
-    ...(opsLogPath
-      ? { writeOpsEvent: (event) => io.appendTextFile(opsLogPath, formatStdioOpsEventJsonLine(event)) }
-      : {}),
-    ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {}),
-    ...(maxFrameBytes !== undefined ? { maxFrameBytes } : {}),
-    ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {}),
-    ...(policyReloadSource ? { policyReloadSource } : {})
-  });
+  let opsFeatureFlagController: OpsFeatureFlagController | undefined;
+  if (opsFeatureFlagsPath) {
+    if (!io.createOpsFeatureFlagController) {
+      throw new CliError(2, "--ops-feature-flags is unavailable in this embedding runtime");
+    }
+    try {
+      opsFeatureFlagController = await io.createOpsFeatureFlagController({
+        path: opsFeatureFlagsPath,
+        onConfigurationChanged: (enabled) =>
+          io.stderr(`ops metrics feature flag applied: ${enabled ? "enabled" : "disabled"}`),
+        onReloadFailure: (reason) =>
+          io.stderr(`ops feature flag reload rejected: ${reason}; keeping last valid snapshot`)
+      });
+    } catch {
+      throw new CliError(3, "ops feature flag snapshot is invalid or unreadable");
+    }
+  }
+
+  try {
+    return await runStdioProxy({
+      policy,
+      profileId,
+      upstreamCommand: {
+        executable,
+        argv
+      },
+      clientInput: io.clientInput,
+      clientOutput: io.mcpOutput,
+      spawnUpstream: io.spawnUpstream,
+      writeAuditEvent: (event) => io.appendTextFile(auditLogPath, formatAuditEventJsonLine(event)),
+      ...(opsLogPath
+        ? {
+            writeOpsEvent: (event) => {
+              if (opsFeatureFlagController?.isOpsMetricsEnabled() ?? true) {
+                return io.appendTextFile(opsLogPath, formatStdioOpsEventJsonLine(event));
+              }
+            }
+          }
+        : {}),
+      ...(shutdownGraceMs !== undefined ? { shutdownGraceMs } : {}),
+      ...(maxFrameBytes !== undefined ? { maxFrameBytes } : {}),
+      ...(maxJsonDepth !== undefined ? { maxJsonDepth } : {}),
+      ...(policyReloadSource ? { policyReloadSource } : {})
+    });
+  } finally {
+    await opsFeatureFlagController?.close();
+  }
 }
 
 function isCommandName(value: string): value is CommandName {
