@@ -647,6 +647,7 @@ export class ProxySession {
     if (envelope.id === undefined) {
       return undefined;
     }
+    this.evictExpiredPendingRequests(this.pendingRequestMethods);
     const key = requestIdKey(envelope.id);
     const pending = this.pendingRequestMethods.get(key);
     this.pendingRequestMethods.delete(key);
@@ -661,9 +662,7 @@ export class ProxySession {
       return;
     }
     this.pendingRequestMethods.set(requestIdKey(envelope.id), {
-      method: envelope.method,
-      expiresAt: Number.POSITIVE_INFINITY,
-      correlation: this.auditCorrelator.snapshotPending(envelope.method),
+      ...this.createPendingRequestState(envelope.method),
       ...(envelope.method === "tools/list" && hasDiscoveryCursor(envelope) ? { continuesDiscovery: true } : {})
     });
   }

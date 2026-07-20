@@ -240,6 +240,39 @@ describe("MCP Security Proxy core", () => {
     ).toMatchObject({ action: "deny", evidence: [{ code: "policy.default_deny" }] });
   });
 
+  it("matches each command argv wildcard to exactly one argument", () => {
+    const policy = policyWithRule({
+      id: "allow-git-show",
+      action: "allow",
+      capabilities: ["shell"],
+      commands: [{ executable: "git", argv: ["show", "*"] }]
+    });
+    const evaluateArgv = (argv: readonly string[]) =>
+      evaluateToolCall({
+        policy,
+        profileId: "local",
+        call: {
+          method: "tools/call",
+          toolName: "run_command",
+          capabilities: ["shell"],
+          argumentFacts: [{ kind: "command", executable: "git", argv }]
+        }
+      });
+
+    expect(evaluateArgv(["show", "HEAD"])).toMatchObject({
+      action: "allow",
+      evidence: [{ code: "policy.rule_allow", ruleId: "allow-git-show" }]
+    });
+    expect(evaluateArgv(["show"])).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.default_deny" }]
+    });
+    expect(evaluateArgv(["show", "HEAD", "--stat"])).toMatchObject({
+      action: "deny",
+      evidence: [{ code: "policy.default_deny" }]
+    });
+  });
+
   it("denies interpreter inline-code flags before shell allow rules can match", () => {
     const policy = policyWithRule({
       id: "allow-shell",

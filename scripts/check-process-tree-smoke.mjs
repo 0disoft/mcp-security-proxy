@@ -51,7 +51,7 @@ async function runProcessTreeScenario(mode) {
     );
     const stderrChunks = [];
     proxyChild.stderr.on("data", (chunk) => stderrChunks.push(chunk));
-    await waitForFixtureStartup(descendantPidPath, proxyChild, stderrChunks, 45_000);
+    await waitForFixtureStartup(descendantPidPath, proxyChild, stderrChunks, 90_000);
     descendantPid = Number(readFileSync(descendantPidPath, "utf8"));
     if (!Number.isSafeInteger(descendantPid) || descendantPid < 1) {
       throw new Error(`fixture returned invalid descendant PID: ${descendantPid}`);

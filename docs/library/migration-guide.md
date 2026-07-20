@@ -46,6 +46,23 @@ Migration notes must include:
 The latest published prerelease is `0.2.0-alpha.3`. It contains the additive and
 security-hardening changes below.
 
+Unreleased fixes and clarifications after `0.2.0-alpha.3`:
+
+- Runtime correlation fix: pending client requests now expire at `pendingRequestTtlMs`, matching the
+  documented server-origin behavior. Before this fix, client requests remained correlated without
+  a TTL; after it, late upstream responses are dropped as `jsonrpc.unmatched_response`, and the
+  expired ID may be reused. Embedders that need a longer response window should increase
+  `pendingRequestTtlMs`. Rollback restores stale correlation and its memory and response-confusion
+  risk; no policy schema edit is required.
+- Command matcher clarification: a command rule `argv` array must have the same length as the
+  observed argv, and each `*` entry matches exactly one argument at that position. It never matches
+  zero or multiple arguments. This documents existing behavior; no policy edit or rollback is
+  required.
+- Windows startup hardening: the fail-closed system PowerShell guardian now allows a longer bounded
+  cold-start window before returning exit code 4. The Job Object containment model and policy
+  configuration are unchanged. Rollback restores the shorter window and its hosted-runner flake
+  risk.
+
 - `0.2.0-alpha.2` CLI addition: `config-snippet --target stdio-json` adds a read-only command and
   extends the public `CommandName` union. Existing commands and exit codes are unchanged. Users
   previously hand-authored a host command and argv array; they may now generate the same descriptor

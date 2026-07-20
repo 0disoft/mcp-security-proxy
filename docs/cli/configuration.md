@@ -45,7 +45,8 @@ Proposed precedence:
   `false` in the current schema.
 - Redaction: enabled
 - Unknown capability: deny
-- Shell command matching: exact or narrow argv pattern only
+- Shell command matching: exact argv length; `*` matches one argument at its position and all other
+  entries match exactly
 - CLI `run` stdout: MCP protocol messages only
 - CLI `run` audit output: JSON Lines file from the selected profile's `audit.path`, optionally
   overridden by `--audit-log`. CLI `run` rejects `audit.destination: stdout`.

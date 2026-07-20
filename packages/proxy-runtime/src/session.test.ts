@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
-import type { PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
+import { describe, expect, it, vi } from "vitest";
+import { createDenyByDefaultPolicy, type PolicyDocument } from "@0disoft/mcp-security-proxy-contracts";
 import { createProxySession, type ApprovalRequest } from "./session.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
@@ -706,42 +706,55 @@ describe("proxy runtime session", () => {
     });
   });
 
-  it("keeps pending client requests correlated beyond the server-origin TTL", async () => {
-    const session = createProxySession({
-      policy: readPolicy(),
-      profileId: "local",
-      pendingRequestTtlMs: 1
-    });
+  it("expires pending client requests before response correlation and permits id reuse", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      const session = createProxySession({
+        policy: readPolicy(),
+        profileId: "local",
+        pendingRequestTtlMs: 1
+      });
 
-    const first = session.handleClientLine(
-      JSON.stringify({
-        jsonrpc: "2.0",
-        id: "expires-client-id",
-        method: "ping"
-      })
-    );
-    expect(first.forwardLine).toBeTruthy();
-    await sleep(5);
+      const first = session.handleClientLine(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: "expires-client-id",
+          method: "ping"
+        })
+      );
+      expect(first.forwardLine).toBeTruthy();
+      vi.advanceTimersByTime(1);
 
-    const lateResponse = session.handleServerLine(
-      JSON.stringify({
-        jsonrpc: "2.0",
-        id: "expires-client-id",
-        result: {}
-      })
-    );
-    expect(lateResponse.forwardLine).toBeTruthy();
-    expect(lateResponse.auditEvents).toEqual([]);
+      const lateResponse = session.handleServerLine(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: "expires-client-id",
+          result: {}
+        })
+      );
+      expect(lateResponse.forwardLine).toBeUndefined();
+      expect(lateResponse.responseLine).toBeUndefined();
+      expect(lateResponse.auditEvents).toContainEqual(
+        expect.objectContaining({
+          decision: expect.objectContaining({
+            evidence: [expect.objectContaining({ code: "jsonrpc.unmatched_response" })]
+          })
+        })
+      );
 
-    const reused = session.handleClientLine(
-      JSON.stringify({
-        jsonrpc: "2.0",
-        id: "expires-client-id",
-        method: "ping"
-      })
-    );
-    expect(reused.forwardLine).toBeTruthy();
-    expect(reused.responseLine).toBeUndefined();
+      const reused = session.handleClientLine(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: "expires-client-id",
+          method: "ping"
+        })
+      );
+      expect(reused.forwardLine).toBeTruthy();
+      expect(reused.responseLine).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("removes non-standard client JSON-RPC request envelope fields before forwarding non-tool requests", () => {
@@ -1257,6 +1270,41 @@ describe("proxy runtime session", () => {
         counts: {
           jsonrpc_error_message: 1
         }
+      }
+    });
+  });
+
+  it("uses default redaction for upstream errors when the policy omits a redaction block", () => {
+    const session = createProxySession({
+      policy: createDenyByDefaultPolicy("local"),
+      profileId: "local"
+    });
+    session.handleClientLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "default-redaction-error-message",
+        method: "ping"
+      })
+    );
+
+    const result = session.handleServerLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "default-redaction-error-message",
+        error: {
+          code: -32000,
+          message: "upstream leaked REDACT_ME_DEFAULT_POLICY_VALUE"
+        }
+      })
+    );
+
+    expect(result.forwardLine).toBeTruthy();
+    expect(result.forwardLine).not.toContain("REDACT_ME_DEFAULT_POLICY_VALUE");
+    expect(JSON.stringify(result.auditEvents)).not.toContain("REDACT_ME_DEFAULT_POLICY_VALUE");
+    expect(JSON.parse(result.forwardLine ?? "{}")).toMatchObject({
+      error: {
+        code: -32000,
+        message: "upstream error message redacted"
       }
     });
   });

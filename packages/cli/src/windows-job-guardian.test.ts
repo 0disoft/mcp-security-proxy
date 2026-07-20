@@ -114,7 +114,7 @@ describe("Windows Job Object guardian", () => {
     await expect(pending).rejects.not.toThrow("PRIVATE_PATH_MARKER");
   });
 
-  it("allows a cold system PowerShell guardian to become ready after ten seconds", async () => {
+  it("allows a cold system PowerShell guardian to become ready after forty-five seconds", async () => {
     vi.useFakeTimers();
     try {
       const guardian = new FakeGuardian();
@@ -126,7 +126,7 @@ describe("Windows Job Object guardian", () => {
         spawnGuardian: (() => guardian) as unknown as typeof import("node:child_process").spawn
       });
 
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(45_000);
       guardian.stdout.write("MSP_JOB_GUARDIAN_READY\r\n");
 
       await expect(pending).resolves.toBeUndefined();

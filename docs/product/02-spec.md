@@ -100,7 +100,8 @@ The policy model should be explicit and boring:
 - method policy: allow supported methods and deny unsupported method families
 - tool rule: allow, deny, or require approval by tool name and capability
 - path rule: allowed roots and denied roots after lexical string normalization
-- command rule: executable plus argv pattern, not free-form shell acceptance
+- command rule: executable plus an argv pattern with the same argument count; each `*` entry matches
+  exactly one argument and every other entry matches exactly, not free-form shell acceptance
 - network rule: domain allowlist and denylist for values present in tool-call arguments
 - secret rule: label allowlist for redacted secret facts such as `api-key`, never raw values
 - redaction rule: named detector with replacement token

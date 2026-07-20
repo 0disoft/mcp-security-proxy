@@ -100,7 +100,9 @@ Ambiguous paths must fail closed.
 ## Command Matching
 
 Command policy should match executable identity plus an argv array. Free-form shell strings are not
-safe defaults.
+safe defaults. A rule `argv` array must have the same length as the observed argv. A `*` rule entry
+matches exactly one argument at that position; it does not absorb zero or multiple arguments. Every
+other entry matches exactly.
 
 The default policy posture must deny:
 
