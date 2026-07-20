@@ -20,7 +20,7 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Runtime and platform compatibility: TypeScript, pnpm, and Node.js `>=24.0.0` for the current
   scaffold.
 - Package artifact and export surface: five public npm packages are recorded, local-tarball tested,
-  and exact-version registry tested for `0.2.0-alpha.3`.
+  and exact-version registry tested for `0.2.0-alpha.4`.
 - Deprecation and migration policy: docs/library/migration-guide.md
 
 ## Compatibility Targets

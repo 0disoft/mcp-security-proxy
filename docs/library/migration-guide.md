@@ -43,11 +43,10 @@ Migration notes must include:
 
 ## Current Migration Notes
 
-The latest published prerelease is `0.2.0-alpha.3`. It contains the additive and
+The latest published prerelease is `0.2.0-alpha.4`. It contains the additive and
 security-hardening changes below.
 
-The approved `0.2.0-alpha.4` candidate contains these unreleased fixes and clarifications after
-`0.2.0-alpha.3`:
+`0.2.0-alpha.4` adds these fixes and clarifications after `0.2.0-alpha.3`:
 
 - Ops-only feature reload: CLI `run` adds optional `--ops-feature-flags <path>`, which requires
   `--ops-log` and evaluates only `mcp.ops.metrics.enabled`. Existing invocations are unchanged.

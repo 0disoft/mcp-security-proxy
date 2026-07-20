@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "msp.publication-record.v1",
+  "status": "completed",
+  "releaseVersion": "0.2.0-alpha.4",
+  "tag": "v0.2.0-alpha.4",
+  "releaseCommit": "1fbcbe224fa494c059799b3e34b1ee4d80b7cb6d",
+  "releaseRecord": "docs/ops/release-records/0.2.0-alpha.4.approved.release.json",
+  "registryTarget": "npmjs.org",
+  "observedDistTags": {
+    "latest": "0.2.0-alpha.4",
+    "bootstrap": "0.0.0-bootstrap.0"
+  },
+  "publishedAt": "2026-07-20T09:47:31.361Z",
+  "recordedAt": "2026-07-20T09:54:19.977Z",
+  "releaseRun": {
+    "workflow": "release.yml",
+    "id": 29732523891,
+    "headCommit": "1fbcbe224fa494c059799b3e34b1ee4d80b7cb6d",
+    "conclusion": "success",
+    "url": "https://github.com/0disoft/mcp-security-proxy/actions/runs/29732523891"
+  },
+  "registrySmokeRun": {
+    "workflow": "registry-smoke.yml",
+    "id": 29732878686,
+    "headCommit": "1fbcbe224fa494c059799b3e34b1ee4d80b7cb6d",
+    "conclusion": "success",
+    "url": "https://github.com/0disoft/mcp-security-proxy/actions/runs/29732878686"
+  },
+  "packages": [
+    {
+      "name": "@0disoft/mcp-security-proxy-contracts",
+      "version": "0.2.0-alpha.4",
+      "integrity": "sha512-W7c+z9eXpPiU8RGG2pwMIP4kgCWSjq/aLGvzIVqW5+MyBI1ED4EWToI1dDwbXUahp1t8zfqilswhUD77tjMS3w==",
+      "shasum": "3a9e3727092bcb2ec76e8664f0e38eddd84bc0f3",
+      "provenance": {
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "verifiedByRunId": 29732878686
+      }
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-core",
+      "version": "0.2.0-alpha.4",
+      "integrity": "sha512-jrC1r0CsGRkLoTfOggErQIqHAqhGsDygSksQEd5jmh+XHPHr8VaYgagOfG/pREmaRhwrwMnmNDyZb2n1Ew2ZCQ==",
+      "shasum": "e90a1babb3c5b137b29790f9828bc6d68eea3eba",
+      "provenance": {
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "verifiedByRunId": 29732878686
+      }
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-mcp-adapter",
+      "version": "0.2.0-alpha.4",
+      "integrity": "sha512-BYgoj7rd77wPJ+Lf2a4RPYIuK+CTbD1Ct/67CzmXrnbvvy7XxT8qs0x39tq+/zoFluK1pPgL+FAnuiLkOlFT8w==",
+      "shasum": "1bc53cb04aa63579eb28f666e051669453bc39f6",
+      "provenance": {
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "verifiedByRunId": 29732878686
+      }
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-runtime",
+      "version": "0.2.0-alpha.4",
+      "integrity": "sha512-pdMhOY803toQlhFkvrJDz20AWT2pPg8bJFQ9QGXTEfyw/4nXyzBlRoM+56LeDmZAbQIl5TzmTm5tTVYG7jp6oA==",
+      "shasum": "dc911146974e4b6d2b4a7e018f075ff86a95dc92",
+      "provenance": {
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "verifiedByRunId": 29732878686
+      }
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-cli",
+      "version": "0.2.0-alpha.4",
+      "integrity": "sha512-REOifNCfvz1j6dRZXOTElVwuEnxkyXU1nLWjXP4vVGNJHchnOqBZhChHIfcRMLko58lm3pN1rVg7RaXSniHpaQ==",
+      "shasum": "30c5e57954255ac6b698fbd3b26695ca28cfeeb1",
+      "provenance": {
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "verifiedByRunId": 29732878686
+      }
+    }
+  ]
+}

@@ -7,7 +7,7 @@ Deny-by-default local stdio proxy and policy inspection commands for MCP servers
 Requires Node.js 24 or newer. Install exact published versions so the first run is reproducible:
 
 ```sh
-npm install --global @0disoft/mcp-security-proxy-cli@0.2.0-alpha.3 @modelcontextprotocol/server-filesystem@2026.7.4
+npm install --global @0disoft/mcp-security-proxy-cli@0.2.0-alpha.4 @modelcontextprotocol/server-filesystem@2026.7.4
 ```
 
 Create `/absolute/path/to/mcp-security-policy.json`. Replace both example paths with durable absolute
