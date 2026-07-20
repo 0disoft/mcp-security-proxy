@@ -91,6 +91,13 @@ audit evidence without using checkout build output. It cannot be used as pre-pub
 evidence. Failure after publication triggers the rollback and deprecation procedure; it never
 retries `npm publish` for the same immutable version.
 
+After registry smoke succeeds, a separate least-privilege workflow job creates or verifies the
+GitHub Release for the existing version tag. It uses the job-scoped automatic `GITHUB_TOKEN` with
+only `contents: write`; the npm publish job retains `contents: read` and `id-token: write`. Release
+creation is idempotent, derives prerelease status from exact SemVer, generates release notes, and
+fails if an existing Release has the wrong draft or prerelease state. Retry only the failed
+`github-release` job after a transient API failure; never rerun successful immutable publish steps.
+
 Completed publication evidence lives under `docs/ops/publications/*.publication.json`. A
 publication receipt records the immutable release tag and commit, successful Release and Registry
 Smoke workflow runs, observed npm dist-tags, package integrity values, and SLSA provenance linkage.

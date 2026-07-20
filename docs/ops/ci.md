@@ -78,10 +78,18 @@ It runs only for version tags matching `vMAJOR.MINOR.PATCH[-PRERELEASE]`, uses t
 for Trusted Publisher ownership, fetches full Git history so reachable historical approval commits
 can be verified, runs `pnpm run check`, verifies `scripts/check-release-publish-plan.mjs`, and
 pins Python 3.11.15 for the external compatibility matrix before publishing only the
-release-recorded public packages with provenance. It must not use long-lived npm
-tokens or create GitHub releases. The workflow runs `pnpm run registry-smoke` after all five publish
-steps; the script derives the exact version from the release tag and retries bounded npm registry
-reads to tolerate short publication propagation delays.
+release-recorded public packages with provenance. The publish job has only `contents: read` and
+`id-token: write`; it must not use long-lived npm tokens. The workflow runs `pnpm run
+registry-smoke` after all five publish steps; the script derives the exact version from the release
+tag and retries bounded npm registry reads to tolerate short publication propagation delays.
+
+Only after the publish job and its registry smoke succeed, the separate `github-release` job checks
+out the tagged source and runs `scripts/create-github-release.mjs` with job-local `contents: write`.
+The script refuses non-SemVer or missing tags, marks prerelease tags as prereleases, generates release
+notes, and verifies an existing matching Release instead of creating a duplicate. A failed Release
+API call can therefore be retried as a failed job without rerunning successful immutable npm publish
+steps. The automatic `GITHUB_TOKEN` is command-runtime only and is never accepted as a script
+argument or printed.
 
 The release workflow requires npm Trusted Publisher ownership configured for the
 `0disoft/mcp-security-proxy` repository, the package manifests are approved for public package

@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseDocument } from "yaml";
 import { resolveExpectedVersion, validatePublishedMetadata } from "./lib/registry-smoke-contract.mjs";
 
 const root = process.cwd();
@@ -8,6 +9,7 @@ const workflowPath = ".github/workflows/ci.yml";
 const releaseWorkflowPath = ".github/workflows/release.yml";
 const registrySmokeWorkflowPath = ".github/workflows/registry-smoke.yml";
 const publicationReceiptWorkflowPath = ".github/workflows/publication-receipt.yml";
+const githubReleaseSourcePath = "scripts/create-github-release.mjs";
 const registrySmokeSourcePath = "scripts/check-registry-packages.mjs";
 const registryOnboardingSmokePath = "scripts/lib/registry-onboarding-smoke.mjs";
 const processTreeSmokePath = "scripts/check-process-tree-smoke.mjs";
@@ -21,6 +23,7 @@ const manifest = readJson("package.json");
 const workflow = readText(workflowPath);
 const registrySmokeWorkflow = readText(registrySmokeWorkflowPath);
 const publicationReceiptWorkflow = readText(publicationReceiptWorkflowPath);
+const githubReleaseSource = readText(githubReleaseSourcePath);
 const registrySmokeSource = readText(registrySmokeSourcePath);
 const registryOnboardingSmoke = readText(registryOnboardingSmokePath);
 const processTreeSmoke = readText(processTreeSmokePath);
@@ -121,6 +124,7 @@ for (const phrase of [
   );
 }
 checkWorkflowPublishSurfaces(workflowFiles);
+checkGitHubReleaseSourceContract();
 checkRegistrySmokeWorkflowContract(registrySmokeWorkflow);
 checkPublicationReceiptWorkflowContract(publicationReceiptWorkflow);
 checkRegistryOnboardingSmokeContract();
@@ -159,6 +163,11 @@ assertContains(
   ciDoc,
   "is the only tracked workflow allowed to request `id-token: write`",
   `${ciDocPath}: documented release workflow OIDC guard`
+);
+assertContains(
+  normalizedCiDoc,
+  "separate `github-release` job",
+  `${ciDocPath}: documented isolated GitHub Release job`
 );
 
 checkCiContractValidator();
@@ -300,7 +309,8 @@ function assertNoPublishWorkflowSurfaces(workflowFiles, reader = readText) {
         reason: "package publish command"
       },
       {
-        pattern: /\bgh\s+release\s+create\b|\b(?:softprops\/action-gh-release|actions\/create-release)@/i,
+        pattern:
+          /\bgh\s+release\s+create\b|\b(?:softprops\/action-gh-release|actions\/create-release)@|create-github-release\.mjs/i,
         reason: "GitHub release creation"
       },
       {
@@ -330,61 +340,66 @@ function assertNoPublishWorkflowSurfaces(workflowFiles, reader = readText) {
   }
 }
 
-function checkReleaseWorkflowContract(releaseWorkflow) {
-  assertContains(releaseWorkflow, "name: Release", `${releaseWorkflowPath}: workflow name`);
+function checkReleaseWorkflowContract(releaseWorkflowText) {
+  const releaseWorkflowModel = parseWorkflow(releaseWorkflowPath, releaseWorkflowText);
+  assertContains(releaseWorkflowText, "name: Release", `${releaseWorkflowPath}: workflow name`);
   assertMatches(
-    releaseWorkflow,
+    releaseWorkflowText,
     /tags:\s*\n\s*-\s*["']v\[0-9\]\*\.\[0-9\]\*\.\[0-9\]\*["']/u,
     `${releaseWorkflowPath}: semver tag trigger`
   );
   assertContains(
-    releaseWorkflow,
-    "permissions:\n  contents: read\n  id-token: write",
-    `${releaseWorkflowPath}: minimal publish permissions`
+    releaseWorkflowText,
+    "permissions:\n  contents: read",
+    `${releaseWorkflowPath}: read-only workflow default permission`
   );
   assertContains(
-    releaseWorkflow,
+    releaseWorkflowText,
     "cancel-in-progress: false",
     `${releaseWorkflowPath}: release jobs must not cancel in progress`
   );
-  assertContains(releaseWorkflow, "environment: npm", `${releaseWorkflowPath}: npm Trusted Publisher environment`);
-  assertContains(releaseWorkflow, "timeout-minutes: 20", `${releaseWorkflowPath}: bounded release timeout`);
-  assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/checkout");
+  assertContains(releaseWorkflowText, "environment: npm", `${releaseWorkflowPath}: npm Trusted Publisher environment`);
+  assertContains(releaseWorkflowText, "timeout-minutes: 20", `${releaseWorkflowPath}: bounded release timeout`);
+  assertPinnedAction(releaseWorkflowPath, releaseWorkflowText, "actions/checkout");
   assertContains(
-    releaseWorkflow,
+    releaseWorkflowText,
     "fetch-depth: 0",
     `${releaseWorkflowPath}: full history for reachable release target validation`
   );
-  assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/setup-node");
-  assertPinnedAction(releaseWorkflowPath, releaseWorkflow, "actions/setup-python");
+  assertPinnedAction(releaseWorkflowPath, releaseWorkflowText, "actions/setup-node");
+  assertPinnedAction(releaseWorkflowPath, releaseWorkflowText, "actions/setup-python");
   assertMatches(
-    releaseWorkflow,
+    releaseWorkflowText,
     new RegExp(`python-version:\\s*["']?${escapeRegExp(workflowPythonVersion)}["']?`, "u"),
     `${releaseWorkflowPath}: Python compatibility version`
   );
   assertContains(
-    releaseWorkflow,
+    releaseWorkflowText,
     `corepack prepare pnpm@${packageManager.version} --activate`,
     `${releaseWorkflowPath}: pnpm version`
   );
   assertContains(
-    releaseWorkflow,
+    releaseWorkflowText,
     "registry-url: https://registry.npmjs.org",
     `${releaseWorkflowPath}: npm registry url`
   );
   assertContains(
-    releaseWorkflow,
+    releaseWorkflowText,
     "pnpm run external-compatibility",
     `${releaseWorkflowPath}: pinned external MCP fixture verification`
   );
-  assertContains(releaseWorkflow, "pnpm install --frozen-lockfile", `${releaseWorkflowPath}: frozen lockfile install`);
-  assertContains(releaseWorkflow, "pnpm run check", `${releaseWorkflowPath}: repository check command`);
   assertContains(
-    releaseWorkflow,
+    releaseWorkflowText,
+    "pnpm install --frozen-lockfile",
+    `${releaseWorkflowPath}: frozen lockfile install`
+  );
+  assertContains(releaseWorkflowText, "pnpm run check", `${releaseWorkflowPath}: repository check command`);
+  assertContains(
+    releaseWorkflowText,
     "node scripts/check-release-publish-plan.mjs",
     `${releaseWorkflowPath}: publish plan preflight`
   );
-  assertContains(releaseWorkflow, "pnpm run registry-smoke", `${releaseWorkflowPath}: post-publish registry smoke`);
+  assertContains(releaseWorkflowText, "pnpm run registry-smoke", `${releaseWorkflowPath}: post-publish registry smoke`);
   for (const packageName of [
     "@0disoft/mcp-security-proxy-contracts",
     "@0disoft/mcp-security-proxy-core",
@@ -393,21 +408,87 @@ function checkReleaseWorkflowContract(releaseWorkflow) {
     "@0disoft/mcp-security-proxy-cli"
   ]) {
     assertContains(
-      releaseWorkflow,
+      releaseWorkflowText,
       `pnpm --filter ${packageName} publish --access public --provenance --no-git-checks`,
       `${releaseWorkflowPath}: publish command for ${packageName}`
     );
   }
-  for (const forbidden of [
-    /contents:\s*write/i,
-    /\b(?:NODE_AUTH_TOKEN|NPM_TOKEN|NPM_PUBLISH_TOKEN)\b/i,
-    /\bgh\s+release\s+create\b/i
-  ]) {
-    if (forbidden.test(releaseWorkflow)) {
+
+  assertExactPermissions(`${releaseWorkflowPath}: workflow default permissions`, releaseWorkflowModel?.permissions, {
+    contents: "read"
+  });
+  assertExactPermissions(
+    `${releaseWorkflowPath}: publish job permissions`,
+    releaseWorkflowModel?.jobs?.publish?.permissions,
+    { contents: "read", "id-token": "write" }
+  );
+  const githubReleaseJob = releaseWorkflowModel?.jobs?.["github-release"];
+  assertExactPermissions(`${releaseWorkflowPath}: GitHub Release job permissions`, githubReleaseJob?.permissions, {
+    contents: "write"
+  });
+  if (githubReleaseJob?.needs !== "publish") {
+    failures.push(`${releaseWorkflowPath}: GitHub Release job must need successful publish`);
+  }
+  if (githubReleaseJob?.["runs-on"] !== "ubuntu-latest" || githubReleaseJob?.["timeout-minutes"] !== 5) {
+    failures.push(`${releaseWorkflowPath}: GitHub Release job must use bounded Ubuntu execution`);
+  }
+  const createReleaseStep = githubReleaseJob?.steps?.find(
+    (step) => step?.run === "node scripts/create-github-release.mjs"
+  );
+  const githubReleaseCheckoutStep = githubReleaseJob?.steps?.find((step) =>
+    String(step?.uses ?? "").startsWith("actions/checkout@")
+  );
+  if (githubReleaseCheckoutStep?.with?.["persist-credentials"] !== false) {
+    failures.push(`${releaseWorkflowPath}: GitHub Release checkout must not persist write credentials`);
+  }
+  if (createReleaseStep?.env?.GITHUB_TOKEN !== "${{ github.token }}") {
+    failures.push(`${releaseWorkflowPath}: GitHub Release step must receive only the automatic job token`);
+  }
+
+  for (const forbidden of [/\b(?:NODE_AUTH_TOKEN|NPM_TOKEN|NPM_PUBLISH_TOKEN)\b/i, /\bgh\s+release\s+create\b/i]) {
+    if (forbidden.test(releaseWorkflowText)) {
       failures.push(
-        `${releaseWorkflowPath}: release workflow must use OIDC publishing without registry tokens or GitHub release creation`
+        `${releaseWorkflowPath}: release workflow must use OIDC publishing and the repository-owned GitHub Release script without registry tokens`
       );
     }
+  }
+}
+
+function checkGitHubReleaseSourceContract() {
+  for (const phrase of [
+    "createOrVerifyGitHubRelease",
+    "GitHub release creation requires existing tag",
+    "generate_release_notes: true",
+    'make_latest: input.prerelease ? "false" : "true"',
+    "environment.GITHUB_TOKEN",
+    'redirect: "error"',
+    "AbortSignal.timeout(15_000)"
+  ]) {
+    assertContains(githubReleaseSource, phrase, `${githubReleaseSourcePath}: missing safe release phrase ${phrase}`);
+  }
+  if (/console\.(?:log|error)\([^\n]*(?:token|GITHUB_TOKEN)/iu.test(githubReleaseSource)) {
+    failures.push(`${githubReleaseSourcePath}: release script must not log token-bearing values`);
+  }
+}
+
+function parseWorkflow(label, text) {
+  const document = parseDocument(text, { merge: false, uniqueKeys: true });
+  if (document.errors.length > 0) {
+    failures.push(`${label}: YAML parse failed`);
+    return undefined;
+  }
+  return document.toJS();
+}
+
+function assertExactPermissions(label, actual, expected) {
+  if (
+    !actual ||
+    typeof actual !== "object" ||
+    Array.isArray(actual) ||
+    JSON.stringify(Object.keys(actual).sort()) !== JSON.stringify(Object.keys(expected).sort()) ||
+    Object.entries(expected).some(([key, value]) => actual[key] !== value)
+  ) {
+    failures.push(`${label} must be exactly ${JSON.stringify(expected)}`);
   }
 }
 
@@ -643,8 +724,9 @@ function checkCiContractValidator() {
   });
   if (
     !invalidReleaseWorkflowFailures.some((item) => item.includes("semver tag trigger")) ||
-    !invalidReleaseWorkflowFailures.some((item) => item.includes("minimal publish permissions")) ||
-    !invalidReleaseWorkflowFailures.some((item) => item.includes("release workflow must use OIDC publishing"))
+    !invalidReleaseWorkflowFailures.some((item) => item.includes("read-only workflow default permission")) ||
+    !invalidReleaseWorkflowFailures.some((item) => item.includes("publish job permissions")) ||
+    !invalidReleaseWorkflowFailures.some((item) => item.includes("GitHub Release job permissions"))
   ) {
     failures.push(
       `ci-contract self-test invalid release workflow was not rejected: ${invalidReleaseWorkflowFailures.join("; ")}`
