@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:0disoft:mcp-security-proxy:publication-record:v1",
+  "title": "MCP Security Proxy Publication Record v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "status",
+    "releaseVersion",
+    "tag",
+    "releaseCommit",
+    "releaseRecord",
+    "registryTarget",
+    "observedDistTags",
+    "publishedAt",
+    "recordedAt",
+    "releaseRun",
+    "registrySmokeRun",
+    "packages"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "msp.publication-record.v1" },
+    "status": { "const": "completed" },
+    "releaseVersion": { "$ref": "#/$defs/exactVersion" },
+    "tag": { "$ref": "#/$defs/exactTag" },
+    "releaseCommit": { "$ref": "#/$defs/commitSha" },
+    "releaseRecord": {
+      "type": "string",
+      "pattern": "^docs/ops/release-records/[0-9A-Za-z.+-]+\\.approved\\.release\\.json$"
+    },
+    "registryTarget": { "const": "npmjs.org" },
+    "observedDistTags": { "$ref": "#/$defs/observedDistTags" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "releaseRun": { "$ref": "#/$defs/releaseRun" },
+    "registrySmokeRun": { "$ref": "#/$defs/registrySmokeRun" },
+    "packages": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/package" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "exactVersion": {
+      "type": "string",
+      "pattern": "^(?!0\\.0\\.0$)(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "exactTag": {
+      "type": "string",
+      "pattern": "^v(?!0\\.0\\.0$)(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "positiveId": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "observedDistTags": {
+      "type": "object",
+      "required": ["latest", "bootstrap"],
+      "properties": {
+        "latest": { "$ref": "#/$defs/exactVersion" },
+        "bootstrap": { "$ref": "#/$defs/exactVersion" }
+      },
+      "additionalProperties": false
+    },
+    "releaseRun": {
+      "type": "object",
+      "required": ["workflow", "id", "headCommit", "conclusion", "url"],
+      "properties": {
+        "workflow": { "const": "release.yml" },
+        "id": { "$ref": "#/$defs/positiveId" },
+        "headCommit": { "$ref": "#/$defs/commitSha" },
+        "conclusion": { "const": "success" },
+        "url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/0disoft/mcp-security-proxy/actions/runs/[1-9][0-9]*$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "registrySmokeRun": {
+      "type": "object",
+      "required": ["workflow", "id", "headCommit", "conclusion", "url"],
+      "properties": {
+        "workflow": { "const": "registry-smoke.yml" },
+        "id": { "$ref": "#/$defs/positiveId" },
+        "headCommit": { "$ref": "#/$defs/commitSha" },
+        "conclusion": { "const": "success" },
+        "url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/0disoft/mcp-security-proxy/actions/runs/[1-9][0-9]*$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "package": {
+      "type": "object",
+      "required": ["name", "version", "integrity", "shasum", "provenance"],
+      "properties": {
+        "name": {
+          "enum": [
+            "@0disoft/mcp-security-proxy-contracts",
+            "@0disoft/mcp-security-proxy-core",
+            "@0disoft/mcp-security-proxy-mcp-adapter",
+            "@0disoft/mcp-security-proxy-runtime",
+            "@0disoft/mcp-security-proxy-cli"
+          ]
+        },
+        "version": { "$ref": "#/$defs/exactVersion" },
+        "integrity": { "type": "string", "pattern": "^sha512-[A-Za-z0-9+/]+={0,2}$" },
+        "shasum": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "provenance": {
+          "type": "object",
+          "required": ["predicateType", "verifiedByRunId"],
+          "properties": {
+            "predicateType": { "const": "https://slsa.dev/provenance/v1" },
+            "verifiedByRunId": { "$ref": "#/$defs/positiveId" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

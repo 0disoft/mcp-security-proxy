@@ -10,6 +10,12 @@ may only append re-observed evidence while preserving every original publication
 the later observation time; the alpha.4 receipt is the one-time v2 backfill after its Release was
 created.
 
+The Draft 2020-12 schemas are
+`schemas/publication-record.v1.schema.json` and `schemas/publication-record.v2.schema.json`.
+Fixed positive fixtures live under `fixtures/publications/`. `pnpm run schema-contract` compiles
+both schemas with Ajv, accepts both fixtures, and proves that v1 rejects v2-only evidence while v2
+requires GitHub Release evidence and rejects unknown top-level fields.
+
 Each `*.publication.json` record must name the approved release record, release tag and commit,
 successful GitHub Actions release run, successful registry smoke run, observed npm dist-tags, and
 the exact integrity and SLSA provenance evidence for every published package. A v2 record also pins
@@ -20,6 +26,11 @@ only existed after publication.
 `pnpm run release-readiness` validates publication receipts offline. It proves that the tracked
 record is internally consistent and tied to the approved package set; it does not replace the
 networked `pnpm run registry-smoke -- --version <exact-semver>` check.
+
+Schema validation and semantic validation are separate gates. JSON Schema owns closed object shapes,
+primitive types, fixed workflow names, URL patterns, RFC 3339 timestamps, and the v1/v2 field split.
+The JavaScript checker retains cross-field rules such as tag/version equality, commit linkage,
+chronology, exact approved package membership, dist-tag consistency, and provenance run linkage.
 
 The normal evidence path is:
 

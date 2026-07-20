@@ -6,13 +6,18 @@ import {
   resolvePublicationReceiptInput,
   validateWorkflowRun
 } from "./generate-publication-receipt.mjs";
+import {
+  createPublicationRecordSchemaValidator,
+  publicationRecordSchemaPaths
+} from "./lib/publication-record-schema.mjs";
 
 const root = process.cwd();
 const publicationsDir = join(root, "docs", "ops", "publications");
 const bootstrapPlan = readJson("docs/ops/npm-bootstrap-plan.json");
 const failures = [];
 const publicationRecords = [];
-const supportedSchemaVersions = new Set(["msp.publication-record.v1", "msp.publication-record.v2"]);
+const supportedSchemaVersions = new Set(Object.keys(publicationRecordSchemaPaths));
+const validatePublicationRecordShape = createPublicationRecordSchemaValidator(root);
 
 if (!existsSync(publicationsDir)) {
   failures.push("docs/ops/publications is missing");
@@ -23,6 +28,10 @@ if (!existsSync(publicationsDir)) {
     const path = `docs/ops/publications/${name}`;
     const record = readJson(path);
     publicationRecords.push({ path, record });
+    const schemaResult = validatePublicationRecordShape(record);
+    if (!schemaResult.valid) {
+      failures.push(`${path}: JSON Schema validation failed: ${schemaResult.errors.join("; ")}`);
+    }
     failures.push(...validatePublicationRecord(path, record));
   }
 }
@@ -249,6 +258,12 @@ function checkValidator(sample) {
   const provenanceFailures = validatePublicationRecord(sample.path, badProvenance);
   if (!provenanceFailures.some((item) => item.includes("verifiedByRunId must match"))) {
     failures.push("publication record self-test did not reject mismatched provenance evidence");
+  }
+
+  const unknownField = structuredClone(sample.record);
+  unknownField.untrackedEvidence = true;
+  if (validatePublicationRecordShape(unknownField).valid) {
+    failures.push("publication record JSON Schema self-test accepted an unknown top-level field");
   }
 }
 
@@ -479,7 +494,15 @@ function checkDocumentationContract() {
       failures.push(`docs/ops/publications/README.md: missing receipt automation phrase: ${phrase}`);
     }
   }
-  for (const phrase of ["msp.publication-record.v2", "GitHub Release ID", "tag commit", "draft and prerelease state"]) {
+  for (const phrase of [
+    "msp.publication-record.v2",
+    "GitHub Release ID",
+    "tag commit",
+    "draft and prerelease state",
+    "publication-record.v1.schema.json",
+    "publication-record.v2.schema.json",
+    "Schema validation and semantic validation"
+  ]) {
     if (!normalizedPublicationReadme.includes(phrase)) {
       failures.push(`docs/ops/publications/README.md: missing v2 evidence phrase: ${phrase}`);
     }

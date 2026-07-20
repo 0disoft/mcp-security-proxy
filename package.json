@@ -38,6 +38,8 @@
   "devDependencies": {
     "@microsoft/api-extractor": "7.58.9",
     "@types/node": "^24.10.2",
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1",
     "oxlint": "1.74.0",
     "prettier": "3.9.5",
     "typescript": "^5.9.3",

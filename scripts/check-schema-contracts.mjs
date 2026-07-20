@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import {
   AUDIT_DESTINATIONS,
   AUDIT_CORRELATION_VERSION,
@@ -21,6 +21,10 @@ import {
   POLICY_SCHEMA_VERSION,
   REDACTION_DETECTOR_KINDS
 } from "../packages/contracts/dist/index.js";
+import {
+  createPublicationRecordSchemaValidator,
+  publicationRecordSchemaPaths
+} from "./lib/publication-record-schema.mjs";
 
 const root = process.cwd();
 const failures = [];
@@ -30,6 +34,9 @@ const expectedSchemaFiles = [
   "ops-event.v1.schema.json",
   "policy.v1.schema.json"
 ];
+const expectedPublicationSchemaFiles = Object.values(publicationRecordSchemaPaths)
+  .map((path) => basename(path))
+  .sort((left, right) => left.localeCompare(right));
 
 assertArrayEqual(
   "packages/contracts/schemas files",
@@ -38,11 +45,20 @@ assertArrayEqual(
     .sort((left, right) => left.localeCompare(right)),
   expectedSchemaFiles
 );
+assertArrayEqual(
+  "docs/ops/publications/schemas files",
+  readdirSync(join(root, "docs", "ops", "publications", "schemas"))
+    .filter((name) => name.endsWith(".schema.json"))
+    .sort((left, right) => left.localeCompare(right)),
+  expectedPublicationSchemaFiles
+);
 
 const policySchema = readJson("packages/contracts/schemas/policy.v1.schema.json");
 const decisionSchema = readJson("packages/contracts/schemas/decision.v1.schema.json");
 const auditSchema = readJson("packages/contracts/schemas/audit-event.v1.schema.json");
 const opsSchema = readJson("packages/contracts/schemas/ops-event.v1.schema.json");
+const publicationV1Schema = readJson(publicationRecordSchemaPaths["msp.publication-record.v1"]);
+const publicationV2Schema = readJson(publicationRecordSchemaPaths["msp.publication-record.v2"]);
 
 assertEqual("policy.schemaVersion", policySchema.properties?.schemaVersion?.const, POLICY_SCHEMA_VERSION);
 assertArrayEqual(
@@ -114,6 +130,54 @@ assertArrayEqual(
   POLICY_RELOAD_REJECTION_CODES
 );
 
+assertEqual("publication.v1.$schema", publicationV1Schema.$schema, "https://json-schema.org/draft/2020-12/schema");
+assertEqual(
+  "publication.v1.schemaVersion",
+  publicationV1Schema.properties?.schemaVersion?.const,
+  "msp.publication-record.v1"
+);
+assertEqual("publication.v1.githubRelease", publicationV1Schema.properties?.githubRelease, undefined);
+assertEqual("publication.v1.additionalProperties", publicationV1Schema.additionalProperties, false);
+assertEqual("publication.v2.$schema", publicationV2Schema.$schema, "https://json-schema.org/draft/2020-12/schema");
+assertEqual(
+  "publication.v2.schemaVersion",
+  publicationV2Schema.properties?.schemaVersion?.const,
+  "msp.publication-record.v2"
+);
+assertArrayEqual(
+  "publication.v2.required githubRelease",
+  publicationV2Schema.required?.filter((item) => item === "githubRelease"),
+  ["githubRelease"]
+);
+assertEqual(
+  "publication.v2.githubRelease.draft",
+  publicationV2Schema.$defs?.githubRelease?.properties?.draft?.const,
+  false
+);
+assertEqual("publication.v2.additionalProperties", publicationV2Schema.additionalProperties, false);
+
+const validatePublicationRecordShape = createPublicationRecordSchemaValidator(root);
+const publicationV1Fixture = readJson("fixtures/publications/publication-record.v1.valid.json");
+const publicationV2Fixture = readJson("fixtures/publications/publication-record.v2.valid.json");
+assertSchemaValid("publication v1 fixture", publicationV1Fixture);
+assertSchemaValid("publication v2 fixture", publicationV2Fixture);
+
+const v1WithV2Evidence = structuredClone(publicationV1Fixture);
+v1WithV2Evidence.githubRelease = structuredClone(publicationV2Fixture.githubRelease);
+assertSchemaInvalid("publication v1 fixture with v2 evidence", v1WithV2Evidence);
+
+const v2WithoutGitHubRelease = structuredClone(publicationV2Fixture);
+delete v2WithoutGitHubRelease.githubRelease;
+assertSchemaInvalid("publication v2 fixture without GitHub Release evidence", v2WithoutGitHubRelease);
+
+const v2WithUnknownField = structuredClone(publicationV2Fixture);
+v2WithUnknownField.untrackedEvidence = true;
+assertSchemaInvalid("publication v2 fixture with an unknown field", v2WithUnknownField);
+
+const v2WithInvalidTag = structuredClone(publicationV2Fixture);
+v2WithInvalidTag.tag = "v0..2";
+assertSchemaInvalid("publication v2 fixture with an invalid SemVer tag", v2WithInvalidTag);
+
 if (failures.length > 0) {
   for (const failure of failures) {
     console.error(failure);
@@ -138,5 +202,19 @@ function assertArrayEqual(label, actual, expected) {
   const expectedText = JSON.stringify(expectedArray);
   if (actualText !== expectedText) {
     failures.push(`${label}: expected ${expectedText}, got ${actualText}`);
+  }
+}
+
+function assertSchemaValid(label, value) {
+  const result = validatePublicationRecordShape(value);
+  if (!result.valid) {
+    failures.push(`${label}: expected valid, got ${result.errors.join("; ")}`);
+  }
+}
+
+function assertSchemaInvalid(label, value) {
+  const result = validatePublicationRecordShape(value);
+  if (result.valid) {
+    failures.push(`${label}: expected JSON Schema rejection`);
   }
 }
