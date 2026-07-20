@@ -98,9 +98,12 @@ validation evidence.
 
 Post-publication facts are stored separately from approval records. The release-readiness aggregate
 validates each tracked publication receipt against its approved package set, release workflow run,
-registry smoke run, integrity values, and provenance linkage without making network requests.
-The separate read-only Publication Receipt workflow generates a reviewable JSON artifact after a
-successful manually dispatched Registry Smoke; it never writes to the repository.
+registry smoke run, integrity values, provenance linkage, and—for v2 receipts—the GitHub Release ID,
+public URL, tag commit, draft/prerelease state, and observation chronology without making network
+requests. Historical v1 receipts remain accepted. The separate read-only Publication Receipt
+workflow resolves both the tag commit and published Release through the versioned GitHub API,
+generates a reviewable JSON artifact after a successful manually dispatched Registry Smoke, and
+never writes to the repository.
 
 The first-package bootstrap path is not a GitHub Actions workflow. Its source of truth is
 `docs/ops/npm-bootstrap.md`; it keeps credentials in an interactive npm owner session and produces

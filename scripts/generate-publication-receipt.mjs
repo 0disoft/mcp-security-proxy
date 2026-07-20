@@ -30,10 +30,12 @@ export async function generatePublicationReceipt(args, environment) {
   validateBootstrapPlan(bootstrapPlanPath, bootstrapPlan, releaseRecord.publicPackages);
 
   const token = environment.GITHUB_TOKEN || environment.GH_TOKEN;
-  const [releaseRun, registrySmokeRun, releaseCommit, registryPackages] = await Promise.all([
+  const tag = `v${input.version}`;
+  const [releaseRun, registrySmokeRun, releaseCommit, githubRelease, registryPackages] = await Promise.all([
     readWorkflowRun(input.releaseRunId, token),
     readWorkflowRun(input.registrySmokeRunId, token),
-    readTagCommit(`v${input.version}`, token),
+    readTagCommit(tag, token),
+    readGitHubRelease(tag, token),
     readRegistryPackages(releaseRecord.publicPackages, input.version)
   ]);
 
@@ -52,6 +54,12 @@ export async function generatePublicationReceipt(args, environment) {
   if (releaseRun.head_sha !== releaseCommit) {
     throw new Error("release run head commit must match the immutable release tag commit");
   }
+  validateGitHubRelease(githubRelease, {
+    version: input.version,
+    tag,
+    tagCommit: releaseCommit,
+    observedAt: input.recordedAt
+  });
 
   const latestPublishedAt = Math.max(...registryPackages.map((item) => Date.parse(item.publishedAt)));
   if (Date.parse(registrySmokeRun.updated_at) < latestPublishedAt) {
@@ -65,6 +73,7 @@ export async function generatePublicationReceipt(args, environment) {
     version: input.version,
     releaseRecordPath,
     releaseCommit,
+    githubRelease,
     releaseRun,
     registrySmokeRun,
     registryPackages,
@@ -176,6 +185,7 @@ export function buildPublicationReceipt({
   version,
   releaseRecordPath,
   releaseCommit,
+  githubRelease,
   releaseRun,
   registrySmokeRun,
   registryPackages,
@@ -194,9 +204,15 @@ export function buildPublicationReceipt({
   if (distTags.latest !== version || distTags.bootstrap !== expectedBootstrapVersion) {
     throw new Error("published packages expose an invalid latest/bootstrap dist-tag set");
   }
+  validateGitHubRelease(githubRelease, {
+    version,
+    tag: `v${version}`,
+    tagCommit: releaseCommit,
+    observedAt: recordedAt
+  });
 
   return {
-    schemaVersion: "msp.publication-record.v1",
+    schemaVersion: "msp.publication-record.v2",
     status: "completed",
     releaseVersion: version,
     tag: `v${version}`,
@@ -208,6 +224,16 @@ export function buildPublicationReceipt({
       .map((item) => item.publishedAt)
       .sort((left, right) => Date.parse(left) - Date.parse(right))[0],
     recordedAt,
+    githubRelease: {
+      id: githubRelease.id,
+      tag: githubRelease.tag_name,
+      tagCommit: releaseCommit,
+      draft: githubRelease.draft,
+      prerelease: githubRelease.prerelease,
+      publishedAt: githubRelease.published_at,
+      observedAt: recordedAt,
+      url: githubRelease.html_url
+    },
     releaseRun: toReceiptRun(releaseRun, "release.yml"),
     registrySmokeRun: toReceiptRun(registrySmokeRun, "registry-smoke.yml"),
     packages: registryPackages.map((item) => ({
@@ -295,6 +321,43 @@ async function readTagCommit(tag, token) {
   throw new Error(`release tag ${tag} does not resolve to a Git commit`);
 }
 
+async function readGitHubRelease(tag, token) {
+  return fetchJson(`${githubApiUrl}/repos/${repository}/releases/tags/${encodeURIComponent(tag)}`, { token });
+}
+
+export function validateGitHubRelease(release, expected) {
+  if (!release || typeof release !== "object") {
+    throw new Error("GitHub Release metadata is missing");
+  }
+  if (!Number.isSafeInteger(release.id) || release.id <= 0) {
+    throw new Error("GitHub Release id must be a positive integer");
+  }
+  if (release.tag_name !== expected.tag) {
+    throw new Error("GitHub Release tag must match the immutable release tag");
+  }
+  if (!isFullCommitSha(expected.tagCommit)) {
+    throw new Error("GitHub Release tag commit must be a full Git commit SHA");
+  }
+  if (release.draft !== false) {
+    throw new Error("GitHub Release must be published, not draft");
+  }
+  if (release.prerelease !== hasPrerelease(expected.version)) {
+    throw new Error("GitHub Release prerelease state must match the exact SemVer channel");
+  }
+  if (release.html_url !== `${githubUrl}/${repository}/releases/tag/${encodeURIComponent(expected.tag)}`) {
+    throw new Error("GitHub Release URL must match the immutable release tag");
+  }
+  if (!isIsoDate(release.published_at)) {
+    throw new Error("GitHub Release published_at must be an ISO-8601 timestamp");
+  }
+  if (!isIsoDate(expected.observedAt)) {
+    throw new Error("GitHub Release observedAt must be an ISO-8601 timestamp");
+  }
+  if (Date.parse(expected.observedAt) < Date.parse(release.published_at)) {
+    throw new Error("GitHub Release observedAt must not precede its publication time");
+  }
+}
+
 async function readRegistryPackages(publicPackages, version) {
   return Promise.all(
     publicPackages.map(async (item) => {
@@ -334,9 +397,11 @@ async function fetchJson(url, { token } = {}) {
         Accept: "application/vnd.github+json",
         "User-Agent": "mcp-security-proxy-publication-receipt"
       };
-      if (token && url.startsWith(`${githubApiUrl}/`)) {
-        headers.Authorization = `Bearer ${token}`;
+      if (url.startsWith(`${githubApiUrl}/`)) {
         headers["X-GitHub-Api-Version"] = "2022-11-28";
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
       }
       const response = await fetch(url, {
         headers,
@@ -393,6 +458,10 @@ function isExactVersion(value) {
       value
     )
   );
+}
+
+function hasPrerelease(version) {
+  return typeof version === "string" && version.split("+", 1)[0].includes("-");
 }
 
 function isFullCommitSha(value) {

@@ -12,6 +12,7 @@ const publicationsDir = join(root, "docs", "ops", "publications");
 const bootstrapPlan = readJson("docs/ops/npm-bootstrap-plan.json");
 const failures = [];
 const publicationRecords = [];
+const supportedSchemaVersions = new Set(["msp.publication-record.v1", "msp.publication-record.v2"]);
 
 if (!existsSync(publicationsDir)) {
   failures.push("docs/ops/publications is missing");
@@ -30,6 +31,16 @@ if (publicationRecords.length === 0) {
   failures.push("docs/ops/publications must contain at least one publication record");
 } else {
   checkValidator(publicationRecords[0]);
+  const v2Sample = publicationRecords.find(({ record }) => record?.schemaVersion === "msp.publication-record.v2");
+  if (!v2Sample) {
+    failures.push("docs/ops/publications must contain at least one msp.publication-record.v2 receipt");
+  } else {
+    checkV2Validator(v2Sample);
+  }
+  const alpha4 = publicationRecords.find(({ record }) => record?.releaseVersion === "0.2.0-alpha.4");
+  if (alpha4?.record?.schemaVersion !== "msp.publication-record.v2") {
+    failures.push("the 0.2.0-alpha.4 publication receipt must retain its GitHub Release evidence as v2");
+  }
 }
 checkGeneratorContract();
 
@@ -50,8 +61,8 @@ function validatePublicationRecord(path, record) {
   const issues = [];
   const add = (message) => issues.push(`${path}: ${message}`);
 
-  if (record?.schemaVersion !== "msp.publication-record.v1") {
-    add("schemaVersion must be msp.publication-record.v1");
+  if (!supportedSchemaVersions.has(record?.schemaVersion)) {
+    add("schemaVersion must be msp.publication-record.v1 or msp.publication-record.v2");
   }
   if (record?.status !== "completed") {
     add("status must be completed");
@@ -88,6 +99,11 @@ function validatePublicationRecord(path, record) {
   if (record?.releaseRun?.headCommit !== record?.releaseCommit) {
     add("releaseRun.headCommit must equal releaseCommit");
   }
+  if (record?.schemaVersion === "msp.publication-record.v2") {
+    checkGitHubRelease(add, record);
+  } else if (record?.githubRelease !== undefined) {
+    add("githubRelease requires msp.publication-record.v2");
+  }
 
   const releaseRecord = loadReleaseRecord(add, record?.releaseRecord);
   if (releaseRecord) {
@@ -101,6 +117,42 @@ function validatePublicationRecord(path, record) {
   }
 
   return issues;
+}
+
+function checkGitHubRelease(add, record) {
+  const release = record?.githubRelease;
+  if (!release || typeof release !== "object") {
+    add("githubRelease must be an object");
+    return;
+  }
+  if (!Number.isSafeInteger(release.id) || release.id <= 0) {
+    add("githubRelease.id must be a positive integer");
+  }
+  if (release.tag !== record.tag) {
+    add("githubRelease.tag must equal tag");
+  }
+  if (!isFullCommitSha(release.tagCommit) || release.tagCommit !== record.releaseCommit) {
+    add("githubRelease.tagCommit must equal releaseCommit");
+  }
+  if (release.draft !== false) {
+    add("githubRelease.draft must be false");
+  }
+  if (release.prerelease !== hasPrerelease(record.releaseVersion)) {
+    add("githubRelease.prerelease must match the releaseVersion SemVer channel");
+  }
+  if (release.url !== `https://github.com/0disoft/mcp-security-proxy/releases/tag/${encodeURIComponent(record.tag)}`) {
+    add("githubRelease.url must match the recorded release tag");
+  }
+  if (!isIsoDate(release.publishedAt) || !isIsoDate(release.observedAt)) {
+    add("githubRelease.publishedAt and githubRelease.observedAt must be ISO-8601 timestamps");
+  } else {
+    if (Date.parse(release.observedAt) < Date.parse(release.publishedAt)) {
+      add("githubRelease.observedAt must not precede githubRelease.publishedAt");
+    }
+    if (Date.parse(release.observedAt) < Date.parse(record.recordedAt)) {
+      add("githubRelease.observedAt must not precede recordedAt");
+    }
+  }
 }
 
 function checkWorkflowRun(add, field, run, expectedWorkflow) {
@@ -200,6 +252,60 @@ function checkValidator(sample) {
   }
 }
 
+function checkV2Validator(sample) {
+  for (const mutation of [
+    {
+      label: "an invalid GitHub Release id",
+      expectedMessage: "githubRelease.id must be a positive integer",
+      apply: (record) => {
+        record.githubRelease.id = 0;
+      }
+    },
+    {
+      label: "a mismatched GitHub Release tag commit",
+      expectedMessage: "githubRelease.tagCommit must equal releaseCommit",
+      apply: (record) => {
+        record.githubRelease.tagCommit = "f".repeat(40);
+      }
+    },
+    {
+      label: "a draft GitHub Release",
+      expectedMessage: "githubRelease.draft must be false",
+      apply: (record) => {
+        record.githubRelease.draft = true;
+      }
+    },
+    {
+      label: "a mismatched GitHub Release channel",
+      expectedMessage: "githubRelease.prerelease must match",
+      apply: (record) => {
+        record.githubRelease.prerelease = !record.githubRelease.prerelease;
+      }
+    },
+    {
+      label: "a mismatched GitHub Release URL",
+      expectedMessage: "githubRelease.url must match",
+      apply: (record) => {
+        record.githubRelease.url = "https://example.invalid/release";
+      }
+    },
+    {
+      label: "a GitHub Release observation before publication",
+      expectedMessage: "githubRelease.observedAt must not precede githubRelease.publishedAt",
+      apply: (record) => {
+        record.githubRelease.observedAt = "2026-01-01T00:00:00Z";
+      }
+    }
+  ]) {
+    const changed = structuredClone(sample.record);
+    mutation.apply(changed);
+    const issues = validatePublicationRecord(sample.path, changed);
+    if (!issues.some((item) => item.includes(mutation.expectedMessage))) {
+      failures.push(`publication record self-test did not reject ${mutation.label}`);
+    }
+  }
+}
+
 function checkGeneratorContract() {
   const request = parsePublicationReceiptRequest(
     "Registry Smoke receipt: version=0.2.0-alpha.2; release-run=29487801259"
@@ -264,6 +370,14 @@ function checkGeneratorContract() {
     version: "0.2.0-alpha.2",
     releaseRecordPath: "docs/ops/release-records/0.2.0-alpha.2.approved.release.json",
     releaseCommit: "a".repeat(40),
+    githubRelease: {
+      id: 44,
+      tag_name: "v0.2.0-alpha.2",
+      draft: false,
+      prerelease: true,
+      html_url: "https://github.com/0disoft/mcp-security-proxy/releases/tag/v0.2.0-alpha.2",
+      published_at: "2026-07-16T09:43:00Z"
+    },
     releaseRun: run,
     registrySmokeRun: {
       ...run,
@@ -285,6 +399,12 @@ function checkGeneratorContract() {
     recordedAt: "2026-07-16T09:44:51Z"
   };
   const generated = buildPublicationReceipt(receiptInput);
+  if (
+    generated.schemaVersion !== "msp.publication-record.v2" ||
+    generated.githubRelease?.tagCommit !== receiptInput.releaseCommit
+  ) {
+    failures.push("publication receipt generator self-test did not emit linked GitHub Release v2 evidence");
+  }
   if (generated.packages[0]?.provenance?.verifiedByRunId !== 43) {
     failures.push("publication receipt generator self-test did not link provenance verification to smoke run");
   }
@@ -303,6 +423,24 @@ function checkGeneratorContract() {
       }),
     "consistent latest/bootstrap",
     "inconsistent package dist-tags"
+  );
+  assertGeneratorRejects(
+    () =>
+      buildPublicationReceipt({
+        ...receiptInput,
+        githubRelease: { ...receiptInput.githubRelease, draft: true }
+      }),
+    "published, not draft",
+    "a draft GitHub Release"
+  );
+  assertGeneratorRejects(
+    () =>
+      buildPublicationReceipt({
+        ...receiptInput,
+        githubRelease: { ...receiptInput.githubRelease, prerelease: false }
+      }),
+    "prerelease state",
+    "a mismatched GitHub Release channel"
   );
 }
 
@@ -341,6 +479,11 @@ function checkDocumentationContract() {
       failures.push(`docs/ops/publications/README.md: missing receipt automation phrase: ${phrase}`);
     }
   }
+  for (const phrase of ["msp.publication-record.v2", "GitHub Release ID", "tag commit", "draft and prerelease state"]) {
+    if (!normalizedPublicationReadme.includes(phrase)) {
+      failures.push(`docs/ops/publications/README.md: missing v2 evidence phrase: ${phrase}`);
+    }
+  }
 }
 
 function readJson(path) {
@@ -357,6 +500,10 @@ function isFullCommitSha(value) {
 
 function isIsoDate(value) {
   return typeof value === "string" && !Number.isNaN(Date.parse(value)) && value.includes("T");
+}
+
+function hasPrerelease(version) {
+  return typeof version === "string" && version.split("+", 1)[0].includes("-");
 }
 
 function isSafeRelativePath(value) {

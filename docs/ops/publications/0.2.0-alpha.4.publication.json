@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "msp.publication-record.v1",
+  "schemaVersion": "msp.publication-record.v2",
   "status": "completed",
   "releaseVersion": "0.2.0-alpha.4",
   "tag": "v0.2.0-alpha.4",
@@ -12,6 +12,16 @@
   },
   "publishedAt": "2026-07-20T09:47:31.361Z",
   "recordedAt": "2026-07-20T09:54:19.977Z",
+  "githubRelease": {
+    "id": 356665718,
+    "tag": "v0.2.0-alpha.4",
+    "tagCommit": "1fbcbe224fa494c059799b3e34b1ee4d80b7cb6d",
+    "draft": false,
+    "prerelease": true,
+    "publishedAt": "2026-07-20T11:19:59Z",
+    "observedAt": "2026-07-20T11:35:46.027Z",
+    "url": "https://github.com/0disoft/mcp-security-proxy/releases/tag/v0.2.0-alpha.4"
+  },
   "releaseRun": {
     "workflow": "release.yml",
     "id": 29732523891,
