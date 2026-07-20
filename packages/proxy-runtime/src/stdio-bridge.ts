@@ -72,6 +72,20 @@ type MutableStdioProxyMetrics = {
   -readonly [Key in keyof StdioProxyMetrics]: StdioProxyMetrics[Key];
 };
 
+type StreamCompletion =
+  | {
+      readonly status: "completed";
+    }
+  | {
+      readonly status: "failed";
+      readonly error: unknown;
+    };
+
+interface UpstreamExitResult {
+  readonly exitCode: number;
+  readonly forcedStreamClosure: boolean;
+}
+
 export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioProxyResult> {
   const startedAt = Date.now();
   const profile = options.policy.profiles.find((item) => item.id === options.profileId);
@@ -207,12 +221,8 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     await requestUpstreamTermination(upstream, true);
     return await finish(1);
   }
-  const stderrDone = observeUpstreamStderr(
-    upstream.stderr,
-    options.profileId,
-    recordAudit,
-    maxFrameBytes,
-    auditCorrelator
+  const stderrDone = captureStreamCompletion(
+    observeUpstreamStderr(upstream.stderr, options.profileId, recordAudit, maxFrameBytes, auditCorrelator)
   );
 
   const clientDone = consumeFrames(options.clientInput, maxFrameBytes, async (line) => {
@@ -236,59 +246,70 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     });
   });
 
-  const upstreamDone = consumeFrames(upstream.stdout, maxFrameBytes, async (line) => {
-    await runSessionOperation(async () => {
-      metrics.upstreamFrames += 1;
-      const result = session.handleServerLine(line);
-      await recordAudit(result.auditEvents);
-      if (result.responseLine) {
-        metrics.protocolResponsesWritten += 1;
-        if (!result.forwardLine) {
-          metrics.upstreamDenials += 1;
+  const upstreamDone = captureStreamCompletion(
+    consumeFrames(upstream.stdout, maxFrameBytes, async (line) => {
+      await runSessionOperation(async () => {
+        metrics.upstreamFrames += 1;
+        const result = session.handleServerLine(line);
+        await recordAudit(result.auditEvents);
+        if (result.responseLine) {
+          metrics.protocolResponsesWritten += 1;
+          if (!result.forwardLine) {
+            metrics.upstreamDenials += 1;
+          }
+          await writeLineIfOpen(upstream.stdin, result.responseLine);
         }
-        await writeLineIfOpen(upstream.stdin, result.responseLine);
-      }
-      if (result.forwardLine) {
-        metrics.upstreamFramesForwarded += 1;
-        await writeLine(options.clientOutput, result.forwardLine);
-      }
-    });
-  });
+        if (result.forwardLine) {
+          metrics.upstreamFramesForwarded += 1;
+          await writeLine(options.clientOutput, result.forwardLine);
+        }
+      });
+    })
+  );
 
   try {
     const upstreamExit = upstream.exit.catch(() => -1);
     const first = await Promise.race([
       clientDone.then(() => "client" as const),
-      upstreamDone.then(() => "upstream-output" as const),
+      upstreamDone.then((completion) => {
+        if (completion.status === "failed") {
+          throw completion.error;
+        }
+        return "upstream-output" as const;
+      }),
       upstreamExit
     ]);
 
     if (first === "client") {
       upstream.stdin.end();
-      const exitCode = await waitForUpstreamExitOrKill(
+      const shutdown = await waitForUpstreamExitOrKill(
         upstream,
         upstreamExit,
         options.shutdownGraceMs ?? defaultShutdownGraceMs,
         -2
       );
-      await upstreamDone;
-      await stderrDone;
-      return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit, auditCorrelator));
+      await requireStreamCompletion(upstreamDone, upstream.stdout, shutdown.forcedStreamClosure);
+      await requireStreamCompletion(stderrDone, upstream.stderr, shutdown.forcedStreamClosure);
+      return await finish(
+        await normalizeUpstreamExit(shutdown.exitCode, options.profileId, recordAudit, auditCorrelator)
+      );
     }
 
     if (first === "upstream-output") {
-      const exitCode = await waitForUpstreamExitOrKill(
+      const shutdown = await waitForUpstreamExitOrKill(
         upstream,
         upstreamExit,
         options.shutdownGraceMs ?? defaultShutdownGraceMs,
         -3
       );
-      await stderrDone;
-      return await finish(await normalizeUpstreamExit(exitCode, options.profileId, recordAudit, auditCorrelator));
+      await requireStreamCompletion(stderrDone, upstream.stderr, shutdown.forcedStreamClosure);
+      return await finish(
+        await normalizeUpstreamExit(shutdown.exitCode, options.profileId, recordAudit, auditCorrelator)
+      );
     }
 
-    await upstreamDone;
-    await stderrDone;
+    await requireStreamCompletion(upstreamDone, upstream.stdout, false);
+    await requireStreamCompletion(stderrDone, upstream.stderr, false);
     return await finish(await normalizeUpstreamExit(first, options.profileId, recordAudit, auditCorrelator));
   } catch (error) {
     if (error instanceof AuditFailure) {
@@ -305,6 +326,36 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     options.clientInput.destroy();
     upstream.stdout.destroy();
   }
+}
+
+function captureStreamCompletion(operation: Promise<void>): Promise<StreamCompletion> {
+  return operation.then(
+    () => ({ status: "completed" }),
+    (error: unknown) => ({ status: "failed", error })
+  );
+}
+
+async function requireStreamCompletion(
+  completionPromise: Promise<StreamCompletion>,
+  stream: Readable | undefined,
+  allowForcedPrematureClose: boolean
+): Promise<void> {
+  const completion = await completionPromise;
+  if (completion.status === "completed") {
+    return;
+  }
+  if (allowForcedPrematureClose && stream?.destroyed && isPrematureCloseError(completion.error)) {
+    return;
+  }
+  throw completion.error;
+}
+
+function isPrematureCloseError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error as Error & { readonly code?: string }).code === "ERR_STREAM_PREMATURE_CLOSE"
+  );
 }
 
 export function formatStdioOpsEventJsonLine(event: StdioProxyOpsEvent): string {
@@ -524,8 +575,8 @@ async function waitForUpstreamExitOrKill(
   upstreamExit: Promise<number>,
   shutdownGraceMs: number,
   timeoutExitCode: -2 | -3
-): Promise<number> {
-  const timeoutExit = new Promise<number>((resolve) => {
+): Promise<UpstreamExitResult> {
+  const timeoutExit = new Promise<UpstreamExitResult>((resolve) => {
     const timer = setTimeout(
       () => {
         void requestUpstreamTermination(upstream, false);
@@ -534,18 +585,18 @@ async function waitForUpstreamExitOrKill(
           upstream.stdin.destroy();
           upstream.stdout.destroy();
           upstream.stderr?.destroy();
-          resolve(timeoutExitCode);
+          resolve({ exitCode: timeoutExitCode, forcedStreamClosure: true });
         }, 250);
         upstreamExit.finally(() => {
           clearTimeout(forceTimer);
-          resolve(timeoutExitCode);
+          resolve({ exitCode: timeoutExitCode, forcedStreamClosure: false });
         });
       },
       Math.max(0, shutdownGraceMs)
     );
     upstreamExit.finally(() => clearTimeout(timer));
   });
-  return Promise.race([upstreamExit, timeoutExit]);
+  return Promise.race([upstreamExit.then((exitCode) => ({ exitCode, forcedStreamClosure: false })), timeoutExit]);
 }
 
 async function requestUpstreamTermination(upstream: UpstreamProcess, force: boolean): Promise<void> {

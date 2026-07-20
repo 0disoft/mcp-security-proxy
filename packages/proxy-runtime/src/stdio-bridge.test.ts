@@ -882,6 +882,33 @@ describe("stdio proxy bridge", () => {
     );
   });
 
+  it("keeps the upstream failure exit code when forced shutdown destroys open pipes", async () => {
+    const harness = createHarness({
+      upstreamNeverExits: true,
+      destroyPipesOnForceKill: true
+    });
+    const resultPromise = runHarness(harness, { shutdownGraceMs: 1 });
+
+    harness.clientInput.end();
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(4);
+    expect(harness.upstream.killCalls).toEqual([false, true]);
+    expect(harness.auditEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "error",
+        decision: expect.objectContaining({
+          evidence: [
+            expect.objectContaining({
+              code: "runtime.upstream_exit",
+              reason: "upstream process did not exit after client input closed"
+            })
+          ]
+        })
+      })
+    );
+  });
+
   it("kills upstream when stdout closes and the process does not exit within the grace window", async () => {
     const harness = createHarness({ upstreamNeverExits: true });
     const resultPromise = runHarness(harness, { shutdownGraceMs: 1 });
@@ -955,6 +982,7 @@ function createHarness(
     readonly failAuditWrites?: boolean;
     readonly upstreamExitCode?: number;
     readonly upstreamNeverExits?: boolean;
+    readonly destroyPipesOnForceKill?: boolean;
   } = {}
 ): {
   readonly clientInput: PassThrough;
@@ -998,6 +1026,10 @@ function createHarness(
       kill: (force = false) => {
         killed = true;
         killCalls.push(force);
+        if (force && options.destroyPipesOnForceKill) {
+          upstreamOutput.destroy();
+          upstreamError.destroy();
+        }
       },
       get killed() {
         return killed;
