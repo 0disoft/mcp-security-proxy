@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   closeSync,
   existsSync,
+  fstatSync,
   fsyncSync,
   linkSync,
   lstatSync,
@@ -33,22 +34,11 @@ export function importPublicationReceipt(args, { root = process.cwd(), cwd = pro
     throw new Error(`publication receipt version must be exact semver, received ${input.version || "<missing>"}`);
   }
 
-  let inputStat;
-  try {
-    inputStat = lstatSync(input.inputPath, { throwIfNoEntry: false });
-  } catch {
-    throw new Error("publication receipt input must be a regular file");
-  }
-  if (!inputStat?.isFile()) {
-    throw new Error("publication receipt input must be a regular file");
-  }
-  if (inputStat.size === 0 || inputStat.size > maximumReceiptBytes) {
-    throw new Error(`publication receipt input must be between 1 and ${maximumReceiptBytes} bytes`);
-  }
-
+  const bytes = readRegularFile(input.inputPath);
   let record;
   try {
-    record = JSON.parse(readFileSync(input.inputPath, "utf8"));
+    const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+    record = JSON.parse(text);
   } catch {
     throw new Error("publication receipt input must contain valid UTF-8 JSON");
   }
@@ -87,6 +77,35 @@ export function importPublicationReceipt(args, { root = process.cwd(), cwd = pro
     sha256: createHash("sha256").update(serialized).digest("hex"),
     record
   };
+}
+
+function readRegularFile(inputPath) {
+  let pathStat;
+  try {
+    pathStat = lstatSync(inputPath, { throwIfNoEntry: false });
+  } catch {
+    throw new Error("publication receipt input must be a regular file");
+  }
+  if (!pathStat?.isFile()) {
+    throw new Error("publication receipt input must be a regular file");
+  }
+
+  let descriptor;
+  try {
+    descriptor = openSync(inputPath, "r");
+    const openedStat = fstatSync(descriptor);
+    if (!openedStat.isFile() || openedStat.dev !== pathStat.dev || openedStat.ino !== pathStat.ino) {
+      throw new Error("publication receipt input changed while it was being opened");
+    }
+    if (openedStat.size === 0 || openedStat.size > maximumReceiptBytes) {
+      throw new Error(`publication receipt input must be between 1 and ${maximumReceiptBytes} bytes`);
+    }
+    return readFileSync(descriptor);
+  } finally {
+    if (descriptor !== undefined) {
+      closeSync(descriptor);
+    }
+  }
 }
 
 export function resolveImportInput(args, cwd = process.cwd()) {

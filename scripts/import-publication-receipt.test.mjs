@@ -77,6 +77,21 @@ test("rejects empty and oversized inputs before parsing", () => {
   });
 });
 
+test("rejects malformed UTF-8 before JSON or schema interpretation", () => {
+  withFixture(({ root, inputPath, record }) => {
+    const bytes = Buffer.from(JSON.stringify(record), "utf8");
+    const statusOffset = bytes.indexOf(Buffer.from("completed", "utf8"));
+    assert.notEqual(statusOffset, -1);
+    bytes[statusOffset] = 0x80;
+    writeFileSync(inputPath, bytes);
+    assert.throws(
+      () => importPublicationReceipt(["--version", version, "--input", inputPath], { root, cwd: root }),
+      /must contain valid UTF-8 JSON/u
+    );
+    assert.equal(existsSync(join(root, ...destination.split("/"))), false);
+  });
+});
+
 function withFixture(run) {
   const root = mkdtempSync(join(tmpdir(), "msp-publication-import-"));
   try {

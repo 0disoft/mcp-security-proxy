@@ -54,9 +54,10 @@ node scripts/import-publication-receipt.mjs --version <exact-semver> --input <do
 ```
 
 The importer requires the operator to repeat the exact version, rejects symbolic links, non-files,
-invalid or oversized JSON, filename/version drift, schema or semantic drift, missing approval
-records, and any destination that already exists. It canonicalizes the accepted JSON, creates the
-destination without overwrite, prints its SHA-256 digest, and leaves Git state untouched.
+file replacement between inspection and open, malformed UTF-8, invalid or oversized JSON,
+filename/version drift, schema or semantic drift, missing approval records, and any destination
+that already exists. It canonicalizes the accepted JSON, creates the destination without overwrite,
+prints its SHA-256 digest, and leaves Git state untouched.
 
 For manual-only local recovery or reproduction after both runs have completed, use an unused
 output path:
