@@ -621,9 +621,15 @@ function checkRegistryOnboardingSmokeContract() {
   for (const phrase of [
     '@modelcontextprotocol/sdk", version: "1.29.0"',
     '@modelcontextprotocol/server-filesystem", version: "2026.7.4"',
-    'schemaVersion: "msp.registry-onboarding-smoke.v1"',
+    'schemaVersion: "msp.registry-onboarding-smoke.v2"',
     'visibleTools) !== JSON.stringify(["read_text_file"])',
     'evidenceCodes?.includes("policy.default_deny")',
+    'evidenceCodes?.includes("tool.not_visible")',
+    'event.event === "policy.reload_applied" && event.revision === 2',
+    'event.event === "policy.reload_rejected" && event.reasonCode === "invalid_policy"',
+    "ops feature flag reload rejected: snapshot_reload_failed; keeping last valid snapshot",
+    "summary.ops?.stopMetrics?.policyReloadsApplied !== 2",
+    "summary.ops?.stopMetrics?.policyReloadsRejected !== 1",
     "let operationFailed = false",
     'throw new Error("registry onboarding client cleanup failed")',
     "registry onboarding smoke audit output exposed fixture paths or raw arguments"

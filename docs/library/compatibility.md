@@ -44,7 +44,9 @@ This repository type owns public API surface, package compatibility, semantic ve
 - Registry onboarding compatibility additionally requires a real stdio session using only the
   registry-installed CLI, exact pinned MCP SDK, and exact pinned filesystem server in a temporary
   consumer project. It must cover filtered discovery, an allowed read, a default-denied read,
-  orderly shutdown, and audit redaction without workspace build output or repository fixture files.
+  atomic policy replacement and rejection, ops feature-flag reload and last-known-good retention,
+  orderly shutdown, audit redaction, and bounded ops evidence without workspace build output or
+  repository fixture files.
 
 ## Compatibility Evidence Required
 

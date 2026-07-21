@@ -74,8 +74,10 @@ downloads the five exact versions from public npm, verifies registry integrity a
 metadata, and applies the same ESM, TypeScript, and CLI consumer contract. It then uses the
 registry-installed CLI, exact pinned MCP SDK, and exact pinned filesystem server for an actual
 stdio onboarding session with filtered discovery, allowed and denied reads, orderly shutdown, and
-redacted audit evidence. It is intentionally not part of the offline `check` aggregate and does
-not accept `latest`, ranges, or unpublished versions.
+redacted audit evidence. The same session starts with ops metrics disabled, hot-reloads the stable
+feature flag, applies and rejects atomic policy replacements, proves last-known-good retention, and
+checks bounded ops evidence without raw policy or feature-flag details. It is intentionally not
+part of the offline `check` aggregate and does not accept `latest`, ranges, or unpublished versions.
 
 ## Expected Package Surfaces
 

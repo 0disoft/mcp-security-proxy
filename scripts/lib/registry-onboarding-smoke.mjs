@@ -23,7 +23,7 @@ export function runRegistryOnboardingSmoke({ consumerRoot, expectedVersion }) {
 }
 
 function assertSummary(summary, expectedVersion) {
-  if (summary.schemaVersion !== "msp.registry-onboarding-smoke.v1") {
+  if (summary.schemaVersion !== "msp.registry-onboarding-smoke.v2") {
     throw new Error("registry onboarding smoke returned an unknown summary schema");
   }
   if (summary.installed?.proxy !== expectedVersion) {
@@ -59,6 +59,27 @@ function assertSummary(summary, expectedVersion) {
       throw new Error(`registry onboarding smoke audit output is missing ${code}`);
     }
   }
+  if (
+    JSON.stringify(summary.policyReload?.appliedRevisions) !== JSON.stringify([1, 2]) ||
+    JSON.stringify(summary.policyReload?.rejectedReasonCodes) !== JSON.stringify(["invalid_policy"]) ||
+    summary.policyReload?.visibleAfterApplied ||
+    !summary.policyReload?.visibleAfterRestore ||
+    summary.policyReload?.deniedAfterApplied?.errorCode !== -32001 ||
+    !summary.policyReload?.deniedAfterApplied?.evidenceCodes?.includes("tool.not_visible")
+  ) {
+    throw new Error("registry onboarding smoke did not preserve atomic policy reload behavior");
+  }
+  if (
+    !summary.ops?.initiallyDisabled ||
+    !summary.ops?.featureEnableObserved ||
+    !summary.ops?.invalidSnapshotRejected ||
+    summary.ops?.containsFixtureRoot ||
+    summary.ops?.containsRawDetails ||
+    summary.ops?.stopMetrics?.policyReloadsApplied !== 2 ||
+    summary.ops?.stopMetrics?.policyReloadsRejected !== 1
+  ) {
+    throw new Error("registry onboarding smoke did not preserve ops feature flag behavior");
+  }
 }
 
 function writeJson(path, value) {
@@ -68,8 +89,8 @@ function writeJson(path, value) {
 function registryOnboardingRunnerSource() {
   return String.raw`import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 
 main().catch(() => {
   console.error("registry onboarding runner failed");
@@ -85,6 +106,9 @@ async function main() {
   const privateFile = join(privateRoot, "private.txt");
   const policyPath = join(fixtureRoot, "policy.json");
   const auditPath = join(fixtureRoot, "audit.jsonl");
+  const opsPath = join(fixtureRoot, "ops.jsonl");
+  const flagsPath = join(fixtureRoot, "ops-flags.json");
+  const privateMarker = "RAW_REGISTRY_RELOAD_PRIVATE_MARKER";
   const cliRoot = join(process.cwd(), "node_modules", "@0disoft", "mcp-security-proxy-cli");
   const clientRoot = join(process.cwd(), "node_modules", "@modelcontextprotocol", "sdk");
   const serverRoot = join(process.cwd(), "node_modules", "@modelcontextprotocol", "server-filesystem");
@@ -94,6 +118,7 @@ async function main() {
   writeFileSync(publicFile, "hello from registry onboarding\n", "utf8");
   writeFileSync(privateFile, "private registry fixture\n", "utf8");
   writePolicy(policyPath, publicRoot, auditPath);
+  writeFileSync(flagsPath, formatFeatureFlags(false), "utf8");
 
   const installed = {
     proxy: readManifestVersion(cliRoot),
@@ -120,13 +145,19 @@ async function main() {
       "onboarding-filesystem",
       "--audit-log",
       auditPath,
+      "--ops-log",
+      opsPath,
+      "--ops-feature-flags",
+      flagsPath,
+      "--watch-policy",
       "--shutdown-grace-ms",
       "2000",
       "--",
       process.execPath,
       join(serverRoot, "dist", "index.js"),
       fixtureRoot
-    ]
+    ],
+    stderr: "pipe"
   });
 
   let connected = false;
@@ -134,13 +165,60 @@ async function main() {
   let tools;
   let allowedRead;
   let deniedRead;
+  let deniedAfterApplied;
+  let visibleAfterApplied;
+  let visibleAfterRestore;
+  let initiallyDisabled = false;
+  let featureEnableObserved = false;
+  let invalidSnapshotRejected = false;
+  const stderrChunks = [];
   let operationFailed = false;
   try {
     await client.connect(transport);
     connected = true;
+    transport.stderr?.on("data", (chunk) => stderrChunks.push(Buffer.from(chunk)));
     tools = await client.listTools();
     allowedRead = await client.callTool({ name: "read_text_file", arguments: { path: publicFile } });
     deniedRead = await captureCall(client, "read_text_file", { path: privateFile });
+    initiallyDisabled = !existsSync(opsPath) || readFileSync(opsPath, "utf8").length === 0;
+
+    atomicReplace(flagsPath, formatFeatureFlags(true), fixtureRoot);
+    await waitForStderr(stderrChunks, "ops metrics feature flag applied: enabled", transport);
+    featureEnableObserved = true;
+
+    atomicReplace(policyPath, formatPolicy(publicRoot, auditPath, false), fixtureRoot);
+    await waitForOpsEvent(
+      opsPath,
+      (event) => event.event === "policy.reload_applied" && event.revision === 1,
+      transport
+    );
+    deniedAfterApplied = await captureCall(client, "read_text_file", { path: publicFile });
+    const toolsAfterApplied = await client.listTools();
+    visibleAfterApplied = (toolsAfterApplied.tools ?? []).some((tool) => tool.name === "read_text_file");
+
+    atomicReplace(policyPath, '{"marker":"' + privateMarker + '"', fixtureRoot);
+    await waitForOpsEvent(
+      opsPath,
+      (event) => event.event === "policy.reload_rejected" && event.reasonCode === "invalid_policy",
+      transport
+    );
+
+    atomicReplace(flagsPath, '{"schemaVersion":1,"flags":{"marker":"' + privateMarker + '"', fixtureRoot);
+    await waitForStderr(
+      stderrChunks,
+      "ops feature flag reload rejected: snapshot_reload_failed; keeping last valid snapshot",
+      transport
+    );
+    invalidSnapshotRejected = true;
+
+    atomicReplace(policyPath, formatPolicy(publicRoot, auditPath, true), fixtureRoot);
+    await waitForOpsEvent(
+      opsPath,
+      (event) => event.event === "policy.reload_applied" && event.revision === 2,
+      transport
+    );
+    const toolsAfterRestore = await client.listTools();
+    visibleAfterRestore = (toolsAfterRestore.tools ?? []).some((tool) => tool.name === "read_text_file");
   } catch (error) {
     operationFailed = true;
     throw error;
@@ -166,16 +244,49 @@ async function main() {
     .filter((item) => item.type === "text")
     .map((item) => item.text)
     .join("");
+  const opsText = readFileSync(opsPath, "utf8");
+  const opsEvents = parseJsonLines(opsText);
+  const stderrText = Buffer.concat(stderrChunks).toString("utf8");
+  const opsStringValues = collectStringValues(opsEvents);
+  const stopEvent = opsEvents.find((event) => event.event === "proxy.stop");
 
   process.stdout.write(
     JSON.stringify({
-      schemaVersion: "msp.registry-onboarding-smoke.v1",
+      schemaVersion: "msp.registry-onboarding-smoke.v2",
       installed,
       connected,
       closed,
       visibleTools,
       allowedRead: allowedText,
       deniedRead,
+      policyReload: {
+        appliedRevisions: opsEvents
+          .filter((event) => event.event === "policy.reload_applied")
+          .map((event) => event.revision),
+        rejectedReasonCodes: opsEvents
+          .filter((event) => event.event === "policy.reload_rejected")
+          .map((event) => event.reasonCode),
+        deniedAfterApplied,
+        visibleAfterApplied,
+        visibleAfterRestore
+      },
+      ops: {
+        initiallyDisabled,
+        featureEnableObserved,
+        invalidSnapshotRejected,
+        stopMetrics: stopEvent?.metrics,
+        containsFixtureRoot: opsStringValues.some(
+          (value) => value.includes(fixtureRoot) || value.includes(normalizePolicyPath(fixtureRoot))
+        ),
+        containsRawDetails:
+          opsText.includes(privateMarker) ||
+          auditText.includes(privateMarker) ||
+          stderrText.includes(privateMarker) ||
+          opsText.includes(policyPath) ||
+          opsText.includes(flagsPath) ||
+          stderrText.includes(policyPath) ||
+          stderrText.includes(flagsPath)
+      },
       audit: {
         evidenceCodes: auditEvents
           .flatMap((event) => event.decision?.evidence ?? [])
@@ -195,8 +306,11 @@ function readManifestVersion(root) {
 }
 
 function writePolicy(path, allowedRoot, auditPath) {
-  writeFileSync(
-    path,
+  writeFileSync(path, formatPolicy(allowedRoot, auditPath, true), "utf8");
+}
+
+function formatPolicy(allowedRoot, auditPath, allowRead) {
+  return (
     JSON.stringify(
       {
         schemaVersion: "msp.policy.v1",
@@ -210,12 +324,16 @@ function writePolicy(path, allowedRoot, auditPath) {
             id: "onboarding-filesystem",
             defaultAction: "deny",
             rules: [
-              {
-                id: "allow-onboarding-read",
-                action: "allow",
-                tools: ["read_text_file"],
-                paths: { allowedRoots: [normalizePolicyPath(allowedRoot)] }
-              },
+              ...(allowRead
+                ? [
+                    {
+                      id: "allow-onboarding-read",
+                      action: "allow",
+                      tools: ["read_text_file"],
+                      paths: { allowedRoots: [normalizePolicyPath(allowedRoot)] }
+                    }
+                  ]
+                : []),
               {
                 id: "deny-onboarding-write",
                 action: "deny",
@@ -248,9 +366,74 @@ function writePolicy(path, allowedRoot, auditPath) {
       },
       null,
       2
-    ) + "\n",
-    "utf8"
+    ) + "\n"
   );
+}
+
+function formatFeatureFlags(enabled) {
+  return (
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        flags: {
+          "mcp.ops.metrics.enabled": {
+            type: "boolean",
+            defaultVariant: enabled ? "enabled" : "disabled",
+            variants: {
+              disabled: false,
+              enabled: true
+            }
+          }
+        }
+      },
+      null,
+      2
+    ) + "\n"
+  );
+}
+
+function atomicReplace(targetPath, text, directory) {
+  const stagingPath = join(
+    directory,
+    "." + basename(targetPath) + "." + String(process.pid) + "." + String(Date.now()) + ".tmp"
+  );
+  writeFileSync(stagingPath, text, "utf8");
+  renameSync(stagingPath, targetPath);
+}
+
+async function waitForStderr(stderrChunks, expectedText, transport) {
+  return waitForValue(
+    () => (Buffer.concat(stderrChunks).toString("utf8").includes(expectedText) ? true : undefined),
+    "stderr diagnostic",
+    transport
+  );
+}
+
+async function waitForOpsEvent(path, predicate, transport) {
+  return waitForValue(
+    () => (existsSync(path) ? parseJsonLines(readFileSync(path, "utf8")).find(predicate) : undefined),
+    "ops event",
+    transport
+  );
+}
+
+async function waitForValue(readValue, label, transport) {
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    const value = readValue();
+    if (value !== undefined) {
+      return value;
+    }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 20));
+  }
+  throw new Error("timed out waiting for " + label);
+}
+
+function parseJsonLines(text) {
+  return text
+    .split(/\r?\n/u)
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
 }
 
 async function captureCall(client, name, args) {
