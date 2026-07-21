@@ -1,0 +1,5 @@
+{
+  "name": "gemini-approval-policy",
+  "version": "0.0.0",
+  "description": "Require Gemini CLI confirmation before MCP Security Proxy tool calls."
+}

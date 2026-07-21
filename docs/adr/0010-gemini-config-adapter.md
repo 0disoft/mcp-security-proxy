@@ -43,8 +43,9 @@ The harness pins Apache-2.0 `@google/gemini-cli@0.50.0`, installs it with regist
 cleared, sets an isolated home, executes the descriptor in a temporary project, and compares the
 generated `.gemini/settings.json` command and argv. All temporary state is deleted after the run.
 
-This proves project-scoped configuration acceptance only. It does not prove arbitrary Gemini CLI
-versions, model authentication, live tool execution, workspace trust, or host approval UX.
+This proves project-scoped configuration acceptance. ADR 0014 separately adds pinned host-policy
+acceptance evidence without claiming a runtime `ApprovalHook` bridge, authenticated model session,
+or rendered approval UX.
 
 ## Consequences
 

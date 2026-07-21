@@ -131,8 +131,11 @@ it is not a live authenticated Codex tool-use or approval UX claim.
 
 The Gemini host-configuration fixture pins `@google/gemini-cli@0.50.0`, executes a generated
 `gemini-cli-json` descriptor in an isolated temporary project and home, and verifies the stored
-project-scoped stdio command. This is configuration-shape evidence only, not authenticated Gemini
-tool use, workspace trust, or approval UX evidence.
+project-scoped stdio command. It also loads and evaluates a synthetic extension policy through the
+exact published core package, requiring host `ask_user` for interactive `msp-fixture` calls and
+`deny` for headless calls. This is
+host-policy compatibility evidence, not a proxy runtime `ApprovalHook` bridge, authenticated Gemini
+tool use, or rendered approval UX evidence.
 
 ## Review Blockers
 

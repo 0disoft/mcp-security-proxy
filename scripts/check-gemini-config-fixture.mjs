@@ -1,19 +1,24 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { registryUrl, runCommand } from "./lib/package-consumer-smoke.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");
 const geminiPackage = "@google/gemini-cli";
+const geminiCorePackage = "@google/gemini-cli-core";
 const geminiVersion = "0.50.0";
 const serverName = "msp-fixture";
+const approvalExtensionName = "gemini-approval-policy";
+const approvalExtensionRoot = join(repoRoot, "fixtures", "compatibility", approvalExtensionName);
 const summaryPath = "fixtures/compatibility/gemini-cli-config.summary.json";
 const update = process.argv.includes("--update");
 const tempRoot = mkdtempSync(join(tmpdir(), "msp-gemini-config-"));
 
 try {
   installGemini(tempRoot);
-  const actual = runFixture(tempRoot);
+  const actual = await runFixture(tempRoot);
   const expectedPath = join(repoRoot, summaryPath);
   if (update || !existsSync(expectedPath)) {
     writeFileSync(expectedPath, `${JSON.stringify(actual, null, 2)}\n`, "utf8");
@@ -37,7 +42,17 @@ function installGemini(cwd) {
   writeFileSync(globalConfigPath, "", "utf8");
   writeFileSync(
     join(cwd, "package.json"),
-    `${JSON.stringify({ private: true, dependencies: { [geminiPackage]: geminiVersion } }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        private: true,
+        dependencies: {
+          [geminiPackage]: geminiVersion,
+          [geminiCorePackage]: geminiVersion
+        }
+      },
+      null,
+      2
+    )}\n`,
     "utf8"
   );
   const npmCommand = process.platform === "win32" ? process.execPath : "npm";
@@ -52,6 +67,7 @@ function installGemini(cwd) {
       "--no-audit",
       "--no-fund",
       `${geminiPackage}@${geminiVersion}`,
+      `${geminiCorePackage}@${geminiVersion}`,
       `--registry=${registryUrl}`
     ],
     cwd,
@@ -67,7 +83,7 @@ function installGemini(cwd) {
   );
 }
 
-function runFixture(cwd) {
+async function runFixture(cwd) {
   const isolatedHome = join(cwd, "home");
   const workingDirectory = join(cwd, "workspace");
   mkdirSync(isolatedHome, { recursive: true });
@@ -127,6 +143,10 @@ function runFixture(cwd) {
   ) {
     throw new Error("Gemini MCP registration did not preserve the generated proxy command and argv");
   }
+  const extensionManifest = JSON.parse(readFileSync(join(approvalExtensionRoot, "gemini-extension.json"), "utf8"));
+  const extensionPolicy = readFileSync(join(approvalExtensionRoot, "policies", "mcp-security-proxy.toml"), "utf8");
+  assertApprovalPolicy(extensionManifest, extensionPolicy);
+  const approval = await evaluateApprovalPolicy(cwd);
 
   return {
     schemaVersion: "msp.host-config-fixture.v1",
@@ -134,7 +154,8 @@ function runFixture(cwd) {
     fixtureSource: "external-host-cli",
     host: {
       package: geminiPackage,
-      version: geminiVersion
+      version: geminiVersion,
+      corePackage: geminiCorePackage
     },
     descriptor,
     observed: {
@@ -146,12 +167,123 @@ function runFixture(cwd) {
         args: observed.args
       }
     },
+    approval,
     isolation: {
       home: "<temporary-home>",
       settings: "<temporary-working-directory>/.gemini/settings.json",
       workingDirectory: "<temporary-working-directory>"
     }
   };
+}
+
+function assertApprovalPolicy(manifest, policy) {
+  if (
+    manifest?.name !== approvalExtensionName ||
+    manifest?.version !== "0.0.0" ||
+    Object.keys(manifest).some((key) => !["name", "version", "description"].includes(key))
+  ) {
+    throw new Error("Gemini approval policy extension manifest drifted");
+  }
+  for (const phrase of [
+    'mcpName = "msp-fixture"',
+    'toolName = "*"',
+    'decision = "ask_user"',
+    "interactive = true",
+    'decision = "deny"',
+    "interactive = false"
+  ]) {
+    if (!policy.includes(phrase)) {
+      throw new Error("Gemini approval policy extension contract drifted");
+    }
+  }
+  if (/decision\s*=\s*"allow"|modes\s*=|trust\s*=/u.test(policy)) {
+    throw new Error("Gemini approval policy extension must not bypass host confirmation");
+  }
+}
+
+async function evaluateApprovalPolicy(cwd) {
+  const geminiRoot = join(cwd, "node_modules", "@google", "gemini-cli");
+  const geminiRequire = createRequire(join(geminiRoot, "package.json"));
+  let coreEntry;
+  try {
+    coreEntry = geminiRequire.resolve("@google/gemini-cli-core");
+  } catch (error) {
+    throw new Error("Gemini CLI core dependency could not be resolved from the pinned host package", {
+      cause: error
+    });
+  }
+  const coreRoot = findPackageRoot(coreEntry, "@google/gemini-cli-core");
+  const coreManifest = JSON.parse(readFileSync(join(coreRoot, "package.json"), "utf8"));
+  if (coreManifest.name !== geminiCorePackage || coreManifest.version !== geminiVersion) {
+    throw new Error(`Gemini CLI core version drifted: ${coreManifest.name}@${coreManifest.version}`);
+  }
+  const { loadExtensionPolicies, PolicyDecision, PolicyEngine } = await import(pathToFileURL(coreEntry).href);
+  const loaded = await loadExtensionPolicies(approvalExtensionName, join(approvalExtensionRoot, "policies"));
+  if (loaded.errors.length > 0) {
+    throw new Error(`Gemini approval policy was rejected:\n${JSON.stringify(loaded.errors, null, 2)}`);
+  }
+  if (loaded.rules.length !== 2 || loaded.checkers.length !== 0) {
+    throw new Error("Gemini approval policy must load exactly two rules and no safety checkers");
+  }
+
+  const toolCall = { name: "mcp_msp-fixture_synthetic-tool", args: {} };
+  const interactiveEngine = new PolicyEngine({
+    rules: loaded.rules,
+    defaultDecision: PolicyDecision.DENY,
+    nonInteractive: false
+  });
+  const nonInteractiveEngine = new PolicyEngine({
+    rules: loaded.rules,
+    defaultDecision: PolicyDecision.DENY,
+    nonInteractive: true
+  });
+  const interactiveResult = await interactiveEngine.check(toolCall, serverName);
+  const nonInteractiveResult = await nonInteractiveEngine.check(toolCall, serverName);
+  const otherServerResult = await interactiveEngine.check(toolCall, "other-server");
+  if (interactiveResult.decision !== PolicyDecision.ASK_USER) {
+    throw new Error(`Gemini interactive policy returned ${interactiveResult.decision}, expected ask_user`);
+  }
+  if (nonInteractiveResult.decision !== PolicyDecision.DENY) {
+    throw new Error(`Gemini non-interactive policy returned ${nonInteractiveResult.decision}, expected deny`);
+  }
+  if (otherServerResult.decision !== PolicyDecision.DENY) {
+    throw new Error("Gemini approval policy matched an unrelated MCP server");
+  }
+
+  return {
+    source: "gemini-extension-policy",
+    extension: approvalExtensionName,
+    serverName,
+    interactiveDecision: interactiveResult.decision,
+    nonInteractiveDecision: nonInteractiveResult.decision,
+    unrelatedServerDecision: otherServerResult.decision,
+    proxyApprovalHookBridge: false,
+    exactCoreLoader: true,
+    exactCoreEvaluator: true
+  };
+}
+
+function findPackageRoot(entryPath, expectedName) {
+  let current = dirname(entryPath);
+  while (true) {
+    const manifestPath = join(current, "package.json");
+    if (existsSync(manifestPath)) {
+      try {
+        const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+        if (manifest.name === expectedName) {
+          return current;
+        }
+      } catch {
+        // Continue toward the filesystem root; a dependency parent may own the entrypoint.
+      }
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+  throw new Error("Gemini CLI core dependency root could not be identified");
 }
 
 function collapseGeminiParserSeparator(args) {

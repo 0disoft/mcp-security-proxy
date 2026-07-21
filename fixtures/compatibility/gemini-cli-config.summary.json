@@ -4,7 +4,8 @@
   "fixtureSource": "external-host-cli",
   "host": {
     "package": "@google/gemini-cli",
-    "version": "0.50.0"
+    "version": "0.50.0",
+    "corePackage": "@google/gemini-cli-core"
   },
   "descriptor": {
     "command": "gemini",
@@ -47,6 +48,17 @@
         "workspace/public files"
       ]
     }
+  },
+  "approval": {
+    "source": "gemini-extension-policy",
+    "extension": "gemini-approval-policy",
+    "serverName": "msp-fixture",
+    "interactiveDecision": "ask_user",
+    "nonInteractiveDecision": "deny",
+    "unrelatedServerDecision": "deny",
+    "proxyApprovalHookBridge": false,
+    "exactCoreLoader": true,
+    "exactCoreEvaluator": true
   },
   "isolation": {
     "home": "<temporary-home>",

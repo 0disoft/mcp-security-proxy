@@ -772,6 +772,19 @@ function checkGeminiConfigFixture(id, path, command) {
     failures.push(`${path}: descriptor and observed transport must preserve project-scoped Gemini stdio configuration`);
   }
   if (
+    summary.approval?.source !== "gemini-extension-policy" ||
+    summary.approval?.extension !== "gemini-approval-policy" ||
+    summary.approval?.serverName !== "msp-fixture" ||
+    summary.approval?.interactiveDecision !== "ask_user" ||
+    summary.approval?.nonInteractiveDecision !== "deny" ||
+    summary.approval?.unrelatedServerDecision !== "deny" ||
+    summary.approval?.proxyApprovalHookBridge !== false ||
+    summary.approval?.exactCoreLoader !== true ||
+    summary.approval?.exactCoreEvaluator !== true
+  ) {
+    failures.push(`${path}: Gemini approval evidence must require interactive confirmation and deny headless calls`);
+  }
+  if (
     summary.isolation?.home !== "<temporary-home>" ||
     summary.isolation?.settings !== "<temporary-working-directory>/.gemini/settings.json" ||
     summary.isolation?.workingDirectory !== "<temporary-working-directory>"

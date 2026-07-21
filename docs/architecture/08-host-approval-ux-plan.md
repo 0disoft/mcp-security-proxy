@@ -100,7 +100,13 @@ Approval UX support remains blocked until:
 
 ## Current Status
 
-The runtime approval hook is implemented for embedding hosts. Host-specific approval UX is not
+The runtime approval hook is implemented for embedding hosts. Full host-specific approval UX is not
 implemented. The public runtime conformance kit covers hook mechanics but does not approve any host
-UX. The CLI `run` command intentionally does not bundle approval UX and rejects `--approval-hook`
-for live runs.
+UX. The Gemini CLI compatibility fixture additionally proves that exact
+`@google/gemini-cli-core@0.50.0` loads and evaluates an extension
+policy that requires host `ask_user` for interactive calls and `deny` for headless calls. ADR 0014
+keeps that defense-in-depth host policy
+separate from the runtime `ApprovalHook`; it does not make proxy `approval_required` calls
+executable. Live prompt rendering, accessibility, keyboard behavior, persistence, and authenticated
+session evidence remain release blockers. The CLI `run` command intentionally does not bundle approval UX
+and rejects `--approval-hook` for live runs.

@@ -26,6 +26,7 @@ const requiredFiles = [
   "docs/adr/0010-gemini-config-adapter.md",
   "docs/adr/0011-second-external-server-target.md",
   "docs/adr/0013-openfeature-ops-metrics-boundary.md",
+  "docs/adr/0014-gemini-host-approval-policy.md",
   "docs/library/approval-hooks.md",
   "docs/library/decision-codes.md",
   "docs/cli/output-and-exit-codes.md",
@@ -264,6 +265,9 @@ function checkHostApprovalUxPlanDocs() {
     "Persistent or remembered approvals are not part of the current runtime contract",
     "raw rejection reason redaction",
     "compatibility fixtures are registered in `fixtures/compatibility/manifest.json`",
+    "requires host `ask_user` for",
+    "interactive calls and `deny` for headless calls",
+    "does not make proxy `approval_required` calls",
     "The CLI `run` command intentionally does not bundle approval UX"
   ]) {
     if (!text.includes(phrase)) {

@@ -1,0 +1,14 @@
+[[rule]]
+mcpName = "msp-fixture"
+toolName = "*"
+decision = "ask_user"
+priority = 900
+interactive = true
+
+[[rule]]
+mcpName = "msp-fixture"
+toolName = "*"
+decision = "deny"
+priority = 900
+interactive = false
+denyMessage = "Approval requires an interactive Gemini CLI session."
