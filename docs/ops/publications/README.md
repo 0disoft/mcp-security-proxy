@@ -43,11 +43,23 @@ The normal evidence path is:
    Release ID, URL, channel, and publication time, reads all five npm package records, checks one
    consistent `latest` tag and the bootstrap-plan version, and uploads
    `<version>.publication.json` as a 30-day workflow artifact.
-4. Download the artifact, review it, copy it to
-   `docs/ops/publications/<version>.publication.json`, run `pnpm run release-readiness`, and commit
-   the immutable record. The workflow deliberately has no repository write permission.
+4. Download the artifact and review it. From the repository root, a human operator may run the
+   manual-only import command below. It revalidates the receipt and writes only the immutable
+   `docs/ops/publications/<version>.publication.json` path; it never stages, commits, pushes, or
+   performs network requests. Then run the repository's configured release-readiness validation
+   and commit the reviewed record. The workflow deliberately has no repository write permission.
 
-For local recovery or reproduction after both runs have completed, use an unused output path:
+```powershell
+node scripts/import-publication-receipt.mjs --version <exact-semver> --input <downloaded-json>
+```
+
+The importer requires the operator to repeat the exact version, rejects symbolic links, non-files,
+invalid or oversized JSON, filename/version drift, schema or semantic drift, missing approval
+records, and any destination that already exists. It canonicalizes the accepted JSON, creates the
+destination without overwrite, prints its SHA-256 digest, and leaves Git state untouched.
+
+For manual-only local recovery or reproduction after both runs have completed, use an unused
+output path:
 
 ```powershell
 node scripts/generate-publication-receipt.mjs --version <exact-semver> --release-run-id <id> --registry-smoke-run-id <id> --output tmp/<exact-semver>.publication.json

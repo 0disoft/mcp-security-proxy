@@ -140,8 +140,10 @@ that do not precede the completed smoke.
 
 The resulting `<version>.publication.json` is retained as a workflow artifact for 30 days. The
 workflow has no contents write permission and does not open a pull request or commit evidence.
-Owners review and commit the immutable receipt separately so generated network observations cannot
-silently rewrite the repository's release history.
+Owners review the artifact and may use the manual-only `scripts/import-publication-receipt.mjs`
+tool to revalidate it and create only the canonical immutable receipt path. The importer performs
+no network or Git operations and refuses overwrite; owners still commit the reviewed receipt
+separately so generated network observations cannot silently rewrite repository release history.
 
 ## Validation
 

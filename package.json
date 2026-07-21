@@ -26,7 +26,7 @@
     "performance-smoke": "pnpm build && node scripts/check-performance-budget.mjs",
     "process-tree-smoke": "pnpm build && node scripts/check-process-tree-smoke.mjs",
     "registry-smoke": "node scripts/check-registry-packages.mjs",
-    "release-readiness": "node scripts/check-release-readiness.mjs && node scripts/check-publication-records.mjs && node scripts/check-npm-bootstrap-plan.mjs && node scripts/prepare-npm-bootstrap-artifacts.mjs --dry-run",
+    "release-readiness": "node --test scripts/import-publication-receipt.test.mjs && node scripts/check-release-readiness.mjs && node scripts/check-publication-records.mjs && node scripts/check-npm-bootstrap-plan.mjs && node scripts/prepare-npm-bootstrap-artifacts.mjs --dry-run",
     "repository-hygiene": "node scripts/check-repository-hygiene.mjs",
     "schema-contract": "pnpm build && node scripts/check-schema-contracts.mjs",
     "secret-scan": "node scripts/check-secrets.mjs",
