@@ -16,7 +16,8 @@ Status: Draft
   has a live stdio bridge, bounded shutdown, MCP-only stdout, response validation, direction
   gates, frame guards, audit logging, and runtime approval hooks.
 - `0.3.0-beta`: embeddable library hardening, package surface review, observability guidance,
-  and public API review.
+  and public API review after every alpha exit criterion in `docs/product/01-roadmap.md` is proven
+  on the exact candidate commit.
 - `1.0.0`: policy schema, audit schema, CLI JSON output, deny-by-default examples, fixture corpus,
   SECURITY.md, and vulnerability process are stable enough for external users.
 

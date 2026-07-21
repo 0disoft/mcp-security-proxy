@@ -22,6 +22,20 @@ cookie handling, browser session bridge, or public endpoint. It records the acce
 Any implementation must arrive through a later ADR that names the selected MCP specification
 version, transport shape, dependency choices, public API changes, CLI surface, and release gates.
 
+## Real-Demand Gate
+
+HTTP work does not start merely because the stdio roadmap is complete or a new version is planned.
+Before an implementation ADR is proposed, repository evidence must identify at least one concrete
+consumer integration that cannot reasonably use the installed stdio proxy and must state which MCP
+HTTP transport, deployment shape, authentication owner, and session model it requires.
+
+The demand packet must also name an owner for the HTTP threat model and operations burden, an
+independently maintained client/server fixture pair, and a bounded compatibility scenario that can
+run without production credentials or public-internet availability. A feature request that only
+asks for “remote MCP,” protocol completeness, or parity with another proxy does not satisfy this
+gate. Until the packet and ADR exist, HTTP remains deferred and releases must continue to record it
+as excluded scope.
+
 ## Transport Invariants
 
 An HTTP transport must preserve the stdio runtime security contract:
