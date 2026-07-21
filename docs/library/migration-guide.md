@@ -46,6 +46,23 @@ Migration notes must include:
 The latest published prerelease is `0.2.0-alpha.4`. It contains the additive and
 security-hardening changes below.
 
+The approved `0.2.0-alpha.5` candidate contains these changes after `0.2.0-alpha.4`:
+
+- Forced-shutdown stream handling: when the runtime exhausts its bounded upstream termination
+  window and deliberately destroys still-open stdout or stderr pipes, Node may report
+  `ERR_STREAM_PREMATURE_CLOSE`. The bridge now treats that error as expected only for pipes it
+  destroyed during its own forced-shutdown path and preserves the upstream failure exit code 4.
+  Other stream failures remain fatal. No public option, policy, schema, or host configuration
+  changes are required. Rollback to `0.2.0-alpha.4` restores the risk that a forced shutdown is
+  misclassified as a generic runtime failure and may surface an unhandled stream rejection.
+- Publication evidence hardening: tracked publication receipts now have closed Draft 2020-12 JSON
+  Schemas for v1 and v2 plus fixed positive and negative fixtures. This is an operations-only
+  validation contract and does not add a runtime package export or require a consumer migration.
+- Registry onboarding validation now exercises installed CLI ops feature-flag reload, valid
+  configuration-change events, invalid replacement retention, and redacted audit output. This
+  strengthens post-publication evidence only; the public CLI behavior was already shipped in
+  `0.2.0-alpha.4`.
+
 `0.2.0-alpha.4` adds these fixes and clarifications after `0.2.0-alpha.3`:
 
 - Ops-only feature reload: CLI `run` adds optional `--ops-feature-flags <path>`, which requires

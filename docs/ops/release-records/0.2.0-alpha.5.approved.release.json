@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "msp.release-readiness.v1",
+  "status": "approved",
+  "releaseVersion": "0.2.0-alpha.5",
+  "targetCommit": "ba3535f1462bf0b35c10c6f835df7619330ebf9e",
+  "registryTarget": "npmjs.org via npm Trusted Publisher",
+  "publishCredentialsOwner": "npm Trusted Publisher configured by 0disoft for GitHub Actions release.yml environment npm",
+  "publicPackages": [
+    {
+      "name": "@0disoft/mcp-security-proxy-contracts",
+      "workspacePath": "packages/contracts",
+      "artifactName": "mcp-security-proxy-contracts-npm-package"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-core",
+      "workspacePath": "packages/core",
+      "artifactName": "mcp-security-proxy-core-npm-package"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-mcp-adapter",
+      "workspacePath": "packages/mcp-adapter",
+      "artifactName": "mcp-security-proxy-mcp-adapter-npm-package"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-runtime",
+      "workspacePath": "packages/proxy-runtime",
+      "artifactName": "mcp-security-proxy-runtime-npm-package"
+    },
+    {
+      "name": "@0disoft/mcp-security-proxy-cli",
+      "workspacePath": "packages/cli",
+      "artifactName": "mcp-security-proxy-cli-npm-package"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "mcp-security-proxy-contracts-npm-package",
+      "source": "packages/contracts/package.json"
+    },
+    {
+      "name": "mcp-security-proxy-core-npm-package",
+      "source": "packages/core/package.json"
+    },
+    {
+      "name": "mcp-security-proxy-mcp-adapter-npm-package",
+      "source": "packages/mcp-adapter/package.json"
+    },
+    {
+      "name": "mcp-security-proxy-runtime-npm-package",
+      "source": "packages/proxy-runtime/package.json"
+    },
+    {
+      "name": "mcp-security-proxy-cli-npm-package",
+      "source": "packages/cli/package.json"
+    }
+  ],
+  "releaseScope": {
+    "mcpSdkDependency": {
+      "status": "excluded",
+      "evidence": "docs/adr/0008-runtime-mcp-sdk-boundary.md"
+    },
+    "httpTransport": {
+      "status": "excluded",
+      "evidence": "docs/architecture/07-http-transport-plan.md"
+    },
+    "hostApprovalUx": {
+      "status": "excluded",
+      "evidence": "docs/architecture/08-host-approval-ux-plan.md"
+    },
+    "externalMcpFixture": {
+      "status": "included",
+      "evidence": "docs/ops/external-mcp-compatibility-evidence.md"
+    }
+  },
+  "validation": {
+    "docs": "2026-07-21 target ba3535f: pnpm run docs exit 0 via pnpm check",
+    "schema-contract": "2026-07-21 target ba3535f: pnpm run schema-contract exit 0 via pnpm check",
+    "migration-check": "2026-07-21 target ba3535f: pnpm run migration-check exit 0 via pnpm check",
+    "package-surface": "2026-07-21 target ba3535f: pnpm run package-surface exit 0 via pnpm check; package consumer smoke passed for 5 publishable packages and 4 external dependency packages",
+    "secret-scan": "2026-07-21 target ba3535f: pnpm run secret-scan exit 0 via pnpm check",
+    "artifact-safety": "2026-07-21 target ba3535f: pnpm run artifact-safety exit 0 via pnpm check",
+    "repository-hygiene": "2026-07-21 target ba3535f: pnpm run repository-hygiene exit 0 via pnpm check",
+    "validation-registry": "2026-07-21 target ba3535f: pnpm run validation-registry exit 0 via pnpm check",
+    "ci-contract": "2026-07-21 target ba3535f: pnpm run ci-contract exit 0 via pnpm check",
+    "compatibility": "2026-07-21 target ba3535f: pnpm run compatibility exit 0 via pnpm check",
+    "license-report": "2026-07-21 target ba3535f: pnpm run license-report exit 0 via pnpm check",
+    "release-readiness": "2026-07-21 target ba3535f: pnpm run release-readiness exit 0 via pnpm check",
+    "performance-smoke": "2026-07-21 target ba3535f: pnpm run performance-smoke exit 0 via pnpm check",
+    "contract": "2026-07-21 target ba3535f: pnpm run contract exit 0 via pnpm check",
+    "test": "2026-07-21 target ba3535f: pnpm run test exit 0 via pnpm check",
+    "smoke": "2026-07-21 target ba3535f: pnpm run smoke exit 0 via pnpm check",
+    "check": "2026-07-21 target ba3535f: pnpm check exit 0"
+  },
+  "rollback": {
+    "lastKnownGoodVersion": "0.2.0-alpha.4",
+    "procedure": "docs/ops/rollback.md"
+  },
+  "blockers": []
+}
