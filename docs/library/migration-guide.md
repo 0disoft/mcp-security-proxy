@@ -43,10 +43,10 @@ Migration notes must include:
 
 ## Current Migration Notes
 
-The latest published prerelease is `0.2.0-alpha.4`. It contains the additive and
+The latest published prerelease is `0.2.0-alpha.5`. It contains the additive and
 security-hardening changes below.
 
-The approved `0.2.0-alpha.5` candidate contains these changes after `0.2.0-alpha.4`:
+`0.2.0-alpha.5` contains these changes after `0.2.0-alpha.4`:
 
 - Forced-shutdown stream handling: when the runtime exhausts its bounded upstream termination
   window and deliberately destroys still-open stdout or stderr pipes, Node may report
