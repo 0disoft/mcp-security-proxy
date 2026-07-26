@@ -67,10 +67,12 @@ On Windows, `run` resolves the operating system's absolute Windows PowerShell pa
 `PATH`, starts a non-interactive guardian with a minimal environment, and establishes a nested Job
 Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` before spawning the upstream command. The guardian
 receives only the proxy PID, never the upstream argv or policy contents. If the guardian cannot
-start, compile its fixed Win32 binding, or assign the proxy to the Job, `run` fails with exit code 4
-before starting the upstream. Abrupt proxy termination then closes the last Job handle through the
-guardian and reclaims the upstream tree. POSIX process groups still require an external supervisor
-for equivalent parent-death cleanup.
+  start, compile its fixed Win32 binding, or assign the proxy to the Job, `run` fails with exit code 4
+  before starting the upstream. Abrupt proxy termination then closes the last Job handle through the
+  guardian and reclaims the upstream tree. On POSIX, a detached Node guardian receives a bounded
+  startup control frame before MCP traffic and treats proxy-pipe EOF as parent death. It reclaims the
+  inherited process group after the same shutdown grace; deliberately re-sessioned descendants still
+  require an external supervisor.
 
 ### `mcp-security-proxy config-snippet`
 

@@ -68,11 +68,15 @@ non-secret convenience defaults.
   proxy PID plus `SystemRoot`, `WINDIR`, `TEMP`, and `TMP`, invokes the absolute system PowerShell
   executable with a fixed encoded command, and does not receive policy data, upstream argv, or the
   rest of the parent environment.
+- The POSIX guardian also starts with an empty environment. The proxy sends the already allowlisted
+  upstream environment, executable, argv, and shutdown grace through the guardian's private stdin
+  control frame before any MCP traffic; those values are not copied into the guardian argv or
+  environment and guardian diagnostics never echo them.
 - Secret values must not be stored in policy examples, audit events, CLI JSON output, or error
   messages.
-- Managed shutdown terminates POSIX process groups or Windows process trees. Windows additionally
-  uses Job Object kill-on-close to reclaim descendants after abrupt proxy termination. POSIX
-  operators must still use an external supervisor for equivalent parent-death cleanup.
+- Managed shutdown terminates POSIX process groups or Windows process trees. Windows uses Job Object
+  kill-on-close, while POSIX uses a detached guardian that treats proxy-pipe EOF as parent death and
+  escalates its process group from `SIGTERM` to `SIGKILL` after the configured grace window.
 
 ## Drift Handling
 

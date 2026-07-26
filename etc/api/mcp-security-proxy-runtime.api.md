@@ -254,7 +254,7 @@ export interface StdioProxyOptions {
     // (undocumented)
     readonly shutdownGraceMs?: number;
     // (undocumented)
-    readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
+    readonly spawnUpstream: (command: UpstreamCommand, context: UpstreamSpawnContext) => UpstreamProcess;
     // (undocumented)
     readonly upstreamCommand: UpstreamCommand;
     // (undocumented)
@@ -289,6 +289,12 @@ export interface UpstreamProcess {
     readonly stdin: Writable;
     // (undocumented)
     readonly stdout: Readable;
+}
+
+// @public (undocumented)
+export interface UpstreamSpawnContext {
+    // (undocumented)
+    readonly shutdownGraceMs: number;
 }
 
 // (No @packageDocumentation comment for this package)

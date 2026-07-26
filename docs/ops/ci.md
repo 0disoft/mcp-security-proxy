@@ -153,8 +153,11 @@ separately so generated network observations cannot silently rewrite repository 
   performance-smoke, check.
 - Release blocker status: public behavior changes are blocked when local `check` or hosted CI fails.
 - Remaining operational risk: the focused matrix covers managed process-tree shutdown on Ubuntu
-  and Windows and abrupt proxy termination through Windows Job Object kill-on-close. The aggregate
-  unit contract separately proves that containment setup failure returns exit 4 before CLI/upstream
-  execution. POSIX abrupt parent-death reclamation still requires an external supervisor. Registry
-  smoke detects a bad publication only after immutable package versions exist, so recovery still
-  uses the documented deprecation path.
+  and Windows, including abrupt proxy termination through Windows Job Object kill-on-close and the
+  equivalent detached POSIX guardian and process-group escalation on Ubuntu. The aggregate unit
+  contract separately
+  proves that Windows containment setup failure returns exit 4 before CLI/upstream execution.
+  Descendants that deliberately create a new POSIX session remain outside the guardian's process
+  group and still require a stronger external supervisor. Registry smoke detects a bad publication
+  only after immutable package versions exist, so recovery still uses the documented deprecation
+  path.

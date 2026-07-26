@@ -15,7 +15,8 @@ import {
   formatStdioOpsEventJsonLine,
   runStdioProxy,
   type UpstreamCommand,
-  type UpstreamProcess
+  type UpstreamProcess,
+  type UpstreamSpawnContext
 } from "@0disoft/mcp-security-proxy-runtime";
 import type { Readable, Writable } from "node:stream";
 import type { OpsFeatureFlagController, OpsFeatureFlagControllerOptions } from "./ops-feature-flags.js";
@@ -39,7 +40,7 @@ export interface CliRunIo extends CliIo {
   readonly clientInput: Readable;
   readonly mcpOutput: Writable;
   readonly appendTextFile: (path: string, text: string) => void | Promise<void>;
-  readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
+  readonly spawnUpstream: (command: UpstreamCommand, context: UpstreamSpawnContext) => UpstreamProcess;
   readonly createPolicyReloadSource?: (
     options: PolicyFileReloadOptions
   ) => import("@0disoft/mcp-security-proxy-runtime").PolicyReloadSource;

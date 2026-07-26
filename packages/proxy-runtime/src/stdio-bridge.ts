@@ -25,13 +25,17 @@ export interface UpstreamProcess {
   readonly kill: (force?: boolean) => void | Promise<void>;
 }
 
+export interface UpstreamSpawnContext {
+  readonly shutdownGraceMs: number;
+}
+
 export interface StdioProxyOptions {
   readonly policy: PolicyDocument;
   readonly profileId: string;
   readonly upstreamCommand: UpstreamCommand;
   readonly clientInput: Readable;
   readonly clientOutput: Writable;
-  readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
+  readonly spawnUpstream: (command: UpstreamCommand, context: UpstreamSpawnContext) => UpstreamProcess;
   readonly writeAuditEvent: (event: AuditEvent) => void | Promise<void>;
   readonly writeOpsEvent?: (event: StdioProxyOpsEvent) => void | Promise<void>;
   readonly approvalHookAvailable?: boolean;
@@ -93,9 +97,10 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     return { exitCode: 3 };
   }
 
+  const shutdownGraceMs = resolveNonNegativeInteger(options.shutdownGraceMs, defaultShutdownGraceMs);
   let upstream: UpstreamProcess;
   try {
-    upstream = options.spawnUpstream(options.upstreamCommand);
+    upstream = options.spawnUpstream(options.upstreamCommand, { shutdownGraceMs });
   } catch {
     return { exitCode: 4 };
   }
@@ -282,12 +287,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
 
     if (first === "client") {
       upstream.stdin.end();
-      const shutdown = await waitForUpstreamExitOrKill(
-        upstream,
-        upstreamExit,
-        options.shutdownGraceMs ?? defaultShutdownGraceMs,
-        -2
-      );
+      const shutdown = await waitForUpstreamExitOrKill(upstream, upstreamExit, shutdownGraceMs, -2);
       await requireStreamCompletion(upstreamDone, upstream.stdout, shutdown.forcedStreamClosure);
       await requireStreamCompletion(stderrDone, upstream.stderr, shutdown.forcedStreamClosure);
       return await finish(
@@ -296,12 +296,7 @@ export async function runStdioProxy(options: StdioProxyOptions): Promise<StdioPr
     }
 
     if (first === "upstream-output") {
-      const shutdown = await waitForUpstreamExitOrKill(
-        upstream,
-        upstreamExit,
-        options.shutdownGraceMs ?? defaultShutdownGraceMs,
-        -3
-      );
+      const shutdown = await waitForUpstreamExitOrKill(upstream, upstreamExit, shutdownGraceMs, -3);
       await requireStreamCompletion(stderrDone, upstream.stderr, shutdown.forcedStreamClosure);
       return await finish(
         await normalizeUpstreamExit(shutdown.exitCode, options.profileId, recordAudit, auditCorrelator)
@@ -706,6 +701,13 @@ async function observeUpstreamStderr(
 
 function resolvePositiveInteger(value: number | undefined, fallback: number): number {
   if (value === undefined || !Number.isSafeInteger(value) || value < 1) {
+    return fallback;
+  }
+  return value;
+}
+
+function resolveNonNegativeInteger(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isSafeInteger(value) || value < 0) {
     return fallback;
   }
   return value;

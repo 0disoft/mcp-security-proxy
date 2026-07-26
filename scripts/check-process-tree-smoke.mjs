@@ -6,14 +6,12 @@ import { join, resolve } from "node:path";
 const repoRoot = resolve(import.meta.dirname, "..");
 
 await runProcessTreeScenario("managed-shutdown");
-if (process.platform === "win32") {
-  await runProcessTreeScenario("abrupt-proxy-termination");
-}
+await runProcessTreeScenario("abrupt-proxy-termination");
 
 console.log(
   process.platform === "win32"
     ? "process-tree smoke passed for managed shutdown and Windows Job Object kill-on-close"
-    : "process-tree smoke passed for managed shutdown"
+    : "process-tree smoke passed for managed shutdown and POSIX guardian parent-death cleanup"
 );
 
 async function runProcessTreeScenario(mode) {
@@ -41,7 +39,8 @@ async function runProcessTreeScenario(mode) {
         process.execPath,
         "scripts/fixture-mcp-server.mjs",
         "--spawn-descendant-and-hang",
-        descendantPidPath
+        descendantPidPath,
+        ...(mode === "abrupt-proxy-termination" ? ["--exit-after-descendant-stdin-end"] : [])
       ],
       {
         cwd: repoRoot,

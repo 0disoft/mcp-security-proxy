@@ -10,6 +10,7 @@ import type { PolicyReloadUpdate } from '@0disoft/mcp-security-proxy-runtime';
 import type { Readable } from 'node:stream';
 import { UpstreamCommand } from '@0disoft/mcp-security-proxy-runtime';
 import { UpstreamProcess } from '@0disoft/mcp-security-proxy-runtime';
+import { UpstreamSpawnContext } from '@0disoft/mcp-security-proxy-runtime';
 import type { Writable } from 'node:stream';
 
 // @public (undocumented)
@@ -41,7 +42,7 @@ export interface CliRunIo extends CliIo {
     // (undocumented)
     readonly mcpOutput: Writable;
     // (undocumented)
-    readonly spawnUpstream: (command: UpstreamCommand) => UpstreamProcess;
+    readonly spawnUpstream: (command: UpstreamCommand, context: UpstreamSpawnContext) => UpstreamProcess;
 }
 
 // @public (undocumented)

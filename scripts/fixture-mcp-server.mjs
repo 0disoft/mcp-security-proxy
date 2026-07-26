@@ -21,6 +21,7 @@ const responseExtraFields = process.argv.includes("--response-extra-fields");
 const unmatchedResponseOnToolsList = process.argv.includes("--unmatched-response-on-tools-list");
 const descendantModeIndex = process.argv.indexOf("--spawn-descendant-and-hang");
 const descendantPidPath = descendantModeIndex >= 0 ? process.argv[descendantModeIndex + 1] : undefined;
+const exitAfterDescendantInputEnd = process.argv.includes("--exit-after-descendant-stdin-end");
 if (descendantModeIndex >= 0) {
   if (!descendantPidPath) {
     throw new Error("--spawn-descendant-and-hang requires a PID output path");
@@ -323,7 +324,7 @@ for await (const line of lines) {
   }
 }
 
-if (descendantModeIndex >= 0) {
+if (descendantModeIndex >= 0 && !exitAfterDescendantInputEnd) {
   await new Promise(() => undefined);
 }
 

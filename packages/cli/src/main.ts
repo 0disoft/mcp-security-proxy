@@ -6,8 +6,9 @@ import { fileURLToPath } from "node:url";
 import { runCliAsync } from "./commands.js";
 import type { UpstreamCommand, UpstreamProcess } from "@0disoft/mcp-security-proxy-runtime";
 import { createUpstreamEnvironment } from "./upstream-environment.js";
-import { createProcessTreeTerminator, shouldCreateProcessGroup } from "./process-tree.js";
+import { createProcessTreeTerminator } from "./process-tree.js";
 import { establishWindowsKillOnCloseGuardian, WindowsProcessContainmentError } from "./windows-job-guardian.js";
+import { spawnPosixGuardedUpstream } from "./posix-process-guardian.js";
 import { createPolicyFileReloadSource } from "./policy-file-reloader.js";
 import { createOpsFeatureFlagController } from "./ops-feature-flags.js";
 
@@ -59,12 +60,19 @@ export async function runEntrypoint(
   return (dependencies.runMain ?? main)([...argv]);
 }
 
-function spawnUpstream(command: UpstreamCommand): UpstreamProcess {
+function spawnUpstream(
+  command: UpstreamCommand,
+  context: import("@0disoft/mcp-security-proxy-runtime").UpstreamSpawnContext
+): UpstreamProcess {
+  const environment = createUpstreamEnvironment(process.env);
+  if (process.platform !== "win32") {
+    return spawnPosixGuardedUpstream(command, environment, context);
+  }
+
   const child = spawn(command.executable, command.argv, {
-    env: createUpstreamEnvironment(process.env),
+    env: environment,
     stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true,
-    detached: shouldCreateProcessGroup()
+    windowsHide: true
   });
 
   if (!child.stdin || !child.stdout || !child.stderr) {

@@ -76,7 +76,8 @@ Current implemented responsibilities:
   not exit within a bounded grace window
 - after upstream stdout closes, terminate the upstream process tree if it does not exit within the
   same bounded grace window
-- create a dedicated POSIX process group and signal the group with `SIGTERM`, then `SIGKILL`
+- on POSIX, start a detached Node guardian as process-group leader, pass the allowlisted upstream
+  startup data through a bounded control frame, and signal the group with `SIGTERM`, then `SIGKILL`
 - before starting an upstream process on Windows, start a system PowerShell guardian outside the
   proxy's nested Job Object, configure `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, assign the proxy to the
   Job, and wait for the guardian readiness handshake
@@ -160,5 +161,7 @@ transports remain future runtime responsibilities.
   closes the last nested Job Object handle, and Windows terminates the upstream process tree. If the
   system PowerShell guardian or Job assignment cannot be established, `run` fails before spawning
   the upstream server.
-- Abrupt proxy termination on POSIX can still leave the dedicated upstream process group behind.
-  Operators need an external supervisor when parent-death reclamation is required there.
+- Abrupt proxy termination on POSIX closes the guardian pipes. The guardian ends upstream stdin and,
+  after the configured grace window, escalates its inherited process group from `SIGTERM` to
+  `SIGKILL`. Descendants that deliberately create a new session leave that group and still require
+  an external supervisor.

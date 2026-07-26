@@ -69,8 +69,9 @@ This repository type owns public API surface, package compatibility, semantic ve
   cleanup, concurrent opaque-ID isolation, and raw hook detail omission.
 - Library tool-call normalization fixture.
 - Runtime live stdio smoke command evidence for the implemented local proxy path.
-- Hosted Windows process-tree evidence covering managed shutdown and abrupt proxy termination via
-  Job Object kill-on-close; the Ubuntu row covers managed POSIX process-group shutdown only.
+- Hosted Ubuntu and Windows process-tree evidence covering managed shutdown and abrupt proxy
+  termination. Windows uses Job Object kill-on-close; Ubuntu exercises the POSIX parent-death
+  guardian and process-group escalation.
 - Runtime ops-log fixture evidence for structured lifecycle metrics emitted by live `run`.
 - Runtime atomic policy-reload smoke covering directory watch, atomic rename, accepted replacement,
   discovery invalidation, direct-call denial, malformed replacement rejection, prior-policy

@@ -140,6 +140,14 @@ security-hardening changes below.
   required. A Windows host without system PowerShell or usable nested Job support now fails closed
   with exit code 4 before upstream startup instead of running without crash containment. Rollback is
   to use the previous CLI with an external process supervisor, accepting the older orphan risk.
+- POSIX parent-death containment note: this is an additive prerelease API change; the package
+  version remains at the published `0.2.0-alpha.5` until a separate approved release record advances
+  it. CLI `run` now inserts a detached Node guardian between the proxy and upstream process. The
+  guardian receives startup data through a private bounded control frame, forwards stdio
+  transparently, and reclaims its inherited process group after proxy-pipe EOF. `spawnUpstream`
+  receives an additive `UpstreamSpawnContext`; existing one-argument callbacks may ignore it, while
+  embedding hosts remain responsible for equivalent cleanup. Deliberately re-sessioned descendants
+  still require an external supervisor.
 - `0.2.0-alpha.3` path-policy clarification: existing `msp.policy.v1` path rules retain lexical
   behavior. They do not resolve symlinks or prove the target opened by an upstream server. No policy
   edit is required; integrations making stronger claims must narrow those claims or add a separate

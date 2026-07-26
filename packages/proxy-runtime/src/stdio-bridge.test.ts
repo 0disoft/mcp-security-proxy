@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PassThrough } from "node:stream";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AuditEvent, PolicyDocument, StdioProxyOpsEvent } from "@0disoft/mcp-security-proxy-contracts";
 import {
   runStdioProxy,
@@ -14,6 +14,18 @@ import type { ApprovalHook } from "./session.js";
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
 describe("stdio proxy bridge", () => {
+  it("passes a normalized zero shutdown grace to the upstream spawner", async () => {
+    const harness = createHarness();
+    const onSpawn = vi.fn();
+    const run = runHarness(harness, { shutdownGraceMs: 0, onSpawn });
+
+    harness.upstream.stdout.end();
+    harness.upstream.stderr.end();
+
+    await expect(run).resolves.toEqual({ exitCode: 0 });
+    expect(onSpawn).toHaveBeenCalledWith({ shutdownGraceMs: 0 });
+  });
+
   it("keeps denied client calls off upstream stdin and writes an MCP error to client stdout", async () => {
     const harness = createHarness();
     const run = runHarness(harness);
@@ -947,6 +959,7 @@ function runHarness(
     readonly maxFrameBytes?: number;
     readonly policyReloadSource?: PolicyReloadSource;
     readonly beforeAuditWrite?: (event: AuditEvent) => void | Promise<void>;
+    readonly onSpawn?: (context: import("./stdio-bridge.js").UpstreamSpawnContext) => void;
   } = {}
 ): Promise<{ readonly exitCode: number }> {
   return runStdioProxy({
@@ -958,7 +971,10 @@ function runHarness(
     },
     clientInput: harness.clientInput,
     clientOutput: harness.clientOutput,
-    spawnUpstream: () => harness.upstream,
+    spawnUpstream: (_command, context) => {
+      options.onSpawn?.(context);
+      return harness.upstream;
+    },
     ...(options.approveToolCall ? { approveToolCall: options.approveToolCall } : {}),
     ...(options.approvalTimeoutMs !== undefined ? { approvalTimeoutMs: options.approvalTimeoutMs } : {}),
     ...(options.maxFrameBytes !== undefined ? { maxFrameBytes: options.maxFrameBytes } : {}),

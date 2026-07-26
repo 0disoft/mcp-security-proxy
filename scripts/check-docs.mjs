@@ -496,14 +496,16 @@ function checkApprovalHookDocs() {
 
 function checkProcessContainmentDocs() {
   const failures = [];
-  const sourcePath = "packages/cli/src/windows-job-guardian.ts";
+  const windowsSourcePath = "packages/cli/src/windows-job-guardian.ts";
+  const posixSourcePath = "packages/cli/src/posix-process-guardian.ts";
   const architecturePath = "docs/architecture/02-runtime-flow.md";
   const commandPath = "docs/cli/command-contract.md";
   const configPath = "docs/ops/config-and-env.md";
   const compatibilityPath = "docs/library/compatibility.md";
   const migrationPath = "docs/library/migration-guide.md";
   const cliReadmePath = "packages/cli/README.md";
-  const source = readFileSync(join(root, sourcePath), "utf8");
+  const windowsSource = readFileSync(join(root, windowsSourcePath), "utf8");
+  const posixSource = readFileSync(join(root, posixSourcePath), "utf8");
   const architecture = readFileSync(join(root, architecturePath), "utf8");
   const command = readFileSync(join(root, commandPath), "utf8");
   const config = readFileSync(join(root, configPath), "utf8");
@@ -522,14 +524,24 @@ function checkProcessContainmentDocs() {
     "0x00002000",
     '"SystemRoot", "WINDIR", "TEMP", "TMP"'
   ]) {
-    if (!source.includes(phrase)) {
-      failures.push(`${sourcePath}: missing Windows containment source phrase: ${phrase}`);
+    if (!windowsSource.includes(phrase)) {
+      failures.push(`${windowsSourcePath}: missing Windows containment source phrase: ${phrase}`);
+    }
+  }
+  for (const phrase of [
+    "msp.posix-process-guardian.v1",
+    "detached: true",
+    'process.kill(-process.pid, "SIGTERM")',
+    'process.kill(-process.pid, "SIGKILL")'
+  ]) {
+    if (!posixSource.includes(phrase)) {
+      failures.push(`${posixSourcePath}: missing POSIX guardian source phrase: ${phrase}`);
     }
   }
   for (const phrase of [
     "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
     "wait for the guardian readiness handshake",
-    "Abrupt proxy termination on POSIX can still leave"
+    "Abrupt proxy termination on POSIX closes the guardian pipes"
   ]) {
     if (!normalizedArchitecture.includes(phrase)) {
       failures.push(`${architecturePath}: missing Windows containment contract phrase: ${phrase}`);
@@ -546,7 +558,8 @@ function checkProcessContainmentDocs() {
   }
   for (const phrase of [
     "does not receive policy data, upstream argv",
-    "POSIX operators must still use an external supervisor"
+    "POSIX guardian also starts with an empty environment",
+    "treats proxy-pipe EOF as parent death"
   ]) {
     if (!normalizedConfig.includes(phrase)) {
       failures.push(`${configPath}: missing Windows containment operations phrase: ${phrase}`);
@@ -555,7 +568,10 @@ function checkProcessContainmentDocs() {
   for (const [path, text, phrase] of [
     [compatibilityPath, compatibility, "supported Windows runners exercise abrupt proxy termination"],
     [migrationPath, migration, "fails closed with exit code 4 before upstream startup"],
-    [cliReadmePath, cliReadme, "abrupt proxy termination closes the Job"]
+    [cliReadmePath, cliReadme, "abrupt proxy termination closes the Job"],
+    [compatibilityPath, compatibility, "POSIX parent-death guardian"],
+    [migrationPath, migration, "reclaims its inherited process group after proxy-pipe EOF"],
+    [cliReadmePath, cliReadme, "pipe EOF makes the guardian end upstream stdin"]
   ]) {
     if (!text.replace(/\s+/gu, " ").includes(phrase)) {
       failures.push(`${path}: missing Windows containment consumer phrase: ${phrase}`);
