@@ -36,6 +36,7 @@ const requiredFiles = [
   "docs/ops/npm-bootstrap-plan.json",
   "docs/ops/codex-config-compatibility-evidence.md",
   "docs/ops/gemini-config-compatibility-evidence.md",
+  "docs/ops/agent-plugin-compatibility-evidence.md",
   "docs/ops/release-records/README.md",
   "docs/ops/release-records/public-release.template.json",
   "packages/contracts/schemas/policy.v1.schema.json",

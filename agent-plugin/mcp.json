@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "mcp-security-proxy-poc": {
+      "command": "node",
+      "args": [
+        "packages/cli/dist/main.js",
+        "run",
+        "--policy",
+        "fixtures/policies/local-dev.json",
+        "--profile",
+        "local",
+        "--audit-log",
+        ".tmp/agent-plugin-poc.audit.jsonl",
+        "--",
+        "node",
+        "scripts/fixture-mcp-server.mjs"
+      ]
+    }
+  }
+}

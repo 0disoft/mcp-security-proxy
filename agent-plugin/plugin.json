@@ -1,0 +1,8 @@
+{
+  "name": "mcp-security-proxy",
+  "version": "0.2.0-alpha.5",
+  "description": "Repository-local Agent Plugins proof of concept for the deny-by-default MCP Security Proxy.",
+  "homepage": "https://github.com/0disoft/mcp-security-proxy#readme",
+  "repository": "https://github.com/0disoft/mcp-security-proxy",
+  "license": "Apache-2.0"
+}
