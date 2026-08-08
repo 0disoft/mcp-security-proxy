@@ -79,7 +79,7 @@ export async function runPosixProcessGuardian(): Promise<number> {
   let upstream: ChildProcess;
   try {
     upstream = spawn(startup.control.executable, [...startup.control.argv], {
-      detached: false,
+      detached: true,
       env: startup.control.environment,
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true
@@ -98,47 +98,53 @@ export async function runPosixProcessGuardian(): Promise<number> {
 
   let shutdownTimer: ReturnType<typeof setTimeout> | undefined;
   let forceTimer: ReturnType<typeof setTimeout> | undefined;
+  let forceCleanup: Promise<void> | undefined;
+  let resolveForceCleanup: (() => void) | undefined;
   let terminationStarted = false;
   let upstreamExited = false;
   let parentInputClosed = false;
 
-  const forceProcessGroup = (): void => {
+  const signalUpstreamProcessGroup = (signal: NodeJS.Signals): void => {
+    const pid = upstream.pid;
+    if (!pid) {
+      if (!upstreamExited) {
+        upstream.kill(signal);
+      }
+      return;
+    }
     try {
-      process.kill(-process.pid, "SIGKILL");
+      process.kill(-pid, signal);
     } catch {
-      upstream.kill("SIGKILL");
-      process.exitCode = 1;
+      if (!upstreamExited) {
+        upstream.kill(signal);
+      }
     }
   };
   const scheduleForceTermination = (): void => {
     if (!forceTimer) {
-      forceTimer = setTimeout(forceProcessGroup, forceTerminationDelayMs);
+      forceCleanup = new Promise((resolve) => {
+        resolveForceCleanup = resolve;
+      });
+      forceTimer = setTimeout(() => {
+        signalUpstreamProcessGroup("SIGKILL");
+        resolveForceCleanup?.();
+      }, forceTerminationDelayMs);
     }
   };
-  const handleTerminationSignal = (): void => {
-    terminationStarted = true;
-    if (!upstreamExited) {
-      upstream.kill("SIGTERM");
-    }
-    scheduleForceTermination();
-  };
-  const terminateProcessGroup = (): void => {
+  const terminateUpstreamProcessGroup = (): void => {
     if (terminationStarted) {
       return;
     }
     terminationStarted = true;
-    try {
-      process.kill(-process.pid, "SIGTERM");
-    } catch {
-      upstream.kill("SIGTERM");
-    }
+    signalUpstreamProcessGroup("SIGTERM");
     scheduleForceTermination();
   };
+  const handleTerminationSignal = (): void => terminateUpstreamProcessGroup();
   const scheduleShutdown = (): void => {
     if (shutdownTimer || terminationStarted || upstreamExited) {
       return;
     }
-    shutdownTimer = setTimeout(terminateProcessGroup, startup.control.shutdownGraceMs);
+    shutdownTimer = setTimeout(terminateUpstreamProcessGroup, startup.control.shutdownGraceMs);
   };
 
   process.on("SIGTERM", handleTerminationSignal);
@@ -160,9 +166,11 @@ export async function runPosixProcessGuardian(): Promise<number> {
 
   const exitCode = await waitForChildExit(upstream).catch(() => 1);
   upstreamExited = true;
+  process.stdin.destroy();
+  await inputForwarding;
   if (parentInputClosed || terminationStarted || shutdownTimer) {
-    await inputForwarding;
-    await new Promise<never>(() => undefined);
+    terminateUpstreamProcessGroup();
+    await forceCleanup;
   }
   if (shutdownTimer) {
     clearTimeout(shutdownTimer);
@@ -172,7 +180,6 @@ export async function runPosixProcessGuardian(): Promise<number> {
   }
   process.off("SIGTERM", handleTerminationSignal);
   process.stdin.destroy();
-  await inputForwarding;
   return exitCode;
 }
 

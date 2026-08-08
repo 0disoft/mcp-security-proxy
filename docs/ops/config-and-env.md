@@ -76,7 +76,8 @@ non-secret convenience defaults.
   messages.
 - Managed shutdown terminates POSIX process groups or Windows process trees. Windows uses Job Object
   kill-on-close, while POSIX uses a detached guardian that treats proxy-pipe EOF as parent death and
-  escalates its process group from `SIGTERM` to `SIGKILL` after the configured grace window.
+  escalates the dedicated upstream process group from `SIGTERM` to `SIGKILL` after the configured
+  grace window.
 
 ## Drift Handling
 

@@ -144,7 +144,7 @@ security-hardening changes below.
   version remains at the published `0.2.0-alpha.5` until a separate approved release record advances
   it. CLI `run` now inserts a detached Node guardian between the proxy and upstream process. The
   guardian receives startup data through a private bounded control frame, forwards stdio
-  transparently, and reclaims its inherited process group after proxy-pipe EOF. `spawnUpstream`
+  transparently, and reclaims the dedicated upstream process group after proxy-pipe EOF. `spawnUpstream`
   receives an additive `UpstreamSpawnContext`; existing one-argument callbacks may ignore it, while
   embedding hosts remain responsible for equivalent cleanup. Deliberately re-sessioned descendants
   still require an external supervisor.

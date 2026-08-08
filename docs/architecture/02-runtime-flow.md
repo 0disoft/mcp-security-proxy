@@ -162,6 +162,6 @@ transports remain future runtime responsibilities.
   system PowerShell guardian or Job assignment cannot be established, `run` fails before spawning
   the upstream server.
 - Abrupt proxy termination on POSIX closes the guardian pipes. The guardian ends upstream stdin and,
-  after the configured grace window, escalates its inherited process group from `SIGTERM` to
+  after the configured grace window, escalates the dedicated upstream process group from `SIGTERM` to
   `SIGKILL`. Descendants that deliberately create a new session leave that group and still require
   an external supervisor.

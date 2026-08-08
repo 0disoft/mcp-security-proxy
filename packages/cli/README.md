@@ -108,9 +108,9 @@ the Job and reclaims the upstream process tree.
 
 POSIX `run` starts a detached Node guardian with an empty environment, then sends only the
 allowlisted upstream startup data through a bounded control frame before MCP traffic. If the proxy
-dies, pipe EOF makes the guardian end upstream stdin and escalate the inherited process group after
-the configured grace. A descendant that deliberately creates a new session remains an external
-supervisor responsibility.
+dies, pipe EOF makes the guardian end upstream stdin and escalate the dedicated upstream process
+group after the configured grace. A descendant that deliberately creates a new session remains an
+external supervisor responsibility.
 
 Policy watching is opt-in. Add `--watch-policy` before the upstream `--` when the host should pick
 up validated file replacements without restarting the MCP server:

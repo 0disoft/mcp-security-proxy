@@ -532,8 +532,9 @@ function checkProcessContainmentDocs() {
   for (const phrase of [
     "msp.posix-process-guardian.v1",
     "detached: true",
-    'process.kill(-process.pid, "SIGTERM")',
-    'process.kill(-process.pid, "SIGKILL")'
+    "process.kill(-pid, signal)",
+    'signalUpstreamProcessGroup("SIGTERM")',
+    'signalUpstreamProcessGroup("SIGKILL")'
   ]) {
     if (!posixSource.includes(phrase)) {
       failures.push(`${posixSourcePath}: missing POSIX guardian source phrase: ${phrase}`);
@@ -571,7 +572,7 @@ function checkProcessContainmentDocs() {
     [migrationPath, migration, "fails closed with exit code 4 before upstream startup"],
     [cliReadmePath, cliReadme, "abrupt proxy termination closes the Job"],
     [compatibilityPath, compatibility, "POSIX parent-death guardian"],
-    [migrationPath, migration, "reclaims its inherited process group after proxy-pipe EOF"],
+    [migrationPath, migration, "reclaims the dedicated upstream process group after proxy-pipe EOF"],
     [cliReadmePath, cliReadme, "pipe EOF makes the guardian end upstream stdin"]
   ]) {
     if (!text.replace(/\s+/gu, " ").includes(phrase)) {
