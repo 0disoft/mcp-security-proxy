@@ -42,9 +42,10 @@ Any exception must be documented before release.
   published package runtime dependencies or artifacts.
 - MCP SDK packages: prohibited in workspace manifests. Exact SDK versions may exist only in ignored
   temporary external-compatibility environments and do not become product dependency approvals.
-- `mcp-server-fetch==2026.7.10`: MIT external server fixture dependency installed only in a
-  temporary Python virtual environment with pip user configuration and credential variables
-  excluded. It is not a workspace, runtime, or published package dependency.
+- `mcp-server-fetch==2026.7.10` with `mcp==1.28.1`: MIT external server fixture dependencies
+  installed only in a temporary Python virtual environment with pip user configuration and
+  credential variables excluded. The exact SDK pin constrains the Fetch package's open-ended
+  `mcp>=1.1.3` resolution. Neither package is a workspace, runtime, or published package dependency.
 - `@openai/codex@0.144.4`: Apache-2.0 external host-configuration fixture dependency installed only
   in a temporary directory with registry credentials cleared. It is not a workspace, runtime, or
   published package dependency.

@@ -30,6 +30,8 @@ The external targets are registered as `external-filesystem-stdio`,
   `1.28.1`
 - Server implementations: `@modelcontextprotocol/server-filesystem` version `2026.7.4` and
   `mcp-server-fetch` version `2026.7.10`
+- The Fetch row also pins its transitive Python SDK to `mcp==1.28.1` because the Fetch package's
+  open-ended `mcp>=1.1.3` declaration is not sufficient for reproducible compatibility evidence.
 - Transport: stdio only
 - Installation source: npm and PyPI packages resolved by exact direct version during ephemeral
   harness runs

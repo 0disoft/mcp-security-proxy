@@ -4,8 +4,7 @@ Status: Draft
 
 ## Purpose
 
-Define the harness boundary for the external MCP stdio rows selected by ADR 0005, ADR 0007, and ADR
-0011.
+Define the harness boundary for the external MCP stdio rows selected by ADR 0005, ADR 0007, and ADR 0011.
 
 This document owns harness design; tracked manifests and summaries own current fixture evidence.
 
@@ -25,7 +24,8 @@ The harnesses exercise the pinned external target set from ADR 0005, the client 
 0007, and the second server from ADR 0011:
 
 - `@modelcontextprotocol/sdk@1.29.0`
-- Python `mcp==1.28.1` on Python 3.11.15
+- Python `mcp==1.28.1` on Python 3.11.15, used both as the Python client and as the exact SDK pin
+  for the Fetch server fixture
 - `@modelcontextprotocol/server-filesystem@2026.7.4`
 - `mcp-server-fetch==2026.7.10`
 - stdio transport only
@@ -34,6 +34,10 @@ The harness must not add these packages as runtime dependencies of MCP Security 
 installation used to capture fixture evidence must be dev-only or ephemeral, pinned by exact
 version, and excluded from distributed package manifests until a release readiness record approves a
 different posture.
+
+The Fetch distribution declares only `mcp>=1.1.3`. The harness therefore installs
+`mcp-server-fetch==2026.7.10` together with `mcp==1.28.1`; otherwise a newly resolved SDK can break
+the external server before the proxy receives an MCP initialization frame.
 
 The existing `fixtures/compatibility/manifest.json` keeps the top-level `local-stdio-mvp` fields
 for the local synthetic evidence set and uses `targets[]` as the multi-target registry. External

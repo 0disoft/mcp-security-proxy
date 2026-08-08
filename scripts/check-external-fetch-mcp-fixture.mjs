@@ -9,6 +9,8 @@ const clientPackage = "@modelcontextprotocol/sdk";
 const clientVersion = "1.29.0";
 const serverPackage = "mcp-server-fetch";
 const serverVersion = "2026.7.10";
+const serverSdkPackage = "mcp";
+const serverSdkVersion = "1.28.1";
 const fixturePath = "fixtures/compatibility/external-fetch-stdio.summary.json";
 const update = process.argv.includes("--update");
 const pythonCommand = process.env.MSP_PYTHON || (process.platform === "win32" ? "python" : "python3");
@@ -105,7 +107,8 @@ function installFetchServer(cwd) {
       "--no-input",
       "--only-binary=:all:",
       "--index-url=https://pypi.org/simple",
-      `${serverPackage}==${serverVersion}`
+      `${serverPackage}==${serverVersion}`,
+      `${serverSdkPackage}==${serverSdkVersion}`
     ],
     cwd,
     {
@@ -211,7 +214,8 @@ const transport = new StdioClientTransport({
     "mcp_server_fetch",
     "--ignore-robots-txt"
   ],
-  env: safeEnvironment
+  env: safeEnvironment,
+  stderr: "pipe"
 });
 
 let listResult;
@@ -219,16 +223,39 @@ let allowedLocalFetch;
 let deniedExternalFetch;
 let upstreamHttpError;
 let clientClosed = false;
+let failureStage = "connect";
+let proxyStderr = "";
 try {
-  await client.connect(transport);
+  const connectPromise = client.connect(transport);
+  transport.stderr?.on("data", (chunk) => {
+    proxyStderr = appendBounded(proxyStderr, chunk);
+  });
+  await connectPromise;
+  failureStage = "tools/list";
   listResult = await client.listTools();
+  failureStage = "allowed-local-fetch";
   allowedLocalFetch = await callTool(client, "fetch", { url: baseUrl + "/public", raw: true });
+  failureStage = "denied-external-fetch";
   deniedExternalFetch = await callTool(client, "fetch", { url: "http://192.0.2.1/blocked", raw: true });
+  failureStage = "upstream-http-error";
   upstreamHttpError = await callTool(client, "fetch", { url: baseUrl + "/error", raw: true });
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const diagnostics = normalizeDiagnostics(proxyStderr, config);
+  const auditDiagnostics = summarizeFailureAudit(auditLog);
+  throw new Error(
+    "external fetch fixture failed during " + failureStage + ": " + message +
+      (diagnostics ? "\nproxy stderr:\n" + diagnostics : "\nproxy stderr: <empty>") +
+      "\naudit diagnostics: " + JSON.stringify(auditDiagnostics)
+  );
 } finally {
   try {
-    await client.close();
-    clientClosed = true;
+    try {
+      await client.close();
+      clientClosed = true;
+    } catch {
+      clientClosed = false;
+    }
   } finally {
     await closeServer(fixtureServer);
   }
@@ -411,6 +438,19 @@ function readAuditEvents(path) {
     .map((line) => JSON.parse(line));
 }
 
+function summarizeFailureAudit(path) {
+  try {
+    const events = readAuditEvents(path);
+    return {
+      eventKinds: events.map((event) => event.kind).sort(),
+      evidenceCodes: events.flatMap((event) => event.decision?.evidence ?? []).map((item) => item.code).sort(),
+      stderrLineCount: events.reduce((sum, event) => sum + (event.redaction?.counts?.stderr_line ?? 0), 0)
+    };
+  } catch {
+    return { unavailable: true };
+  }
+}
+
 function listen(server) {
   return new Promise((resolveListen, rejectListen) => {
     server.once("error", rejectListen);
@@ -425,6 +465,18 @@ function closeServer(server) {
   return new Promise((resolveClose, rejectClose) => {
     server.close((error) => (error ? rejectClose(error) : resolveClose()));
   });
+}
+
+function appendBounded(current, chunk) {
+  return (current + chunk.toString()).slice(-8192);
+}
+
+function normalizeDiagnostics(value, runtimeConfig) {
+  return value
+    .replaceAll(process.cwd(), "<external-fixture-root>")
+    .replaceAll(runtimeConfig.repoRoot, "<repo-root>")
+    .replaceAll(runtimeConfig.pythonExecutable, "<python>")
+    .trim();
 }`;
 }
 

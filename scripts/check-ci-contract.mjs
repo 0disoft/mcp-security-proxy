@@ -108,6 +108,8 @@ assertContains(
 for (const phrase of [
   'const serverPackage = "mcp-server-fetch"',
   'const serverVersion = "2026.7.10"',
+  'const serverSdkPackage = "mcp"',
+  'const serverSdkVersion = "1.28.1"',
   '"--ignore-robots-txt"',
   'ips: ["127.0.0.1"]',
   'url: "http://192.0.2.1/blocked"',

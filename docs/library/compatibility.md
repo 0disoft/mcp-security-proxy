@@ -116,7 +116,8 @@ not arbitrary MCP client/server compatibility. Target registration does not chan
 itself.
 
 The independent `external-fetch-stdio` row drives `mcp-server-fetch==2026.7.10` with the pinned
-JavaScript SDK client. Its synthetic loopback endpoint proves an allowed fetch, pre-forward denial
+JavaScript SDK client and pins the server's open-ended Python SDK dependency to `mcp==1.28.1`.
+Its synthetic loopback endpoint proves an allowed fetch, pre-forward denial
 for an external IP target, normalized upstream HTTP error behavior, orderly shutdown, and audit
 privacy. The loopback content server does not implement MCP transport and does not change the
 HTTP-transport deferral.
