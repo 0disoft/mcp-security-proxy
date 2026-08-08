@@ -15,7 +15,7 @@ Status: Draft
 - External MCP compatibility evidence source: docs/ops/external-mcp-compatibility-evidence.md
 - Codex configuration compatibility evidence source: docs/ops/codex-config-compatibility-evidence.md
 - Gemini configuration compatibility evidence source: docs/ops/gemini-config-compatibility-evidence.md
-- Agent Plugins PoC compatibility evidence source: docs/ops/agent-plugin-compatibility-evidence.md
+- Agent Plugins installable-demo compatibility evidence source: docs/ops/agent-plugin-compatibility-evidence.md
 - Gemini host approval policy decision: docs/adr/0014-gemini-host-approval-policy.md
 - npm package bootstrap source: docs/ops/npm-bootstrap.md and docs/ops/npm-bootstrap-plan.json
 - npm publication evidence source: docs/ops/publications/*.publication.json

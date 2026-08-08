@@ -1,20 +1,23 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
-    "mcp-security-proxy-poc": {
+    "mcp-security-proxy-demo": {
+      "type": "stdio",
       "command": "node",
       "args": [
-        "packages/cli/dist/main.js",
+        "${PLUGIN_ROOT}/node_modules/@0disoft/mcp-security-proxy-cli/dist/main.js",
         "run",
         "--policy",
-        "fixtures/policies/local-dev.json",
+        "${PLUGIN_ROOT}/config/demo-policy.json",
         "--profile",
-        "local",
+        "agent-plugin-demo",
         "--audit-log",
-        ".tmp/agent-plugin-poc.audit.jsonl",
+        "${PLUGIN_DATA}/mcp-security-proxy.audit.jsonl",
         "--",
         "node",
-        "scripts/fixture-mcp-server.mjs"
-      ]
+        "${PLUGIN_ROOT}/runtime/demo-mcp-server.mjs"
+      ],
+      "cwd": "${PLUGIN_ROOT}"
     }
   }
 }

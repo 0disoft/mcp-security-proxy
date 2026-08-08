@@ -102,6 +102,16 @@ for (const phrase of [
 }
 assertContains(
   manifest.scripts?.["external-compatibility"] ?? "",
+  "node scripts/check-agent-plugin-official-schema.mjs",
+  "package.json: external compatibility aggregate must include live Agent Plugins schema validation"
+);
+assertContains(
+  manifest.scripts?.["external-compatibility"] ?? "",
+  "node scripts/check-agent-plugin-package.mjs",
+  "package.json: external compatibility aggregate must include the installable Agent Plugin smoke"
+);
+assertContains(
+  manifest.scripts?.["external-compatibility"] ?? "",
   "node scripts/check-external-fetch-mcp-fixture.mjs",
   "package.json: external compatibility aggregate must include the fetch-server row"
 );

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "msp.policy.v1",
+  "defaultAction": "deny",
+  "methodPolicy": {
+    "allowedMethods": ["initialize", "notifications/initialized", "ping", "tools/list", "tools/call"],
+    "denyUnsupported": true
+  },
+  "profiles": [
+    {
+      "id": "agent-plugin-demo",
+      "defaultAction": "deny",
+      "rules": [
+        {
+          "id": "allow-demo-status-only",
+          "action": "allow",
+          "tools": ["demo_status"]
+        }
+      ],
+      "audit": {
+        "destination": "file",
+        "path": "mcp-security-proxy.audit.jsonl",
+        "onFailure": "fail_closed",
+        "includeRawArguments": false,
+        "includeFullPaths": false
+      }
+    }
+  ],
+  "redaction": {
+    "detectors": [
+      {
+        "id": "agent-plugin-demo-redaction",
+        "kind": "secret_like",
+        "replacement": "[REDACTED_VALUE]"
+      }
+    ]
+  }
+}
