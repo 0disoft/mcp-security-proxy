@@ -59,6 +59,12 @@ Any exception must be documented before release.
 - `lightningcss` and `lightningcss-win32-x64-msvc`: transitive dev dependencies through the test
   toolchain, MPL-2.0, reviewed as acceptable for local development tooling. Re-review before release
   if these enter runtime or distributed artifacts.
+- `fast-uri@3.1.5`: transitive dev dependency through Ajv, pinned by workspace override to close
+  GHSA-v2hh-gcrm-f6hx and GHSA-7p8r-x3mc-p8w7 without crossing the package's major-version boundary.
+- `postcss@8.5.26`: transitive dev dependency through Vitest and Vite, pinned by workspace override
+  above the fixed versions for GHSA-r28c-9q8g-f849 and GHSA-fxqj-rqcc-2cmp.
+- `brace-expansion@5.0.9`: transitive dev dependency through API Extractor and minimatch, pinned by
+  workspace override to close GHSA-mh99-v99m-4gvg and GHSA-rgw5-rvv9-x895.
 - The automated license report scans installed external package manifests under `node_modules/.pnpm`
   and fails on missing, unknown, or denied license metadata.
 
